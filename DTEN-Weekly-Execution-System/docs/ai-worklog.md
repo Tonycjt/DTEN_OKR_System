@@ -56,7 +56,54 @@ Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active develo
 
 ## Next Useful Steps
 
-- Review the PRD and decide the initial app architecture.
-- Scaffold the app inside `DTEN-Weekly-Execution-System`.
-- Add project configuration files in this folder.
+- Continue with Day 2: database schema and seed data.
 - Keep this worklog updated at the end of each work session.
+
+## Day 1 - Project Foundation
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added Next.js App Router project shell.
+- Added TypeScript config with `@/*` path aliases.
+- Added Next config.
+- Added ESLint flat config and ignored Markdown files so the PRD does not trigger config errors.
+- Added Prettier config.
+- Added PostCSS config with Autoprefixer.
+- Added global CSS design foundation.
+- Added app shell with sidebar and top bar navigation.
+- Added shared UI primitives: Button, LinkButton, Card, Badge, PageHeader, StatCard, PlaceholderTable, RoutePlaceholder.
+- Added Release 1 route placeholders for dashboard, login, admin users/departments/teams, company OKRs, my OKRs, objective detail/new, KR detail, weekly report current/history, review pending/history, and notifications.
+- Added `start-dev.cmd` helper for local dev startup.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+- Foreground dev server command starts successfully and reports http://localhost:3000.
+```
+
+Dev server note:
+
+```text
+The command below started successfully in the foreground during verification:
+
+& 'C:\Program Files\nodejs\npm.cmd' run dev -- --port 3000
+
+Background `Start-Process` attempts exited immediately in this shell without useful logs. Use `start-dev.cmd` or the npm command above from a normal VS Code terminal if the server is not already running.
+```
+
+Day 2 target:
+
+```text
+Create Prisma schema, environment template, local database assumptions, and seed data for Release 1 demo users, org hierarchy, objectives, KRs, and monthly targets.
+```

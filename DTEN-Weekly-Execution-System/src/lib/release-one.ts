@@ -1,0 +1,30 @@
+export const releaseOneMilestones = [
+  "Project setup",
+  "Database schema",
+  "Seed data",
+  "Auth and current user",
+  "Organization CRUD",
+  "Objective CRUD",
+  "Key Result CRUD",
+  "Monthly Target CRUD",
+  "Weekly Report CRUD",
+  "Weekly Priority editor",
+  "Check-in creation and KR update logic",
+  "Pacing calculation",
+  "Manager review flow",
+  "Employee dashboard",
+  "Manager dashboard",
+  "CEO dashboard",
+  "Notifications",
+  "Audit logs",
+  "Polish and validation",
+] as const;
+
+export const dayOneCompleted = [
+  "Next.js app shell",
+  "TypeScript path aliases",
+  "ESLint flat config",
+  "Global application styling",
+  "Release 1 route map",
+  "Reusable UI primitives",
+] as const;
