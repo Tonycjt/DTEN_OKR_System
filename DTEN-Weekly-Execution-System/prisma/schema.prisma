@@ -1,0 +1,370 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  CEO
+  DEPARTMENT_HEAD
+  MANAGER
+  EMPLOYEE
+}
+
+enum ObjectiveLevel {
+  COMPANY
+  DEPARTMENT
+  TEAM
+  INDIVIDUAL
+}
+
+enum WorkStatus {
+  DRAFT
+  ON_TRACK
+  AT_RISK
+  OFF_TRACK
+  COMPLETED
+  ON_HOLD
+}
+
+enum PacingStatus {
+  NO_TARGET
+  NO_UPDATE
+  ON_PACE
+  BEHIND
+}
+
+enum WeeklyReportStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  NEEDS_FOLLOW_UP
+  OVERDUE
+}
+
+enum PriorityType {
+  KR_LINKED
+  AD_HOC
+}
+
+enum PriorityStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+enum ReviewDecision {
+  APPROVED
+  NEEDS_FOLLOW_UP
+  RISK_FLAGGED
+}
+
+enum NotificationType {
+  REPORT_SUBMITTED
+  FOLLOW_UP_REQUESTED
+  REPORT_REVIEWED
+  KR_COMMENT
+}
+
+enum AuditAction {
+  CREATED
+  UPDATED
+  SUBMITTED
+  REVIEWED
+  DELETED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(EMPLOYEE)
+  title        String?
+  isActive     Boolean  @default(true)
+
+  departmentId String?
+  teamId       String?
+  managerId    String?
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  team       Team?       @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  manager    User?       @relation("ManagerReports", fields: [managerId], references: [id], onDelete: SetNull)
+  reports    User[]      @relation("ManagerReports")
+
+  ownedObjectives Objective[]    @relation("ObjectiveOwner")
+  ownedKeyResults  KeyResult[]   @relation("KeyResultOwner")
+  weeklyReports    WeeklyReport[]
+  checkIns         CheckIn[]
+  managerReviews   ManagerReview[] @relation("ReviewManager")
+  notifications    Notification[]
+  comments         Comment[]
+  auditLogs        AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([teamId])
+  @@index([managerId])
+}
+
+model Department {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+
+  users      User[]
+  teams      Team[]
+  objectives Objective[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Team {
+  id           String  @id @default(cuid())
+  name         String
+  description  String?
+  departmentId String
+
+  department Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  users      User[]
+  objectives Objective[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([departmentId, name])
+  @@index([departmentId])
+}
+
+model Objective {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  level       ObjectiveLevel
+  status      WorkStatus     @default(DRAFT)
+  quarter     String
+
+  progressPercent Float @default(0)
+  confidenceScore Int   @default(3)
+
+  ownerId            String
+  departmentId       String?
+  teamId             String?
+  parentObjectiveId  String?
+
+  owner           User        @relation("ObjectiveOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  team            Team?       @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  parentObjective Objective?  @relation("ObjectiveHierarchy", fields: [parentObjectiveId], references: [id], onDelete: SetNull)
+  childObjectives Objective[] @relation("ObjectiveHierarchy")
+  keyResults      KeyResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([level])
+  @@index([ownerId])
+  @@index([departmentId])
+  @@index([teamId])
+  @@index([parentObjectiveId])
+  @@index([quarter])
+}
+
+model KeyResult {
+  id          String     @id @default(cuid())
+  objectiveId String
+  ownerId     String
+  title       String
+  metricName  String?
+
+  startValue      Float        @default(0)
+  currentValue    Float        @default(0)
+  targetValue     Float        @default(100)
+  progressPercent Float        @default(0)
+  confidenceScore Int          @default(3)
+  status          WorkStatus   @default(ON_TRACK)
+  pacingStatus    PacingStatus @default(NO_TARGET)
+
+  objective       Objective        @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  owner           User             @relation("KeyResultOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  monthlyTargets  MonthlyTarget[]
+  weeklyPriorities WeeklyPriority[]
+  checkIns        CheckIn[]
+  comments        Comment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([objectiveId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([pacingStatus])
+}
+
+model MonthlyTarget {
+  id          String @id @default(cuid())
+  keyResultId String
+  monthIndex  Int
+
+  targetValue   Float?
+  targetPercent Float?
+
+  keyResult KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([keyResultId, monthIndex])
+  @@index([keyResultId])
+}
+
+model WeeklyReport {
+  id        String             @id @default(cuid())
+  userId    String
+  weekStart DateTime
+  weekEnd   DateTime
+  status    WeeklyReportStatus @default(DRAFT)
+
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  summary     String?
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  priorities WeeklyPriority[]
+  checkIns   CheckIn[]
+  reviews    ManagerReview[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, weekStart])
+  @@index([status])
+  @@index([weekStart])
+}
+
+model WeeklyPriority {
+  id             String         @id @default(cuid())
+  weeklyReportId String
+  type           PriorityType
+  content        String
+  status         PriorityStatus @default(NOT_STARTED)
+  resultSummary  String?
+  blocker        String?
+  nextStep       String?
+
+  linkedKeyResultId String?
+
+  weeklyReport    WeeklyReport @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
+  linkedKeyResult KeyResult?   @relation(fields: [linkedKeyResultId], references: [id], onDelete: SetNull)
+  checkIns        CheckIn[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([weeklyReportId])
+  @@index([linkedKeyResultId])
+}
+
+model CheckIn {
+  id               String @id @default(cuid())
+  keyResultId      String
+  weeklyReportId   String
+  weeklyPriorityId String?
+  userId           String
+
+  previousValue   Float
+  newValue        Float
+  progressPercent Float
+  confidenceScore Int
+  status          WorkStatus
+  blocker         String?
+  note            String?
+
+  keyResult      KeyResult       @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  weeklyReport   WeeklyReport    @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
+  weeklyPriority WeeklyPriority? @relation(fields: [weeklyPriorityId], references: [id], onDelete: SetNull)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([keyResultId])
+  @@index([weeklyReportId])
+  @@index([weeklyPriorityId])
+  @@index([userId])
+}
+
+model ManagerReview {
+  id             String         @id @default(cuid())
+  weeklyReportId String
+  managerId      String
+  decision       ReviewDecision
+  comment        String?
+
+  weeklyReport WeeklyReport @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
+  manager      User         @relation("ReviewManager", fields: [managerId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([weeklyReportId])
+  @@index([managerId])
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  type       NotificationType
+  title      String
+  body       String
+  relatedUrl String?
+  readAt     DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([readAt])
+}
+
+model Comment {
+  id          String @id @default(cuid())
+  keyResultId String
+  authorId    String
+  body        String
+
+  keyResult KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([keyResultId])
+  @@index([authorId])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String?
+  action     AuditAction
+  entityType String
+  entityId   String
+  metadata   Json?
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([action])
+}
