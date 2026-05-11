@@ -250,3 +250,55 @@ Day 4 target:
 ```text
 Build OKR and KR management against the database: company OKR list, my OKRs, objective detail, KR detail, create objective, create KR, owner assignment, parent objective alignment, and monthly targets.
 ```
+
+## Day 4 - OKR And KR Management
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added objective/KR server actions in `src/app/objectives/actions.ts`.
+- Added reusable OKR calculation helpers for progress and pacing.
+- Added reusable progress bar and badge tone helpers.
+- Replaced `/company-okrs` placeholder with a database-backed objective directory.
+- Replaced `/my-okrs` placeholder with current-user owned objectives and assigned KRs.
+- Rebuilt `/objectives/new` as a real objective creation form.
+- Rebuilt `/objectives/[id]` as a real objective detail page.
+- Added KR creation under objective detail, including owner assignment and M1/M2/M3 targets.
+- Rebuilt `/key-results/[id]` as a real KR detail page.
+- Added KR update form for title, metric, owner, values, status, confidence, and monthly targets.
+- Added audit logs for objective creation, KR creation, and KR updates.
+```
+
+Visible Day 4 test path:
+
+```text
+1. Start the app with `.\start-dev.cmd`.
+2. Open http://localhost:3000/login.
+3. Log in with ceo@dten.com / Password123!.
+4. Open `/company-okrs` to see database-backed objectives.
+5. Open an objective detail page.
+6. Create a new KR from the objective detail page.
+7. Open the created KR detail page.
+8. Update KR current value, status, confidence, and monthly targets.
+9. Open `/my-okrs` to see user-owned objectives and assigned KRs.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+```
+
+Day 5 target:
+
+```text
+Build weekly report flow: current weekly report, draft/save/submit behavior, KR-linked and ad-hoc weekly priorities, validation that KR-linked priorities require a KR, report history, and basic report status transitions.
+```
