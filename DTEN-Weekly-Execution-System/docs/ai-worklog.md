@@ -302,3 +302,60 @@ Day 5 target:
 ```text
 Build weekly report flow: current weekly report, draft/save/submit behavior, KR-linked and ad-hoc weekly priorities, validation that KR-linked priorities require a KR, report history, and basic report status transitions.
 ```
+
+## Day 5 - Weekly Report Flow
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added week/date helpers for Monday-Sunday work weeks.
+- Added weekly report server actions in `src/app/weekly-report/actions.ts`.
+- Added current-week report creation/loading with `ensureCurrentWeeklyReport`.
+- Rebuilt `/weekly-report/current` as a database-backed weekly report editor.
+- Added report summary draft save.
+- Added weekly priority creation for KR-linked and ad-hoc priorities.
+- Added priority update for content, type, status, linked KR, result summary, blocker, and next step.
+- Added priority delete.
+- Added submit validation: report needs at least one priority, and KR-linked priorities require a linked KR.
+- Added report submit behavior with status transition to `SUBMITTED`.
+- Added manager notification when a report is submitted.
+- Added audit log when a weekly report is submitted.
+- Rebuilt `/weekly-report/history` as a database-backed report history view with priorities and manager review results.
+- Added badge tone helpers for weekly report and priority status.
+```
+
+Visible Day 5 test path:
+
+```text
+1. Start Docker database with `.\start-db.cmd` if it is not already running.
+2. Start the app with `.\start-dev.cmd`.
+3. Open http://localhost:3000/login.
+4. Log in with ceo@dten.com / Password123! or sales@dten.com / Password123!.
+5. Open `/weekly-report/current`.
+6. Save a report summary.
+7. Add an ad-hoc priority.
+8. Add a KR-linked priority and select a KR.
+9. Update priority status/result/blocker/next step.
+10. Submit the report.
+11. Open `/weekly-report/history` to confirm the submitted report appears.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+```
+
+Day 6 target:
+
+```text
+Build KR check-ins and pacing updates from weekly reports, plus manager review pending/history flows.
+```
