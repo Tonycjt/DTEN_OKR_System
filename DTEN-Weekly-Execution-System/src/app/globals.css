@@ -144,6 +144,30 @@ textarea {
   gap: 10px;
 }
 
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 0 12px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.alert {
+  border: 1px solid var(--danger-bg);
+  border-radius: 7px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .page-shell {
   width: min(1180px, 100%);
   margin: 0 auto;
@@ -370,6 +394,16 @@ td {
   max-width: 480px;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.form-grid .wide {
+  grid-column: 1 / -1;
+}
+
 .field {
   display: grid;
   gap: 7px;
@@ -388,6 +422,16 @@ td {
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 9px 11px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 920px) {
@@ -421,7 +465,8 @@ td {
   }
 
   .grid-2,
-  .grid-3 {
+  .grid-3,
+  .form-grid {
     grid-template-columns: 1fr;
   }
 }

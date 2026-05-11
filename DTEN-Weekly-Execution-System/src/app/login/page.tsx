@@ -1,31 +1,60 @@
 import { LogIn } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { redirect } from "next/navigation";
+import { loginAction } from "@/app/login/actions";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { getCurrentUser } from "@/server/auth";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<{
+    error?: string;
+  }>;
+};
+
+const errorMessage: Record<string, string> = {
+  invalid: "Email or password is incorrect.",
+  missing: "Email and password are required.",
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const user = await getCurrentUser();
+
+  if (user) {
+    redirect("/dashboard");
+  }
+
+  const params = searchParams ? await searchParams : {};
+  const error = params.error ? errorMessage[params.error] : null;
+
   return (
     <div className="stack">
-      <PageHeader title="Demo Login" description="Local email and password auth will be wired in during the auth milestone." />
+      <PageHeader title="Demo Login" description="Use a seeded Release 1 user to enter the local MVP." />
       <Card>
         <CardHeader>
           <h2>Seeded User Access</h2>
-          <p>Release 1 allows local auth and seeded users for testing.</p>
+          <p>Try ceo@dten.com, head@dten.com, manager@dten.com, engineer@dten.com, or sales@dten.com.</p>
         </CardHeader>
         <CardContent>
-          <form className="form-shell">
+          <form action={loginAction} className="form-shell">
+            {error ? <div className="alert">{error}</div> : null}
             <label className="field">
               <span>Email</span>
-              <input placeholder="ceo@dten.com" type="email" />
+              <input autoComplete="email" defaultValue="ceo@dten.com" name="email" placeholder="ceo@dten.com" type="email" />
             </label>
             <label className="field">
               <span>Password</span>
-              <input placeholder="••••••••" type="password" />
+              <input
+                autoComplete="current-password"
+                defaultValue="Password123!"
+                name="password"
+                placeholder="Password123!"
+                type="password"
+              />
             </label>
-            <Button type="button">
+            <button className="button button-primary" type="submit">
               <LogIn size={16} aria-hidden="true" />
               Sign In
-            </Button>
+            </button>
           </form>
         </CardContent>
       </Card>

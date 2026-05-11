@@ -181,3 +181,72 @@ Note:
 The first Prisma validation needed network access to download Prisma's Windows schema engine. After approval, validation completed successfully.
 The seed script is ready but was not executed yet because it needs a real PostgreSQL database matching DATABASE_URL.
 ```
+
+## Day 3 - Auth And Organization Management
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added `docker-compose.yml` for local PostgreSQL.
+- Added `start-db.cmd` and `stop-db.cmd`.
+- Started PostgreSQL in Docker.
+- Ran initial Prisma migration.
+- Seeded Release 1 demo data into PostgreSQL.
+- Added local JWT session cookie auth.
+- Added login and logout server actions.
+- Added `/api/auth/me` current-user endpoint.
+- Added `/api/auth/logout` endpoint.
+- Updated app shell/top bar to show signed-in user and sign-out.
+- Rebuilt login page with seeded-user login form.
+- Protected dashboard and admin org pages with role checks.
+- Wired dashboard to real database counts and high-risk KR data.
+- Replaced admin placeholders with database-backed users, departments, and teams pages.
+- Added create forms for departments, teams, and users.
+- User creation supports role, department, team, manager assignment, title, and password.
+```
+
+Docker/PostgreSQL status:
+
+```text
+Container: dten-weekly-postgres
+Image: postgres:16-alpine
+Database: dten_weekly_execution
+Port: localhost:5432
+```
+
+Migration and seed verification:
+
+```powershell
+docker compose up -d
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:migrate -- --name init
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Seeded database counts:
+
+```text
+users: 5
+departments: 4
+teams: 3
+objectives: 3
+key_results: 3
+weekly_reports: 1
+```
+
+Demo login:
+
+```text
+ceo@dten.com
+head@dten.com
+manager@dten.com
+engineer@dten.com
+sales@dten.com
+
+Password for all seeded users: Password123!
+```
+
+Day 4 target:
+
+```text
+Build OKR and KR management against the database: company OKR list, my OKRs, objective detail, KR detail, create objective, create KR, owner assignment, parent objective alignment, and monthly targets.
+```

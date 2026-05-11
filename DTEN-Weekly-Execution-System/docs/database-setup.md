@@ -24,6 +24,18 @@ Update `.env` if your local PostgreSQL user, password, host, port, or database n
 
 ## Commands
 
+Start local PostgreSQL with Docker:
+
+```powershell
+docker compose up -d
+```
+
+Stop local PostgreSQL:
+
+```powershell
+docker compose down
+```
+
 Validate schema:
 
 ```powershell
@@ -46,6 +58,12 @@ Seed demo data:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Check running containers:
+
+```powershell
+docker ps
 ```
 
 Open Prisma Studio:
