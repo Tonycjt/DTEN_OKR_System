@@ -413,3 +413,68 @@ Day 7 target:
 ```text
 Build dashboard and notification polish: employee dashboard details, manager dashboard details, CEO dashboard/company health, notification list/read state, risk item visibility, and audit log visibility.
 ```
+
+## Post-Day 6 Fixes And Current Handoff
+
+Small fixes completed after Day 6:
+
+```text
+- Fixed weekly report Linked KR select overflow by constraining card/grid/form field widths in `src/app/globals.css`.
+- Removed `baseUrl` from `tsconfig.json` because it showed a red editor squiggle and was not needed for the `@/*` alias.
+- Kept `paths` as `@/* -> ./src/*`; TypeScript and Next still resolve aliases correctly without `baseUrl`.
+```
+
+Latest verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' exec -- tsc --showConfig
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- TypeScript config resolves successfully.
+- Production build passes.
+```
+
+Current runtime assumptions:
+
+```text
+- Active development folder: DTEN-Weekly-Execution-System
+- Docker database service: dten-weekly-postgres
+- Local DB URL: postgresql://postgres:postgres@localhost:5432/dten_weekly_execution?schema=public
+- App dev command: .\start-dev.cmd
+- DB start command: .\start-db.cmd
+- DB stop command: .\stop-db.cmd
+```
+
+Important behavior notes:
+
+```text
+- Submitted weekly reports stay locked.
+- A new editable report is created/loaded when the calendar moves to a new Monday-Sunday week.
+- Objective progress is currently shown manually and can be set when creating an objective, but there is not yet an objective edit/progress update UI.
+- KR progress is updated by KR detail edits and by check-ins from KR-linked weekly priorities.
+```
+
+Exact next steps for Day 7:
+
+```text
+1. Read this worklog and confirm the active folder is `DTEN-Weekly-Execution-System`.
+2. Ensure Docker Postgres is running with `.\start-db.cmd` or `docker compose up -d`.
+3. Build dashboard/visibility polish:
+   - Employee dashboard: current report status, assigned KRs, KR status/confidence/pacing, manager follow-ups.
+   - Manager dashboard: direct reports, pending reviews, missing reports, team KRs at risk.
+   - CEO/company dashboard: total objectives, total KRs, KRs by status, KRs by pacing, average confidence, missing weekly reports, high-risk KR list.
+   - Notifications page: database-backed notification list, unread/read state, mark read, mark all read.
+   - Audit log visibility: basic admin audit log page or dashboard section.
+4. Run `npm run lint` and `npm run build`.
+5. Update this worklog again with Day 7 status.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active development folder is DTEN-Weekly-Execution-System. Please read the worklog and help me continue with Day 7: dashboard/notification/audit-log polish for Release 1.
+```
