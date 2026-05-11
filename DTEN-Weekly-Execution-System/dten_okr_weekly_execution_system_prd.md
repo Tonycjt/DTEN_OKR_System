@@ -45,51 +45,51 @@ Company Goal
 
 Needs to:
 
-- Create or review company-level objectives.
-- See company OKR health.
-- Identify high-risk KRs.
-- See missing weekly reports.
-- Review blockers requiring leadership attention.
-- Comment on high-risk items.
+* Create or review company-level objectives.
+* See company OKR health.
+* Identify high-risk KRs.
+* See missing weekly reports.
+* Review blockers requiring leadership attention.
+* Comment on high-risk items.
 
 ### 3.2 Department Head
 
 Needs to:
 
-- View department OKRs.
-- Create department objectives aligned to company objectives.
-- Review team progress.
-- Identify KRs that are behind, blocked, or low confidence.
+* View department OKRs.
+* Create department objectives aligned to company objectives.
+* Review team progress.
+* Identify KRs that are behind, blocked, or low confidence.
 
 ### 3.3 Manager / Team Lead
 
 Needs to:
 
-- View direct reports.
-- Assign or manage KRs.
-- Review weekly reports.
-- Comment on execution progress.
-- Request follow-up for at-risk items.
+* View direct reports.
+* Assign or manage KRs.
+* Review weekly reports.
+* Comment on execution progress.
+* Request follow-up for at-risk items.
 
 ### 3.4 Individual Contributor / Employee
 
 Needs to:
 
-- View assigned objectives and KRs.
-- Create weekly priorities.
-- Link priorities to KRs.
-- Submit weekly check-ins.
-- Report progress, blockers, confidence, and next steps.
-- Receive manager feedback.
+* View assigned objectives and KRs.
+* Create weekly priorities.
+* Link priorities to KRs.
+* Submit weekly check-ins.
+* Report progress, blockers, confidence, and next steps.
+* Receive manager feedback.
 
 ### 3.5 Admin
 
 Needs to:
 
-- Manage users.
-- Manage departments and teams.
-- Manage roles and permissions.
-- Configure quarters and system settings.
+* Manage users.
+* Manage departments and teams.
+* Manage roles and permissions.
+* Configure quarters and system settings.
 
 ---
 
@@ -677,52 +677,52 @@ Authorization must be enforced by the backend, not only by frontend UI hiding.
 
 Can:
 
-- View all users.
-- View all departments and teams.
-- View all objectives and KRs.
-- View all weekly reports.
-- View executive dashboard.
-- Comment on objectives and KRs.
+* View all users.
+* View all departments and teams.
+* View all objectives and KRs.
+* View all weekly reports.
+* View executive dashboard.
+* Comment on objectives and KRs.
 
 ### 8.2 Department Head
 
 Can:
 
-- View own department.
-- View department teams and users.
-- View department objectives and KRs.
-- View weekly reports within department.
-- Review or comment on department-level items.
+* View own department.
+* View department teams and users.
+* View department objectives and KRs.
+* View weekly reports within department.
+* Review or comment on department-level items.
 
 ### 8.3 Manager
 
 Can:
 
-- View direct reports.
-- View team objectives and KRs.
-- View and review direct reports' weekly reports.
-- Comment on weekly reports and KRs.
+* View direct reports.
+* View team objectives and KRs.
+* View and review direct reports' weekly reports.
+* Comment on weekly reports and KRs.
 
 ### 8.4 Employee
 
 Can:
 
-- View own profile.
-- View own assigned objectives and KRs.
-- View aligned parent objectives.
-- Create and submit own weekly reports.
-- Create own weekly priorities.
-- Create check-ins for assigned or linked KRs.
-- View manager comments on own reports.
+* View own profile.
+* View own assigned objectives and KRs.
+* View aligned parent objectives.
+* Create and submit own weekly reports.
+* Create own weekly priorities.
+* Create check-ins for assigned or linked KRs.
+* View manager comments on own reports.
 
 ### 8.5 Admin
 
 Can:
 
-- Manage users.
-- Manage departments and teams.
-- Manage roles.
-- Manage system settings.
+* Manage users.
+* Manage departments and teams.
+* Manage roles.
+* Manage system settings.
 
 ---
 
@@ -1833,4 +1833,3 @@ Strategic direction
 ```
 
 The first release should focus on building a reliable internal MVP that makes the weekly execution loop real. Later releases can add smarter analytics, stronger automation, integrations, and AI assistance.
-
