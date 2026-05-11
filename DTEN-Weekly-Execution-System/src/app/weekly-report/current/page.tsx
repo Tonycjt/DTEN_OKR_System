@@ -3,6 +3,7 @@ import {
   addWeeklyPriorityAction,
   deleteWeeklyPriorityAction,
   ensureCurrentWeeklyReport,
+  savePriorityCheckInAction,
   submitWeeklyReportAction,
   updateWeeklyPriorityAction,
   updateWeeklyReportSummaryAction,
@@ -16,6 +17,7 @@ import { formatEnumLabel } from "@/lib/format";
 import { formatWeekRange } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
+import type { WorkStatus } from "@prisma/client";
 
 type CurrentWeeklyReportPageProps = {
   searchParams?: Promise<{
@@ -25,6 +27,7 @@ type CurrentWeeklyReportPageProps = {
 
 const priorityTypes: PriorityType[] = ["KR_LINKED", "AD_HOC"];
 const priorityStatuses: PriorityStatus[] = ["NOT_STARTED", "IN_PROGRESS", "BLOCKED", "DONE"];
+const workStatuses: WorkStatus[] = ["ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
 const errorMessages: Record<string, string> = {
   "kr-required": "KR-linked priorities must select a linked KR before saving or submitting.",
@@ -146,81 +149,142 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
         </CardHeader>
         <CardContent>
           <div className="stack">
-            {report.priorities.map((priority) => (
-              <form action={updateWeeklyPriorityAction} className="card" key={priority.id}>
+            {report.priorities.map((priority) => {
+              const latestCheckIn = priority.checkIns[0];
+
+              return (
+              <div className="card" key={priority.id}>
                 <div className="card-content">
-                  <input name="priorityId" type="hidden" value={priority.id} />
-                  <div className="form-grid">
-                    <label className="field wide">
-                      <span>Priority</span>
-                      <textarea defaultValue={priority.content} disabled={isSubmitted} name="content" required />
-                    </label>
-                    <label className="field">
-                      <span>Type</span>
-                      <select defaultValue={priority.type} disabled={isSubmitted} name="type" required>
-                        {priorityTypes.map((type) => (
-                          <option key={type} value={type}>
-                            {formatEnumLabel(type)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Status</span>
-                      <select defaultValue={priority.status} disabled={isSubmitted} name="status" required>
-                        {priorityStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {formatEnumLabel(status)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field wide">
-                      <span>Linked KR</span>
-                      <select defaultValue={priority.linkedKeyResultId ?? ""} disabled={isSubmitted} name="linkedKeyResultId">
-                        <option value="">None</option>
-                        {keyResults.map((keyResult) => (
-                          <option key={keyResult.id} value={keyResult.id}>
-                            {keyResult.objective.title} / {keyResult.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field wide">
-                      <span>Result Summary</span>
-                      <input defaultValue={priority.resultSummary ?? ""} disabled={isSubmitted} name="resultSummary" />
-                    </label>
-                    <label className="field">
-                      <span>Blocker</span>
-                      <input defaultValue={priority.blocker ?? ""} disabled={isSubmitted} name="blocker" />
-                    </label>
-                    <label className="field">
-                      <span>Next Step</span>
-                      <input defaultValue={priority.nextStep ?? ""} disabled={isSubmitted} name="nextStep" />
-                    </label>
-                  </div>
-                  <div className="table-actions">
-                    <Badge tone={priorityStatusTone(priority.status)}>{formatEnumLabel(priority.status)}</Badge>
-                    {priority.linkedKeyResult ? (
-                      <Badge tone="info">{priority.linkedKeyResult.title}</Badge>
-                    ) : (
-                      <Badge tone="neutral">No KR link</Badge>
-                    )}
-                    <Button disabled={isSubmitted} type="submit">
-                      Update
-                    </Button>
-                    <button
-                      className="button button-secondary"
-                      disabled={isSubmitted}
-                      formAction={deleteWeeklyPriorityAction}
-                      type="submit"
-                    >
-                      Delete
+                  <form action={updateWeeklyPriorityAction} className="stack">
+                    <input name="priorityId" type="hidden" value={priority.id} />
+                    <div className="form-grid">
+                      <label className="field wide">
+                        <span>Priority</span>
+                        <textarea defaultValue={priority.content} disabled={isSubmitted} name="content" required />
+                      </label>
+                      <label className="field">
+                        <span>Type</span>
+                        <select defaultValue={priority.type} disabled={isSubmitted} name="type" required>
+                          {priorityTypes.map((type) => (
+                            <option key={type} value={type}>
+                              {formatEnumLabel(type)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Status</span>
+                        <select defaultValue={priority.status} disabled={isSubmitted} name="status" required>
+                          {priorityStatuses.map((status) => (
+                            <option key={status} value={status}>
+                              {formatEnumLabel(status)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field wide">
+                        <span>Linked KR</span>
+                        <select defaultValue={priority.linkedKeyResultId ?? ""} disabled={isSubmitted} name="linkedKeyResultId">
+                          <option value="">None</option>
+                          {keyResults.map((keyResult) => (
+                            <option key={keyResult.id} value={keyResult.id}>
+                              {keyResult.objective.title} / {keyResult.title}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field wide">
+                        <span>Result Summary</span>
+                        <input defaultValue={priority.resultSummary ?? ""} disabled={isSubmitted} name="resultSummary" />
+                      </label>
+                      <label className="field">
+                        <span>Blocker</span>
+                        <input defaultValue={priority.blocker ?? ""} disabled={isSubmitted} name="blocker" />
+                      </label>
+                      <label className="field">
+                        <span>Next Step</span>
+                        <input defaultValue={priority.nextStep ?? ""} disabled={isSubmitted} name="nextStep" />
+                      </label>
+                    </div>
+                    <div className="table-actions">
+                      <Badge tone={priorityStatusTone(priority.status)}>{formatEnumLabel(priority.status)}</Badge>
+                      {priority.linkedKeyResult ? (
+                        <Badge tone="info">{priority.linkedKeyResult.title}</Badge>
+                      ) : (
+                        <Badge tone="neutral">No KR link</Badge>
+                      )}
+                      <Button disabled={isSubmitted} type="submit">
+                        Update
+                      </Button>
+                    </div>
+                  </form>
+
+                  <form action={deleteWeeklyPriorityAction} className="table-actions">
+                    <input name="priorityId" type="hidden" value={priority.id} />
+                    <button className="button button-secondary" disabled={isSubmitted} type="submit">
+                      Delete Priority
                     </button>
-                  </div>
+                  </form>
+
+                  {priority.linkedKeyResult ? (
+                    <form action={savePriorityCheckInAction} className="check-in-panel form-grid">
+                      <input name="priorityId" type="hidden" value={priority.id} />
+                      <div className="wide">
+                        <h3>KR Check-in</h3>
+                        <p className="muted">
+                          Current KR value is {priority.linkedKeyResult.currentValue} of {priority.linkedKeyResult.targetValue}. Saving this check-in updates KR progress and pacing.
+                        </p>
+                      </div>
+                      <label className="field">
+                        <span>New Value</span>
+                        <input
+                          defaultValue={latestCheckIn?.newValue ?? priority.linkedKeyResult.currentValue}
+                          disabled={isSubmitted}
+                          name="newValue"
+                          type="number"
+                        />
+                      </label>
+                      <label className="field">
+                        <span>KR Status</span>
+                        <select defaultValue={latestCheckIn?.status ?? priority.linkedKeyResult.status} disabled={isSubmitted} name="status">
+                          {workStatuses.map((status) => (
+                            <option key={status} value={status}>
+                              {formatEnumLabel(status)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Confidence</span>
+                        <input
+                          defaultValue={latestCheckIn?.confidenceScore ?? priority.linkedKeyResult.confidenceScore}
+                          disabled={isSubmitted}
+                          max="5"
+                          min="1"
+                          name="confidenceScore"
+                          type="number"
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Blocker</span>
+                        <input defaultValue={latestCheckIn?.blocker ?? priority.blocker ?? ""} disabled={isSubmitted} name="blocker" />
+                      </label>
+                      <label className="field wide">
+                        <span>Check-in Note</span>
+                        <textarea defaultValue={latestCheckIn?.note ?? ""} disabled={isSubmitted} name="note" />
+                      </label>
+                      <div className="wide table-actions">
+                        <Button disabled={isSubmitted} type="submit">
+                          Save Check-in
+                        </Button>
+                        {latestCheckIn ? <Badge tone="success">Check-in saved</Badge> : <Badge tone="neutral">No check-in yet</Badge>}
+                      </div>
+                    </form>
+                  ) : null}
                 </div>
-              </form>
-            ))}
+              </div>
+            );
+            })}
             {report.priorities.length === 0 ? <div className="route-item">No weekly priorities yet.</div> : null}
           </div>
         </CardContent>

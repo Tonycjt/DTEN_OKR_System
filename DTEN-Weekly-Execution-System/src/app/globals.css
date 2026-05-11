@@ -384,6 +384,16 @@ textarea {
   font-weight: 800;
 }
 
+.check-in-panel {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.check-in-panel h3 {
+  margin: 0 0 6px;
+}
+
 .table-wrap {
   overflow-x: auto;
 }

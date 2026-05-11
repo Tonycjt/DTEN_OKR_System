@@ -2,13 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { PriorityStatus, PriorityType } from "@prisma/client";
+import type { PriorityStatus, PriorityType, WorkStatus } from "@prisma/client";
+import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
 import { getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
 const priorityTypes: PriorityType[] = ["KR_LINKED", "AD_HOC"];
 const priorityStatuses: PriorityStatus[] = ["NOT_STARTED", "IN_PROGRESS", "BLOCKED", "DONE"];
+const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
 function optionalString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
@@ -23,6 +25,25 @@ function requiredString(value: FormDataEntryValue | null, fieldName: string) {
   }
 
   return text;
+}
+
+function numberValue(value: FormDataEntryValue | null, fallback: number) {
+  const text = optionalString(value);
+
+  if (!text) {
+    return fallback;
+  }
+
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function intValue(value: FormDataEntryValue | null, fallback: number) {
+  return Math.round(numberValue(value, fallback));
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
 export async function ensureCurrentWeeklyReport(userId: string) {
@@ -50,7 +71,20 @@ export async function ensureCurrentWeeklyReport(userId: string) {
           linkedKeyResult: {
             include: {
               objective: true,
+              monthlyTargets: {
+                orderBy: { monthIndex: "asc" },
+              },
+              checkIns: {
+                where: { userId },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+              },
             },
+          },
+          checkIns: {
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            take: 1,
           },
         },
       },
@@ -254,4 +288,124 @@ export async function submitWeeklyReportAction(formData: FormData) {
   revalidatePath("/weekly-report/current");
   revalidatePath("/weekly-report/history");
   redirect("/weekly-report/history");
+}
+
+export async function savePriorityCheckInAction(formData: FormData) {
+  const user = await requireUser();
+  const priorityId = requiredString(formData.get("priorityId"), "Priority");
+  const status = requiredString(formData.get("status"), "Status") as WorkStatus;
+
+  if (!workStatuses.includes(status)) {
+    throw new Error("Invalid KR status.");
+  }
+
+  const priority = await prisma.weeklyPriority.findFirst({
+    where: {
+      id: priorityId,
+      weeklyReport: {
+        userId: user.id,
+      },
+    },
+    include: {
+      weeklyReport: true,
+      linkedKeyResult: {
+        include: {
+          monthlyTargets: true,
+        },
+      },
+    },
+  });
+
+  if (!priority || !priority.linkedKeyResult) {
+    redirect("/weekly-report/current?error=kr-required");
+  }
+
+  if (priority.weeklyReport.status !== "DRAFT" && priority.weeklyReport.status !== "NEEDS_FOLLOW_UP") {
+    redirect("/weekly-report/current?error=submitted");
+  }
+
+  const linkedKeyResult = priority.linkedKeyResult;
+  const keyResultId = linkedKeyResult.id;
+  const newValue = numberValue(formData.get("newValue"), linkedKeyResult.currentValue);
+  const progressPercent = calculateProgressPercent(linkedKeyResult.startValue, newValue, linkedKeyResult.targetValue);
+  const confidenceScore = clamp(intValue(formData.get("confidenceScore"), linkedKeyResult.confidenceScore), 1, 5);
+  const currentMonthIndex = getCurrentQuarterMonthIndex();
+  const currentTarget = linkedKeyResult.monthlyTargets.find((target) => target.monthIndex === currentMonthIndex);
+  const pacingStatus = calculatePacingStatus({
+    progressPercent,
+    currentMonthTargetPercent: currentTarget?.targetPercent,
+  });
+
+  const existingCheckIn = await prisma.checkIn.findFirst({
+    where: {
+      weeklyPriorityId: priority.id,
+      userId: user.id,
+    },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    if (existingCheckIn) {
+      await tx.checkIn.update({
+        where: { id: existingCheckIn.id },
+        data: {
+          newValue,
+          progressPercent,
+          confidenceScore,
+          status,
+          blocker: optionalString(formData.get("blocker")),
+          note: optionalString(formData.get("note")),
+        },
+      });
+    } else {
+      await tx.checkIn.create({
+        data: {
+          keyResultId,
+          weeklyReportId: priority.weeklyReportId,
+          weeklyPriorityId: priority.id,
+          userId: user.id,
+          previousValue: linkedKeyResult.currentValue,
+          newValue,
+          progressPercent,
+          confidenceScore,
+          status,
+          blocker: optionalString(formData.get("blocker")),
+          note: optionalString(formData.get("note")),
+        },
+      });
+    }
+
+    await tx.keyResult.update({
+      where: { id: keyResultId },
+      data: {
+        currentValue: newValue,
+        progressPercent,
+        confidenceScore,
+        status,
+        pacingStatus,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: existingCheckIn ? "UPDATED" : "CREATED",
+        entityType: "CheckIn",
+        entityId: existingCheckIn?.id ?? priority.id,
+        metadata: {
+          keyResultId,
+          weeklyReportId: priority.weeklyReportId,
+          newValue,
+          progressPercent,
+          pacingStatus,
+        },
+      },
+    });
+  });
+
+  revalidatePath("/weekly-report/current");
+  revalidatePath("/weekly-report/history");
+  revalidatePath(`/key-results/${keyResultId}`);
+  revalidatePath(`/objectives/${linkedKeyResult.objectiveId}`);
+  revalidatePath("/my-okrs");
+  revalidatePath("/company-okrs");
 }

@@ -359,3 +359,57 @@ Day 6 target:
 ```text
 Build KR check-ins and pacing updates from weekly reports, plus manager review pending/history flows.
 ```
+
+## Day 6 - KR Check-ins And Manager Reviews
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added KR check-in save behavior from KR-linked weekly priorities.
+- Added check-in panels to `/weekly-report/current` for KR-linked priorities.
+- Saving a check-in updates the linked KR's current value, progress percent, confidence, status, and pacing.
+- Saving a check-in creates or updates a `CheckIn` record linked to the weekly report and weekly priority.
+- Check-in saves create audit logs.
+- Rebuilt `/reviews/pending` as a database-backed manager review queue.
+- Pending reviews show submitted reports, employee org context, priorities, KR links, and check-in status.
+- Added manager review action with decisions: Approved, Needs Follow-up, and Risk Flagged.
+- Manager review updates weekly report status to `REVIEWED` or `NEEDS_FOLLOW_UP`.
+- Manager review creates employee notifications and audit logs.
+- Rebuilt `/reviews/history` as a database-backed review history page.
+```
+
+Visible Day 6 test path:
+
+```text
+1. Log in as an employee with an editable current report.
+2. Open `/weekly-report/current`.
+3. Add a KR-linked priority.
+4. Save a KR check-in under that priority.
+5. Open the linked KR detail page and confirm progress/current value changed.
+6. Submit the weekly report.
+7. Log out and log in as that user's manager.
+8. Open `/reviews/pending`.
+9. Submit a review decision and comment.
+10. Open `/reviews/history` to confirm the review appears.
+11. Log back in as the employee and check `/weekly-report/history`.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+```
+
+Day 7 target:
+
+```text
+Build dashboard and notification polish: employee dashboard details, manager dashboard details, CEO dashboard/company health, notification list/read state, risk item visibility, and audit log visibility.
+```
