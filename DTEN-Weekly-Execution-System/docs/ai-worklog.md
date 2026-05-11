@@ -478,3 +478,52 @@ New-chat resume prompt:
 ```text
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active development folder is DTEN-Weekly-Execution-System. Please read the worklog and help me continue with Day 7: dashboard/notification/audit-log polish for Release 1.
 ```
+
+## Day 7 - Dashboard, Notifications, And Audit Visibility
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Rebuilt `/dashboard` as a role-aware execution dashboard.
+- Added employee dashboard details: current weekly report status, assigned KRs, KR status/confidence/pacing, unread notification count, and manager follow-up requests.
+- Added manager/team visibility: scoped direct-report users, pending review count, missing current-week report visibility, team KR status/pacing, and risk KRs.
+- Added department/company visibility: scoped objective/KR totals, KRs by status, KRs by pacing, average KR confidence, missing weekly reports, and high-risk KR list.
+- Added CEO/admin recent audit activity section on the dashboard.
+- Replaced `/notifications` placeholder with a database-backed notification center.
+- Added notification unread/read state, unread-first ordering, per-notification mark-read action, and mark-all-read action.
+- Added `/admin/audit-log` with recent audit records, actor, action, entity, metadata, and admin navigation entry.
+- Added small unread notification visual treatment in global CSS.
+```
+
+Visible Day 7 test path:
+
+```text
+1. Start Docker database with `.\start-db.cmd` if it is not already running.
+2. Start the app with `.\start-dev.cmd`.
+3. Log in as ceo@dten.com / Password123! and open `/dashboard`.
+4. Confirm company health, risk KRs, missing reports, pending reviews, and recent audit activity are visible.
+5. Open `/admin/audit-log` as CEO and confirm audit entries render.
+6. Open `/notifications`, mark one notification read, then mark all remaining notifications read.
+7. Log in as manager@dten.com / Password123! and confirm dashboard scope focuses on direct reports and review queue.
+8. Log in as engineer@dten.com / Password123! and confirm dashboard focuses on current report, assigned KRs, and follow-ups.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+```
+
+Day 8 target:
+
+```text
+Release 1 finalization: full seeded-user smoke test, dashboard visual pass at mobile/desktop widths, role/access review, audit/notification edge cases, and PRD acceptance checklist.
+```

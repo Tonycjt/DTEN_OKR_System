@@ -437,6 +437,15 @@ td {
   padding: 12px 14px;
 }
 
+.notification-item {
+  align-items: flex-start;
+}
+
+.notification-unread {
+  border-left: 4px solid var(--warning);
+  background: #fffaf0;
+}
+
 .form-shell {
   display: grid;
   gap: 14px;
