@@ -1,0 +1,1521 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Lato, Arial, sans-serif;
+
+  --color-dten-brand-black: #1A1A1A;
+  --color-dten-page-dark: #111111;
+  --color-dten-surface-dark: #1A1A1A;
+  --color-dten-border-dark: #2C2C2C;
+  --color-dten-primary-green: #4DAF4E;
+  --color-dten-green-dark: #3A9E3B;
+  --color-dten-green-tint: #D4F0D4;
+  --color-dten-secondary-gray: #BBC7CE;
+  --color-dten-off-white: #F5F5F3;
+  --color-dten-light-gray: #EEF1F3;
+  --color-dten-dark-gray: #6B7B84;
+  --color-dten-alert-red: #E5473B;
+  --color-dten-alert-amber: #F5A623;
+  --color-dten-info-blue: #1B6FD4;
+
+  --color-white: #F5F5F3;
+  --color-slate-50: #EEF1F3;
+  --color-slate-100: #EEF1F3;
+  --color-slate-200: #BBC7CE;
+  --color-slate-300: #BBC7CE;
+  --color-slate-400: #6B7B84;
+  --color-slate-500: #6B7B84;
+  --color-slate-600: #6B7B84;
+  --color-slate-700: #1A1A1A;
+  --color-slate-800: #1A1A1A;
+  --color-slate-900: #1A1A1A;
+  --color-slate-950: #1A1A1A;
+
+  --color-emerald-50: #D4F0D4;
+  --color-emerald-100: #D4F0D4;
+  --color-emerald-200: #4DAF4E;
+  --color-emerald-500: #4DAF4E;
+  --color-emerald-600: #3A9E3B;
+  --color-emerald-700: #1A1A1A;
+  --color-emerald-900: #1A1A1A;
+
+  --color-amber-50: #F5F5F3;
+  --color-amber-100: #F5F5F3;
+  --color-amber-200: #F5A623;
+  --color-amber-700: #1A1A1A;
+  --color-amber-800: #1A1A1A;
+  --color-amber-900: #1A1A1A;
+  --color-amber-950: #1A1A1A;
+
+  --color-orange-50: #F5F5F3;
+  --color-orange-100: #F5F5F3;
+  --color-orange-200: #F5A623;
+  --color-orange-700: #1A1A1A;
+
+  --color-rose-50: #F5F5F3;
+  --color-rose-100: #F5F5F3;
+  --color-rose-200: #E5473B;
+  --color-rose-300: #E5473B;
+  --color-rose-600: #E5473B;
+  --color-rose-700: #1A1A1A;
+  --color-rose-900: #1A1A1A;
+
+  --color-blue-50: #EEF1F3;
+  --color-blue-100: #EEF1F3;
+  --color-blue-700: #1B6FD4;
+  --color-sky-50: #EEF1F3;
+  --color-sky-100: #EEF1F3;
+  --color-sky-200: #1B6FD4;
+  --color-sky-500: #1B6FD4;
+  --color-sky-700: #1B6FD4;
+  --color-sky-800: #1A1A1A;
+  --color-sky-900: #1A1A1A;
+  --color-sky-950: #1A1A1A;
+  --color-indigo-50: #EEF1F3;
+  --color-indigo-100: #EEF1F3;
+  --color-indigo-200: #1B6FD4;
+  --color-indigo-700: #1A1A1A;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.4;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1rem;
+  --text-base--line-height: 1.6;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.35;
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: 1.3;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 1.15;
+
+  --radius-md: 15px;
+  --radius-lg: 15px;
+  --radius-xl: 15px;
+  --radius-full: 100px;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.08);
+  --shadow-md: 0 8px 20px rgb(0 0 0 / 0.10);
+  --shadow-lg: 0 16px 32px rgb(0 0 0 / 0.14);
+}
+
+:root {
+  color-scheme: light;
+  font-family: Lato, Arial, sans-serif;
+  background: var(--dten-color-light-gray);
+
+  --dten-color-brand-black: #1A1A1A;
+  --dten-color-page-dark: #111111;
+  --dten-color-surface-dark: #1A1A1A;
+  --dten-color-border-dark: #2C2C2C;
+  --dten-color-primary-green: #4DAF4E;
+  --dten-color-green-dark: #3A9E3B;
+  --dten-color-green-tint: #D4F0D4;
+  --dten-color-secondary-gray: #BBC7CE;
+  --dten-color-off-white: #F5F5F3;
+  --dten-color-light-gray: #EEF1F3;
+  --dten-color-dark-gray: #6B7B84;
+  --dten-color-alert-red: #E5473B;
+  --dten-color-alert-amber: #F5A623;
+  --dten-color-info-blue: #1B6FD4;
+
+  --dten-font-family: Lato, Arial, sans-serif;
+  --dten-type-h1-size: clamp(2rem, 1.7rem + 0.9vw, 2.5rem);
+  --dten-type-h2-size: clamp(1.5rem, 1.35rem + 0.45vw, 1.75rem);
+  --dten-type-h3-size: clamp(1.25rem, 1.15rem + 0.3vw, 1.375rem);
+  --dten-type-body-size: 1rem;
+  --dten-type-secondary-size: 0.875rem;
+  --dten-type-caption-size: 0.75rem;
+  --dten-type-line-height: 1.6;
+
+  --dten-space-1: 4px;
+  --dten-space-2: 8px;
+  --dten-space-3: 12px;
+  --dten-space-4: 16px;
+  --dten-space-6: 24px;
+  --dten-space-8: 32px;
+  --dten-space-12: 48px;
+  --dten-space-16: 64px;
+  --dten-space-20: 80px;
+
+  --dten-radius-card: 15px;
+  --dten-radius-input: 15px;
+  --dten-radius-pill: 100px;
+  --dten-touch-target-min: 44px;
+
+  --dten-shadow-subtle: 0 1px 2px rgb(0 0 0 / 0.08);
+  --dten-shadow-raised: 0 8px 20px rgb(0 0 0 / 0.10);
+  --dten-shadow-overlay: 0 16px 32px rgb(0 0 0 / 0.14);
+
+  --dten-motion-fast: 150ms ease;
+  --dten-motion-component: 200ms ease;
+  --dten-status-success-bg: var(--dten-color-green-tint);
+  --dten-status-success-border: var(--dten-color-primary-green);
+  --dten-status-success-text: var(--dten-color-brand-black);
+  --dten-status-warning-bg: var(--dten-color-off-white);
+  --dten-status-warning-border: var(--dten-color-alert-amber);
+  --dten-status-warning-text: var(--dten-color-brand-black);
+  --dten-status-error-bg: var(--dten-color-off-white);
+  --dten-status-error-border: var(--dten-color-alert-red);
+  --dten-status-error-text: var(--dten-color-brand-black);
+  --dten-status-info-bg: var(--dten-color-light-gray);
+  --dten-status-info-border: var(--dten-color-info-blue);
+  --dten-status-info-text: var(--dten-color-brand-black);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-size: var(--dten-type-body-size);
+  line-height: var(--dten-type-line-height);
+  background: var(--dten-color-light-gray);
+  color: var(--dten-color-off-white);
+  font-family: var(--dten-font-family);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+thead th {
+  background: var(--dten-color-light-gray);
+  white-space: nowrap;
+}
+
+tbody tr {
+  transition: background-color var(--dten-motion-fast);
+}
+
+.btn-primary {
+  display: inline-flex;
+  min-height: var(--dten-touch-target-min);
+  align-items: center;
+  gap: var(--dten-space-2);
+  border-radius: var(--dten-radius-pill);
+  background: var(--dten-color-primary-green);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--dten-color-off-white);
+  transition:
+    background-color var(--dten-motion-fast),
+    border-color var(--dten-motion-fast),
+    color var(--dten-motion-fast),
+    box-shadow var(--dten-motion-fast);
+}
+
+.btn-primary:hover {
+  background: var(--dten-color-green-dark);
+  color: var(--dten-color-off-white);
+}
+
+.btn-primary:disabled:hover {
+  background: var(--dten-color-secondary-gray);
+  color: var(--dten-color-dark-gray);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  min-height: var(--dten-touch-target-min);
+  align-items: center;
+  gap: var(--dten-space-2);
+  border-radius: var(--dten-radius-pill);
+  border: 1px solid var(--dten-color-secondary-gray);
+  background: var(--dten-color-off-white);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--dten-color-brand-black);
+  transition:
+    background-color var(--dten-motion-fast),
+    border-color var(--dten-motion-fast);
+}
+
+.btn-secondary:hover {
+  border-color: var(--dten-color-dark-gray);
+  background: var(--dten-color-light-gray);
+}
+
+.btn-secondary:disabled:hover {
+  border-color: var(--dten-color-secondary-gray);
+  background: var(--dten-color-off-white);
+}
+
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--dten-color-brand-black);
+}
+
+.filter-label {
+  margin-bottom: 0.375rem;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dten-color-dark-gray);
+}
+
+.page-title {
+  color: var(--dten-color-brand-black);
+  font-size: var(--dten-type-h1-size);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.section-heading {
+  color: var(--dten-color-brand-black);
+  font-size: var(--dten-type-h2-size);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.subsection-heading,
+.section-title,
+.empty-state-title {
+  color: var(--dten-color-brand-black);
+  font-size: var(--dten-type-h3-size);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.empty-state-title {
+  margin-top: var(--dten-space-3);
+}
+
+body,
+p,
+li,
+td,
+th,
+input,
+select,
+textarea {
+  font-weight: 400;
+}
+
+main p[class*="leading-6"],
+main p[class*="leading-5"] {
+  max-width: 75ch;
+}
+
+label,
+.filter-label,
+.caption-label {
+  font-size: var(--dten-type-caption-size);
+  font-weight: 500;
+}
+
+.btn-primary,
+.btn-secondary,
+button,
+[role="button"] {
+  font-weight: 500;
+}
+
+/* DTEN color alignment layer. Keeps product structure intact while applying the brand shell. */
+.app-shell,
+body {
+  background:
+    linear-gradient(180deg, var(--dten-color-light-gray) 0%, var(--dten-color-off-white) 42%, var(--dten-color-light-gray) 100%);
+}
+
+aside.fixed {
+  background: var(--dten-color-page-dark);
+  border-color: var(--dten-color-border-dark);
+  color: var(--dten-color-off-white);
+}
+
+aside.fixed .border-b,
+aside.fixed .border,
+aside.fixed .ring-1 {
+  border-color: var(--dten-color-border-dark);
+  --tw-ring-color: var(--dten-color-border-dark);
+}
+
+aside.fixed .text-slate-500,
+aside.fixed .text-slate-600,
+aside.fixed .text-slate-700 {
+  color: color-mix(in srgb, var(--dten-color-off-white) 68%, transparent);
+}
+
+aside.fixed nav button {
+  color: color-mix(in srgb, var(--dten-color-off-white) 68%, transparent);
+  min-height: 44px;
+}
+
+aside.fixed nav button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--dten-color-primary-green) 70%, transparent);
+  outline-offset: 2px;
+}
+
+aside.fixed nav button.text-emerald-500 {
+  border-color: color-mix(in srgb, var(--dten-color-primary-green) 35%, transparent);
+  color: var(--dten-color-primary-green);
+}
+
+aside.fixed nav button:hover {
+  background: var(--dten-color-surface-dark);
+  color: var(--dten-color-off-white);
+}
+
+aside.fixed nav button.bg-emerald-500 {
+  background: var(--dten-color-primary-green);
+  color: var(--dten-color-brand-black);
+}
+
+aside.fixed .bg-slate-50,
+aside.fixed .bg-white {
+  background: color-mix(in srgb, var(--dten-color-surface-dark) 92%, var(--dten-color-off-white) 8%);
+}
+
+aside.fixed .bg-emerald-500 {
+  background: var(--dten-color-primary-green);
+}
+
+main > header {
+  background: color-mix(in srgb, var(--dten-color-off-white) 94%, transparent);
+  border-color: var(--dten-color-secondary-gray);
+  box-shadow: var(--dten-shadow-subtle);
+}
+
+main > section {
+  background: transparent;
+}
+
+section.rounded-lg,
+div.rounded-lg,
+button.rounded-lg {
+  border-color: var(--dten-color-secondary-gray);
+}
+
+section.rounded-lg.bg-white,
+div.rounded-lg.bg-white,
+button.rounded-lg.bg-white,
+.bg-white {
+  background-color: var(--dten-color-off-white);
+}
+
+.bg-slate-50,
+.bg-slate-100 {
+  background-color: var(--dten-color-light-gray);
+}
+
+.bg-slate-950 {
+  background-color: var(--dten-color-brand-black);
+}
+
+.text-white {
+  color: var(--dten-color-off-white);
+}
+
+.table,
+table {
+  background: var(--dten-color-off-white);
+}
+
+thead th {
+  color: var(--dten-color-brand-black);
+  border-bottom: 1px solid var(--dten-color-secondary-gray);
+}
+
+tbody tr:hover {
+  background-color: var(--dten-color-light-gray);
+}
+
+.btn-primary {
+  background: var(--dten-color-primary-green);
+  color: var(--dten-color-off-white);
+  box-shadow: none;
+}
+
+.btn-primary:hover {
+  background: var(--dten-color-green-dark);
+  color: var(--dten-color-off-white);
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--dten-color-dark-gray);
+  color: var(--dten-color-brand-black);
+}
+
+.btn-secondary:hover {
+  background: var(--dten-color-light-gray);
+  border-color: var(--dten-color-brand-black);
+}
+
+input,
+select,
+textarea {
+  background-color: var(--dten-color-off-white);
+  border-color: var(--dten-color-secondary-gray);
+  color: var(--dten-color-brand-black);
+}
+
+.focus\:border-slate-400:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--dten-color-primary-green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dten-color-primary-green) 24%, transparent);
+}
+
+header select,
+header input {
+  background-color: var(--dten-color-off-white);
+}
+
+.border-emerald-200,
+.border-amber-200,
+.border-orange-200,
+.border-rose-200,
+.border-sky-200,
+.border-indigo-200 {
+  border-width: 1px;
+}
+
+.bg-emerald-50,
+.bg-emerald-100 {
+  background-color: var(--dten-color-green-tint);
+}
+
+.text-emerald-600,
+.text-emerald-700,
+.text-emerald-900 {
+  color: var(--dten-color-brand-black);
+}
+
+.bg-sky-50,
+.bg-indigo-50,
+.bg-blue-100 {
+  background-color: var(--dten-color-light-gray);
+}
+
+.text-sky-700,
+.text-sky-800,
+.text-sky-900,
+.text-indigo-700,
+.text-blue-700 {
+  color: var(--dten-color-brand-black);
+}
+
+.bg-amber-50,
+.bg-amber-100,
+.bg-orange-50,
+.bg-rose-50,
+.bg-rose-100 {
+  background-color: var(--dten-color-off-white);
+}
+
+.text-amber-700,
+.text-amber-800,
+.text-amber-900,
+.text-amber-950,
+.text-orange-700,
+.text-rose-700,
+.text-rose-900 {
+  color: var(--dten-color-brand-black);
+}
+
+.text-rose-600 {
+  color: var(--dten-color-alert-red);
+}
+
+.empty-state-title + p,
+.text-slate-500,
+.text-slate-600 {
+  color: var(--dten-color-dark-gray);
+}
+
+
+/* DTEN card and spacing alignment. Visual-only normalization for premium, calmer surfaces. */
+main > section {
+  padding-top: var(--dten-space-8);
+  padding-bottom: var(--dten-space-8);
+}
+
+main .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(var(--dten-space-3) * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(var(--dten-space-3) * var(--tw-space-y-reverse));
+}
+
+main .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(var(--dten-space-4) * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(var(--dten-space-4) * var(--tw-space-y-reverse));
+}
+
+main .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(var(--dten-space-6) * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(var(--dten-space-6) * var(--tw-space-y-reverse));
+}
+
+main .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(var(--dten-space-8) * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(var(--dten-space-8) * var(--tw-space-y-reverse));
+}
+
+main .grid.gap-2 {
+  gap: var(--dten-space-3);
+}
+
+main .grid.gap-3,
+main .flex.gap-3,
+main .flex.flex-wrap.gap-3 {
+  gap: var(--dten-space-4);
+}
+
+main .grid.gap-4,
+main .flex.gap-4,
+main .flex.flex-wrap.gap-4 {
+  gap: var(--dten-space-6);
+}
+
+main .grid.gap-6 {
+  gap: var(--dten-space-8);
+}
+
+main section.rounded-lg,
+main section.rounded-xl,
+main div.rounded-lg,
+main div.rounded-xl,
+main button.rounded-lg,
+main button.rounded-xl {
+  border-radius: var(--dten-radius-card);
+  border-width: 1px;
+}
+
+main section.rounded-lg.bg-white,
+main section.rounded-xl.bg-white,
+main div.rounded-lg.bg-white,
+main div.rounded-xl.bg-white,
+main button.rounded-lg.bg-white,
+main button.rounded-xl.bg-white {
+  background-color: var(--dten-color-off-white);
+  border-color: var(--dten-color-secondary-gray);
+}
+
+main section.shadow-sm,
+main div.shadow-sm,
+main button.shadow-sm {
+  box-shadow: var(--dten-shadow-subtle);
+}
+
+main section.shadow-md,
+main div.shadow-md,
+main button.shadow-md,
+main section.shadow-lg,
+main div.shadow-lg,
+main button.shadow-lg {
+  box-shadow: var(--dten-shadow-raised);
+}
+
+main .rounded-lg.p-3,
+main .rounded-lg.p-4,
+main .rounded-lg.p-5,
+main .rounded-xl.p-3,
+main .rounded-xl.p-4,
+main .rounded-xl.p-5 {
+  padding: var(--dten-space-6);
+}
+
+main .rounded-md.border.bg-slate-50,
+main .rounded-xl.border.bg-slate-50 {
+  background-color: var(--dten-color-light-gray);
+}
+
+main .rounded-md.border,
+main .rounded-lg.border,
+main .rounded-xl.border {
+  border-color: var(--dten-color-secondary-gray);
+}
+
+main table {
+  border-radius: var(--dten-radius-card);
+}
+
+main th,
+main td {
+  padding-top: var(--dten-space-4);
+  padding-bottom: var(--dten-space-4);
+}
+
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  background: var(--dten-color-light-gray);
+  border-color: var(--dten-color-secondary-gray);
+  color: var(--dten-color-dark-gray);
+  box-shadow: none;
+}
+
+.btn-primary:disabled:hover,
+.btn-secondary:disabled:hover {
+  background: var(--dten-color-light-gray);
+  border-color: var(--dten-color-secondary-gray);
+  color: var(--dten-color-dark-gray);
+}
+
+.btn-danger {
+  display: inline-flex;
+  min-height: var(--dten-touch-target-min);
+  align-items: center;
+  gap: var(--dten-space-2);
+  border-radius: var(--dten-radius-pill);
+  border: 1px solid var(--dten-color-alert-red);
+  background: transparent;
+  padding: 0.75rem 1.5rem;
+  color: var(--dten-color-alert-red);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: border-color var(--dten-motion-fast), background-color var(--dten-motion-fast), color var(--dten-motion-fast);
+}
+
+.btn-danger:hover {
+  background: var(--dten-color-alert-red);
+  color: var(--dten-color-off-white);
+}
+
+/* Button finalization: keep CTA typography stable even on label-based file inputs. */
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  min-height: var(--dten-touch-target-min);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  transition: background-color var(--dten-motion-fast), border-color var(--dten-motion-fast), color var(--dten-motion-fast), box-shadow var(--dten-motion-fast);
+}
+
+.btn-primary {
+  border: 1px solid var(--dten-color-primary-green);
+  background: var(--dten-color-primary-green);
+  color: var(--dten-color-off-white);
+}
+
+.btn-primary:hover {
+  border-color: var(--dten-color-green-dark);
+  background: var(--dten-color-green-dark);
+  color: var(--dten-color-off-white);
+}
+
+.btn-secondary {
+  border: 1px solid var(--dten-color-secondary-gray);
+  background: transparent;
+  color: var(--dten-color-brand-black);
+}
+
+.btn-secondary:hover {
+  border-color: var(--dten-color-brand-black);
+  background: var(--dten-color-light-gray);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-danger:disabled,
+.btn-primary:disabled:hover,
+.btn-secondary:disabled:hover,
+.btn-danger:disabled:hover {
+  border-color: var(--dten-color-secondary-gray);
+  background: var(--dten-color-light-gray);
+  color: var(--dten-color-dark-gray);
+  box-shadow: none;
+}
+
+.page-title {
+  font-weight: 700;
+}
+
+/* DTEN form and upload alignment. Visual-only; preserves fields and validation behavior. */
+main label:not(.btn-primary) {
+  color: var(--dten-color-brand-black);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+main label:not(.btn-primary) > span:not(.text-rose-600):not([class*="rounded"]),
+main .filter-label {
+  display: block;
+  margin-bottom: var(--dten-space-2);
+  color: var(--dten-color-brand-black);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+main select,
+main textarea {
+  min-height: var(--dten-touch-target-min);
+  border: 1px solid var(--dten-color-secondary-gray);
+  border-radius: var(--dten-radius-input);
+  background-color: var(--dten-color-off-white);
+  color: var(--dten-color-brand-black);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  transition: border-color var(--dten-motion-fast), box-shadow var(--dten-motion-fast), background-color var(--dten-motion-fast);
+}
+
+main textarea {
+  min-height: 7rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  text-align: left;
+}
+
+main input::placeholder,
+main textarea::placeholder {
+  color: var(--dten-color-dark-gray);
+  opacity: 0.78;
+}
+
+main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+main select:focus,
+main textarea:focus {
+  border-color: var(--dten-color-primary-green);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dten-color-primary-green) 22%, transparent);
+  outline: none;
+}
+
+main input:disabled,
+main select:disabled,
+main textarea:disabled {
+  border-color: var(--dten-color-secondary-gray);
+  background-color: var(--dten-color-light-gray);
+  color: var(--dten-color-dark-gray);
+}
+
+main .border-rose-300,
+main .border-rose-200.bg-rose-50 {
+  border-color: var(--dten-color-alert-red);
+}
+
+main input.border-rose-300,
+main select.border-rose-300,
+main textarea.border-rose-300 {
+  border-color: var(--dten-color-alert-red);
+}
+
+main input.border-rose-300:focus,
+main select.border-rose-300:focus,
+main textarea.border-rose-300:focus {
+  border-color: var(--dten-color-alert-red);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dten-color-alert-red) 18%, transparent);
+}
+
+main .text-rose-600,
+main .text-rose-700 {
+  color: var(--dten-color-alert-red);
+}
+
+main .form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dten-space-2);
+  border-radius: var(--dten-radius-card);
+  background-color: var(--dten-color-off-white);
+  color: var(--dten-color-alert-red);
+  text-align: left;
+}
+
+main .form-error::before {
+  content: "!";
+  display: inline-grid;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 1rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--dten-color-alert-red);
+  color: var(--dten-color-off-white);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 0.125rem;
+}
+
+main .form-file-input,
+main input[type="file"] {
+  min-height: var(--dten-touch-target-min);
+  border: 1px solid var(--dten-color-secondary-gray);
+  border-radius: var(--dten-radius-input);
+  background: var(--dten-color-off-white);
+  color: var(--dten-color-brand-black);
+  padding: 0.625rem 0.875rem;
+}
+
+main input[type="file"]::file-selector-button {
+  min-height: 2rem;
+  margin-right: var(--dten-space-3);
+  border: 1px solid var(--dten-color-secondary-gray);
+  border-radius: var(--dten-radius-pill);
+  background: transparent;
+  color: var(--dten-color-brand-black);
+  padding: 0.375rem 0.875rem;
+  font: inherit;
+  font-weight: 500;
+}
+
+main input[type="file"]::file-selector-button:hover {
+  border-color: var(--dten-color-brand-black);
+  background: var(--dten-color-light-gray);
+}
+
+main .upload-zone {
+  border-color: var(--dten-color-secondary-gray);
+  border-radius: var(--dten-radius-card);
+  background: color-mix(in srgb, var(--dten-color-light-gray) 74%, var(--dten-color-off-white) 26%);
+  padding: var(--dten-space-6);
+  text-align: left;
+}
+
+main .upload-zone h3 {
+  color: var(--dten-color-brand-black);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+main .upload-zone p {
+  max-width: 75ch;
+  color: var(--dten-color-dark-gray);
+}
+
+main .upload-zone .btn-primary + input[type="file"],
+main label.btn-primary input[type="file"] {
+  display: none;
+}
+
+/* DTEN status, alert, and feedback states. Text is always paired with an icon. */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dten-space-1);
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--dten-radius-pill);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.status-badge-large {
+  gap: var(--dten-space-2);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.status-badge-secondary {
+  padding: 0.3125rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+.status-success {
+  border-color: color-mix(in srgb, var(--dten-color-primary-green) 42%, transparent);
+  background: var(--dten-color-green-tint);
+  color: var(--dten-color-green-dark);
+}
+
+.status-warning {
+  border-color: color-mix(in srgb, var(--dten-color-alert-amber) 48%, transparent);
+  background: color-mix(in srgb, var(--dten-color-alert-amber) 18%, var(--dten-color-off-white));
+  color: color-mix(in srgb, var(--dten-color-alert-amber) 58%, var(--dten-color-brand-black));
+}
+
+.status-error {
+  border-color: color-mix(in srgb, var(--dten-color-alert-red) 50%, transparent);
+  background: color-mix(in srgb, var(--dten-color-alert-red) 12%, var(--dten-color-off-white));
+  color: var(--dten-color-alert-red);
+}
+
+.status-info {
+  border-color: color-mix(in srgb, var(--dten-color-info-blue) 44%, transparent);
+  background: color-mix(in srgb, var(--dten-color-info-blue) 10%, var(--dten-color-light-gray));
+  color: var(--dten-color-info-blue);
+}
+
+.status-neutral {
+  border-color: var(--dten-color-secondary-gray);
+  background: var(--dten-color-light-gray);
+  color: var(--dten-color-dark-gray);
+}
+
+.status-badge-secondary.status-success,
+.status-badge-secondary.status-warning,
+.status-badge-secondary.status-error,
+.status-badge-secondary.status-info,
+.status-badge-secondary.status-neutral {
+  background: color-mix(in srgb, currentColor 8%, var(--dten-color-off-white));
+}
+
+.status-badge svg {
+  stroke-width: 2;
+}
+
+/* DTEN table and scorecard alignment. Visual-only readability and hierarchy pass. */
+.table-shell {
+  border: 1px solid var(--dten-color-secondary-gray);
+  border-radius: var(--dten-radius-card);
+  background: var(--dten-color-off-white);
+  box-shadow: var(--dten-shadow-subtle);
+}
+
+.table-shell table,
+main table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--dten-color-off-white);
+}
+
+.table-shell thead th,
+main thead th {
+  background: var(--dten-color-light-gray);
+  color: var(--dten-color-brand-black);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.table-shell th,
+.table-shell td,
+main table th,
+main table td {
+  border-bottom: 1px solid color-mix(in srgb, var(--dten-color-secondary-gray) 62%, transparent);
+  padding: var(--dten-space-4) var(--dten-space-6);
+  vertical-align: top;
+}
+
+.table-shell tbody tr:last-child td,
+main table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-shell tbody tr,
+main table tbody tr {
+  background: var(--dten-color-off-white);
+}
+
+.table-shell tbody tr:hover,
+main table tbody tr:hover {
+  background: color-mix(in srgb, var(--dten-color-light-gray) 70%, var(--dten-color-off-white));
+}
+
+.table-shell td,
+main table td {
+  color: var(--dten-color-dark-gray);
+  line-height: 1.5;
+}
+
+.table-shell td:first-child,
+main table td:first-child {
+  color: var(--dten-color-brand-black);
+}
+
+.table-shell .status-badge,
+main table .status-badge {
+  white-space: nowrap;
+}
+
+.scorecards-page {
+  max-width: 1180px;
+}
+
+.scorecard-intro p {
+  max-width: 68ch;
+}
+
+.scorecard-summary-section,
+.scorecard-exceptions-section,
+.scorecard-detail-section {
+  display: grid;
+  gap: var(--dten-space-4);
+}
+
+.scorecard-section-label {
+  color: var(--dten-color-dark-gray);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.scorecard-summary-grid > div:first-child {
+  border-color: color-mix(in srgb, var(--dten-color-primary-green) 45%, var(--dten-color-secondary-gray));
+}
+
+.scorecards-page section.rounded-xl,
+.scorecards-page .scorecard-event-card {
+  box-shadow: var(--dten-shadow-subtle);
+}
+
+.scorecard-event-card {
+  padding: var(--dten-space-6);
+}
+
+.scorecard-event-card h3 {
+  color: var(--dten-color-brand-black);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.scorecards-page .grid .rounded-xl.border.bg-slate-50 {
+  background: color-mix(in srgb, var(--dten-color-light-gray) 78%, var(--dten-color-off-white));
+}
+
+/* DTEN Spatial Signature: one restrained, low-contrast framing field. */
+main > header,
+.spatial-signature-panel,
+.spatial-empty-state {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+main > header::before,
+.spatial-signature-panel::before,
+.spatial-empty-state::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.55;
+}
+
+main > header::before {
+  width: min(34rem, 48vw);
+  height: min(34rem, 48vw);
+  right: -14rem;
+  top: -18rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 42%, color-mix(in srgb, var(--dten-color-secondary-gray) 28%, transparent) 43% 44%, transparent 45% 61%, color-mix(in srgb, var(--dten-color-primary-green) 12%, transparent) 62% 63%, transparent 64%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--dten-color-light-gray) 58%, transparent), transparent 68%);
+}
+
+.spatial-signature-panel::before {
+  width: min(30rem, 62vw);
+  height: min(30rem, 62vw);
+  right: -12rem;
+  top: -12rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 48%, color-mix(in srgb, var(--dten-color-secondary-gray) 24%, transparent) 49% 50%, transparent 51% 68%, color-mix(in srgb, var(--dten-color-primary-green) 10%, transparent) 69% 70%, transparent 71%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--dten-color-light-gray) 46%, transparent), transparent 70%);
+}
+
+.spatial-empty-state::before {
+  width: min(22rem, 70vw);
+  height: min(22rem, 70vw);
+  left: 50%;
+  top: -10rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--dten-color-secondary-gray) 14%, transparent), transparent 64%);
+}
+
+.spatial-signature-panel > *,
+.spatial-empty-state > *,
+main > header > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* DTEN motion standards: calm, short, purposeful interaction feedback. */
+:root {
+  --dten-ease-standard: ease-in-out;
+  --dten-ease-enter: ease-out;
+  --dten-ease-exit: ease-in;
+  --dten-motion-fast: 150ms ease;
+  --dten-motion-hover: 190ms ease-in-out;
+  --dten-motion-panel: 240ms ease-out;
+  --dten-motion-page: 280ms ease-out;
+}
+
+button,
+a,
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+input,
+select,
+textarea,
+[role="button"] {
+  transition-duration: var(--dten-motion-fast);
+  transition-timing-function: ease;
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+}
+
+aside.fixed nav button,
+header select,
+header input,
+.status-badge {
+  transition-duration: var(--dten-motion-fast);
+  transition-timing-function: ease;
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+}
+
+main section.rounded-lg,
+main section.rounded-xl,
+main div.rounded-lg,
+main div.rounded-xl,
+main button.rounded-lg,
+main button.rounded-xl,
+.table-shell tbody tr,
+.scorecard-event-card {
+  transition-duration: var(--dten-motion-hover);
+  transition-timing-function: var(--dten-ease-standard);
+  transition-property: background-color, border-color, box-shadow, color, opacity;
+}
+
+main button.rounded-lg:hover,
+main button.rounded-xl:hover,
+.scorecard-event-card:hover {
+  box-shadow: var(--dten-shadow-subtle);
+}
+
+main > section,
+.spatial-signature-panel,
+.spatial-empty-state,
+.table-shell,
+.fixed.right-4.top-24 > button {
+  animation: dten-panel-enter var(--dten-motion-panel) var(--dten-ease-enter) both;
+}
+
+.fixed.right-4.top-24 > button {
+  transition-duration: var(--dten-motion-panel);
+  transition-timing-function: var(--dten-ease-standard);
+  transition-property: opacity, transform, box-shadow, border-color, background-color;
+}
+
+@keyframes dten-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-pulse {
+  animation-duration: 1.4s;
+  animation-timing-function: ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* DTEN responsive and accessibility alignment. */
+.mobile-nav {
+  display: flex;
+  gap: var(--dten-space-2);
+  margin-top: var(--dten-space-4);
+  margin-inline: calc(var(--dten-space-1) * -1);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: var(--dten-space-1) var(--dten-space-1) var(--dten-space-2);
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-nav-item {
+  display: inline-flex;
+  min-height: var(--dten-touch-target-min);
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  align-items: center;
+  gap: var(--dten-space-2);
+  border: 1px solid var(--dten-color-secondary-gray);
+  border-radius: var(--dten-radius-pill);
+  background: color-mix(in srgb, var(--dten-color-off-white) 92%, transparent);
+  color: var(--dten-color-brand-black);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mobile-nav-item.is-active,
+.mobile-nav-item[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--dten-color-primary-green) 50%, var(--dten-color-secondary-gray));
+  background: var(--dten-color-green-tint);
+  color: var(--dten-color-green-dark);
+}
+
+.mobile-nav-item:focus-visible,
+aside.fixed nav button:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--dten-color-primary-green);
+  outline-offset: 2px;
+}
+
+main button,
+main [role="button"],
+header button,
+header select,
+header input {
+  min-height: var(--dten-touch-target-min);
+}
+
+main p,
+main li {
+  max-width: 75ch;
+}
+
+.table-shell {
+  max-width: 100%;
+}
+
+.table-shell table {
+  min-width: max-content;
+}
+
+.table-shell td,
+.table-shell th {
+  min-width: 8rem;
+}
+
+.table-shell td:first-child,
+.table-shell th:first-child {
+  min-width: 12rem;
+}
+
+@media (max-width: 767px) {
+  main > header {
+    position: sticky;
+  }
+
+  main > section {
+    padding-inline: var(--dten-space-4);
+    padding-top: var(--dten-space-6);
+  }
+
+  .page-title {
+    font-size: 2rem;
+    line-height: 1.15;
+  }
+
+  .section-heading {
+    font-size: 1.375rem;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .table-shell {
+    margin-inline: calc(var(--dten-space-1) * -1);
+  }
+
+  .status-badge {
+    white-space: normal;
+  }
+
+  .fixed.right-4.top-24 {
+    left: var(--dten-space-4);
+    right: var(--dten-space-4);
+    top: auto;
+    bottom: var(--dten-space-4);
+    width: auto;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  main > section {
+    padding-inline: var(--dten-space-6);
+  }
+
+  .mobile-nav {
+    padding-bottom: var(--dten-space-3);
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-nav {
+    display: none;
+  }
+}
+
+/* Final DTEN brand guard: keep green reserved for true primary CTAs and active states. */
+main .btn-primary {
+  border-color: var(--dten-color-primary-green);
+  background: var(--dten-color-primary-green);
+  color: var(--dten-color-off-white);
+}
+
+main .btn-secondary,
+main .btn-danger {
+  background: transparent;
+}
+
+main p:not(.status-badge *),
+main li:not(.status-badge *),
+main td:not(:has(.status-badge)) {
+  text-decoration-color: currentColor;
+}
+
+/* Focused layout cleanup: compact, breathable DTEN workflow surfaces. */
+main > header {
+  padding-top: var(--dten-space-3);
+  padding-bottom: var(--dten-space-3);
+}
+
+main > section {
+  padding-top: var(--dten-space-6);
+  padding-bottom: var(--dten-space-8);
+}
+
+.app-panel > div:first-child {
+  gap: var(--dten-space-3);
+  padding: var(--dten-space-4) var(--dten-space-6);
+}
+
+.app-panel > div:last-child {
+  padding: var(--dten-space-6);
+}
+
+.app-panel .section-heading {
+  font-size: clamp(1.25rem, 1.1rem + 0.35vw, 1.5rem);
+}
+
+.role-scope-banner {
+  background: color-mix(in srgb, var(--dten-color-light-gray) 72%, var(--dten-color-off-white));
+}
+
+.role-scope-banner p {
+  max-width: 72ch;
+}
+
+.role-scope-count {
+  white-space: nowrap;
+}
+
+.my-work-hero-grid h3 {
+  max-width: 30ch;
+  font-size: clamp(1.375rem, 1.2rem + 0.5vw, 1.75rem);
+  line-height: 1.2;
+}
+
+.my-work-priority {
+  max-width: 52rem;
+}
+
+.my-work-metrics .rounded-xl {
+  padding: var(--dten-space-3) var(--dten-space-4);
+}
+
+.next-actions-strip {
+  padding: var(--dten-space-4);
+}
+
+.next-actions-strip h3 {
+  line-height: 1.25;
+}
+
+.next-action-card {
+  min-height: 9rem;
+  padding: var(--dten-space-4);
+}
+
+.next-action-card > div:first-child {
+  min-height: 4.5rem;
+}
+
+.next-action-card p {
+  max-width: 54ch;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.mobile-nav-item {
+  align-items: center;
+  justify-content: center;
+  gap: var(--dten-space-2);
+  min-height: var(--dten-touch-target-min);
+  padding-left: var(--dten-space-6);
+  padding-right: var(--dten-space-6);
+  text-align: center;
+}
+
+header input[aria-label="Search events, owners, routes"] {
+  padding-left: 2.5rem;
+}
+
+header select[aria-label="Switch role"] {
+  min-width: 13rem;
+  padding-right: var(--dten-space-8);
+}
+
+@media (max-width: 767px) {
+  .app-panel > div:first-child,
+  .app-panel > div:last-child {
+    padding: var(--dten-space-4);
+  }
+
+  .next-action-card {
+    min-height: auto;
+  }
+
+  .next-action-card > div:first-child {
+    min-height: auto;
+  }
+
+  .role-scope-count {
+    width: fit-content;
+  }
+}

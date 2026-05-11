@@ -1,0 +1,43 @@
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\0.pack.gz_' -> 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\0.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\0.pack.gz_' -> 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\0.pack.gz'
+ ⨯ ./src/components/okrs/my-okrs-view.tsx
+Error: 
+  [31mx[0m the name `department` is defined multiple times
+     ,-[[36;1;4mC:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\src\components\okrs\my-okrs-view.tsx[0m:185:1]
+ [2m185[0m | }
+ [2m186[0m | 
+ [2m187[0m | function OkrListItem({ objective }: { objective: Objective }) {
+ [2m188[0m |   const department = findDepartment(objective.departmentId);
+     : [31;1m        ^^^^^|^^^^[0m
+     :              [31;1m`-- [31;1mprevious definition of `department` here[0m[0m
+ [2m189[0m |   const department = getDepartmentById(objective.departmentId);
+     : [33;1m        ^^^^^|^^^^[0m
+     :              [33;1m`-- [33;1m`department` redefined here[0m[0m
+ [2m190[0m |   const team = getTeamById(objective.teamId);
+ [2m191[0m | 
+ [2m192[0m |   return (
+     `----
+
+Import trace for requested module:
+./src/components/okrs/my-okrs-view.tsx
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\0.pack.gz_' -> 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\0.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: EPERM: operation not permitted, rename 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\1.pack.gz_' -> 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\1.pack.gz'
+ ⨯ ./src/components/manager/manager-review-view.tsx
+Error: Failed to read source code from C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\src\components\manager\manager-review-view.tsx
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Import trace for requested module:
+./src/components/manager/manager-review-view.tsx
+ ⨯ ./src/components/manager/manager-review-view.tsx
+Error: Failed to read source code from C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\src\components\manager\manager-review-view.tsx
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Import trace for requested module:
+./src/components/manager/manager-review-view.tsx
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: EPERM: operation not permitted, rename 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\1.pack.gz_' -> 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\1.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: EPERM: operation not permitted, rename 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\1.pack.gz_' -> 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\1.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: EPERM: operation not permitted, rename 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\1.pack.gz_' -> 'C:\Users\wliu0\OneDrive\Desktop\Dev Workspace\Weekly Execution System\.next\cache\webpack\client-development\1.pack.gz'
