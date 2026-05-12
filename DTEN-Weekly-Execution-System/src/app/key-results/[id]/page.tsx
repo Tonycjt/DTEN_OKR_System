@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { TrendChart } from "@/components/ui/trend-chart";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { formatShortDate } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
@@ -35,7 +37,7 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
           orderBy: { monthIndex: "asc" },
         },
         checkIns: {
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ weeklyReport: { weekStart: "desc" } }, { createdAt: "desc" }],
           include: {
             user: true,
             weeklyReport: true,
@@ -57,6 +59,15 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
   }
 
   const targetsByMonth = new Map(keyResult.monthlyTargets.map((target) => [target.monthIndex, target]));
+  const trendCheckIns = [...keyResult.checkIns].reverse();
+  const progressTrend = trendCheckIns.map((checkIn) => ({
+    label: formatShortDate(checkIn.weeklyReport.weekStart),
+    value: checkIn.progressPercent,
+  }));
+  const confidenceTrend = trendCheckIns.map((checkIn) => ({
+    label: formatShortDate(checkIn.weeklyReport.weekStart),
+    value: checkIn.confidenceScore,
+  }));
 
   return (
     <div className="stack">
@@ -181,6 +192,45 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <h2>KR Trends</h2>
+          <p>Progress, confidence, and status movement from weekly check-in history.</p>
+        </CardHeader>
+        <CardContent>
+          {trendCheckIns.length > 0 ? (
+            <div className="grid grid-2">
+              <div className="stack">
+                <h3>Progress Trend</h3>
+                <TrendChart label="KR progress over time" points={progressTrend} />
+              </div>
+              <div className="stack">
+                <h3>Confidence Trend</h3>
+                <TrendChart label="KR confidence over time" maxValue={5} points={confidenceTrend} />
+              </div>
+              <div className="wide">
+                <div className="route-grid">
+                  {trendCheckIns.map((checkIn) => (
+                    <div className="route-item" key={checkIn.id}>
+                      <span>
+                        <strong>{formatShortDate(checkIn.weeklyReport.weekStart)}</strong>
+                        <br />
+                        <span className="muted">
+                          {Math.round(checkIn.progressPercent)}% progress / confidence {checkIn.confidenceScore}/5
+                        </span>
+                      </span>
+                      <Badge tone={workStatusTone(checkIn.status)}>{formatEnumLabel(checkIn.status)}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="route-item">No check-ins yet, so no trend data is available.</div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-2">
         <Card>

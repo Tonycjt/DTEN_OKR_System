@@ -958,3 +958,75 @@ New-chat resume prompt:
 ```text
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 12 department health comparison is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 13: KR trend tracking.
 ```
+
+## Release 2 Day 13 - KR Trend Tracking
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added reusable server-rendered SVG trend chart component in `src/components/ui/trend-chart.tsx`.
+- Added trend chart styling in `src/app/globals.css`.
+- Added KR Trends section to `/key-results/:id`.
+- KR detail now shows:
+  - progress trend over time from check-in history
+  - confidence trend over time from check-in history
+  - status change history by weekly check-in
+- Check-ins on KR detail are ordered by linked weekly report week, newest first.
+- Expanded seed data with three historical D7X check-ins so the trend view is demoable after reset.
+- Seeded historical trend points remain before the current week, so the current week stays open for fresh test submissions.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+- Database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+d7xCheckIns: 3
+2026-04-20 progress=30 confidence=4 status=ON_TRACK
+2026-04-27 progress=40 confidence=3 status=AT_RISK
+2026-05-04 progress=48 confidence=3 status=AT_RISK
+```
+
+Visible Day 13 test path:
+
+```text
+1. Log in as ceo@dten.com / Password123!.
+2. Open `/company-okrs`.
+3. Open the "Ship D7X AI 55 inch to production" KR detail page.
+4. Confirm KR Trends shows progress and confidence trend charts.
+5. Confirm status history shows ON_TRACK followed by AT_RISK entries.
+6. Confirm `/weekly-report/current` still creates a fresh current-week report because currentWeekReports = 0 after reset.
+```
+
+Day 14 target:
+
+```text
+Build follow-up items:
+- Add `follow_ups` model.
+- Allow managers/executives to create follow-ups from reviews or KR/report context.
+- Show assigned follow-ups on employee dashboard.
+- Show created/assigned follow-ups on manager dashboard.
+- Notify assignees when follow-ups are created.
+- Keep reset behavior at the end of the day.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 13 KR trend tracking is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 14: follow-up items.
+```

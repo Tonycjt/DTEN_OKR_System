@@ -283,6 +283,11 @@ textarea {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.grid .wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
 .stack {
   display: grid;
   gap: 16px;
@@ -358,6 +363,52 @@ textarea {
   height: 100%;
   border-radius: inherit;
   background: var(--primary);
+}
+
+.trend-chart {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trend-chart svg {
+  width: 100%;
+  height: 180px;
+  overflow: visible;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 10px;
+}
+
+.trend-grid-line {
+  stroke: var(--border);
+  stroke-width: 0.8;
+}
+
+.trend-line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-point {
+  fill: var(--primary);
+  stroke: var(--surface);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
 }
 
 .detail-list {

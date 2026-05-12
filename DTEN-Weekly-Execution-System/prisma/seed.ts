@@ -260,8 +260,96 @@ async function main() {
     ],
   });
 
+  const earlyWeekStart = new Date("2026-04-20T00:00:00.000Z");
+  const earlyWeekEnd = new Date("2026-04-26T23:59:59.999Z");
+  const middleWeekStart = new Date("2026-04-27T00:00:00.000Z");
+  const middleWeekEnd = new Date("2026-05-03T23:59:59.999Z");
   const weekStart = new Date("2026-05-04T00:00:00.000Z");
   const weekEnd = new Date("2026-05-10T23:59:59.999Z");
+
+  const earlyReport = await prisma.weeklyReport.create({
+    data: {
+      userId: engineer.id,
+      weekStart: earlyWeekStart,
+      weekEnd: earlyWeekEnd,
+      status: "REVIEWED",
+      submittedAt: new Date("2026-04-21T18:00:00.000Z"),
+      reviewedAt: new Date("2026-04-21T20:00:00.000Z"),
+      summary: "Started D7X AI readiness push and identified first production validation gaps.",
+    },
+  });
+
+  const earlyPriority = await prisma.weeklyPriority.create({
+    data: {
+      weeklyReportId: earlyReport.id,
+      type: "KR_LINKED",
+      content: "Establish D7X AI production readiness baseline.",
+      linkedKeyResultId: shipD7x.id,
+      status: "DONE",
+      resultSummary: "Readiness baseline reached 30 percent.",
+      blocker: null,
+      nextStep: "Move into partner validation readiness.",
+    },
+  });
+
+  await prisma.checkIn.create({
+    data: {
+      keyResultId: shipD7x.id,
+      weeklyReportId: earlyReport.id,
+      weeklyPriorityId: earlyPriority.id,
+      userId: engineer.id,
+      previousValue: 20,
+      newValue: 30,
+      progressPercent: 30,
+      confidenceScore: 4,
+      status: "ON_TRACK",
+      blocker: null,
+      note: "Baseline readiness is in place and the team has a clear validation plan.",
+      createdAt: new Date("2026-04-21T18:15:00.000Z"),
+    },
+  });
+
+  const middleReport = await prisma.weeklyReport.create({
+    data: {
+      userId: engineer.id,
+      weekStart: middleWeekStart,
+      weekEnd: middleWeekEnd,
+      status: "REVIEWED",
+      submittedAt: new Date("2026-04-28T18:00:00.000Z"),
+      reviewedAt: new Date("2026-04-28T20:00:00.000Z"),
+      summary: "Advanced readiness but partner validation timing became a concern.",
+    },
+  });
+
+  const middlePriority = await prisma.weeklyPriority.create({
+    data: {
+      weeklyReportId: middleReport.id,
+      type: "KR_LINKED",
+      content: "Complete first pass of partner validation readiness items.",
+      linkedKeyResultId: shipD7x.id,
+      status: "IN_PROGRESS",
+      resultSummary: "Readiness moved from 30 percent to 40 percent.",
+      blocker: "Partner validation window shifted by several days.",
+      nextStep: "Track partner response and unblock validation evidence.",
+    },
+  });
+
+  await prisma.checkIn.create({
+    data: {
+      keyResultId: shipD7x.id,
+      weeklyReportId: middleReport.id,
+      weeklyPriorityId: middlePriority.id,
+      userId: engineer.id,
+      previousValue: 30,
+      newValue: 40,
+      progressPercent: 40,
+      confidenceScore: 3,
+      status: "AT_RISK",
+      blocker: "Partner validation window shifted.",
+      note: "Progress continued, but confidence dropped due to partner timing risk.",
+      createdAt: new Date("2026-04-28T18:15:00.000Z"),
+    },
+  });
 
   const weeklyReport = await prisma.weeklyReport.create({
     data: {
@@ -301,6 +389,7 @@ async function main() {
       status: "AT_RISK",
       blocker: "Partner validation not complete.",
       note: "Progress improved, but pacing remains behind the month two target.",
+      createdAt: new Date("2026-05-05T18:15:00.000Z"),
     },
   });
 
