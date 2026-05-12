@@ -260,16 +260,17 @@ async function main() {
     ],
   });
 
-  const weekStart = new Date("2026-05-11T00:00:00.000Z");
-  const weekEnd = new Date("2026-05-17T23:59:59.999Z");
+  const weekStart = new Date("2026-05-04T00:00:00.000Z");
+  const weekEnd = new Date("2026-05-10T23:59:59.999Z");
 
   const weeklyReport = await prisma.weeklyReport.create({
     data: {
       userId: engineer.id,
       weekStart,
       weekEnd,
-      status: "SUBMITTED",
+      status: "NEEDS_FOLLOW_UP",
       submittedAt: new Date("2026-05-11T18:00:00.000Z"),
+      reviewedAt: new Date("2026-05-11T20:00:00.000Z"),
       summary: "Focused on D7X AI readiness and surfaced certification dependency risks.",
     },
   });
@@ -307,7 +308,7 @@ async function main() {
     data: {
       weeklyReportId: weeklyReport.id,
       managerId: manager.id,
-      decision: "NEEDS_FOLLOW_UP",
+      decision: "RISK_FLAGGED",
       comment: "Please bring the partner validation blocker to the certification sync.",
     },
   });
@@ -327,6 +328,13 @@ async function main() {
         title: "Follow-up requested",
         body: `${manager.name} requested follow-up on a D7X AI blocker.`,
         relatedUrl: "/weekly-report/history",
+      },
+      {
+        userId: departmentHead.id,
+        type: "FOLLOW_UP_REQUESTED",
+        title: "Risk escalated",
+        body: `${manager.name} flagged a weekly report risk for escalation.`,
+        relatedUrl: "/dashboard",
       },
       {
         userId: ceo.id,
@@ -367,7 +375,7 @@ async function main() {
         action: "REVIEWED",
         entityType: "WeeklyReport",
         entityId: weeklyReport.id,
-        metadata: { decision: "NEEDS_FOLLOW_UP" },
+        metadata: { decision: "RISK_FLAGGED", escalationOwnerId: departmentHead.id },
       },
     ],
   });

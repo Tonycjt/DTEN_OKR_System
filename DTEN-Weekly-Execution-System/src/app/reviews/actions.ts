@@ -55,6 +55,7 @@ export async function submitManagerReviewAction(formData: FormData) {
   }
 
   const reviewOwnerId = getEffectiveReviewOwnerId(report.user);
+  const escalationOwnerId = decision === "RISK_FLAGGED" ? getEffectiveReviewOwnerId(manager) : null;
   const nextReportStatus = decision === "APPROVED" ? "REVIEWED" : "NEEDS_FOLLOW_UP";
   const comment = optionalString(formData.get("comment"));
 
@@ -86,6 +87,18 @@ export async function submitManagerReviewAction(formData: FormData) {
       },
     });
 
+    if (escalationOwnerId && escalationOwnerId !== manager.id && escalationOwnerId !== report.userId) {
+      await tx.notification.create({
+        data: {
+          userId: escalationOwnerId,
+          type: "FOLLOW_UP_REQUESTED",
+          title: "Risk escalated",
+          body: `${manager.name} flagged a weekly report risk for escalation.`,
+          relatedUrl: "/dashboard",
+        },
+      });
+    }
+
     await tx.auditLog.create({
       data: {
         actorId: manager.id,
@@ -96,6 +109,7 @@ export async function submitManagerReviewAction(formData: FormData) {
           decision,
           reviewedUserId: report.userId,
           reviewOwnerId,
+          escalationOwnerId,
         },
       },
     });

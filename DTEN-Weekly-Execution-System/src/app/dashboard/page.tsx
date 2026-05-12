@@ -10,6 +10,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { pacingStatusTone, weeklyReportStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
 import { reviewOwnerWhere, reviewQueueWhere } from "@/lib/review-routing";
+import { formatReviewCompletionRate, getKrRiskReasons, krRiskWhere } from "@/lib/risk-detection";
 import { formatShortDate, getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
@@ -117,16 +118,34 @@ export default async function DashboardPage() {
       : isManager
         ? { ownerId: { in: reportScopeUserIds } }
         : { ownerId: user.id };
+  const pendingReviewScopeWhere: Prisma.WeeklyReportWhereInput = isCompanyViewer
+    ? { userId: { in: reportScopeUserIds } }
+    : isDepartmentViewer
+      ? { user: { departmentId: user.departmentId } }
+      : isManager
+        ? reviewQueueWhere(user.id)
+        : { userId: user.id };
+  const escalatedReviewScopeWhere: Prisma.ManagerReviewWhereInput = isCompanyViewer
+    ? {}
+    : isDepartmentViewer
+      ? { weeklyReport: { user: { departmentId: user.departmentId } } }
+      : isManager
+        ? {
+            OR: [{ manager: reviewOwnerWhere(user.id) }, { weeklyReport: { user: reviewOwnerWhere(user.id) } }],
+          }
+        : { weeklyReport: { userId: user.id } };
 
   const [
     reportsThisWeek,
     pendingReviews,
+    pendingReviewReports,
     totalObjectives,
     totalKrs,
     krStatusGroups,
     krPacingGroups,
     confidenceAggregate,
     riskKrs,
+    escalatedReviews,
     recentAuditLogs,
   ] = await Promise.all([
     prisma.weeklyReport.findMany({
@@ -146,6 +165,24 @@ export default async function DashboardPage() {
             ...(user.role === "ADMIN" ? {} : reviewQueueWhere(user.id)),
           },
         }),
+    prisma.weeklyReport.findMany({
+      where: {
+        status: "SUBMITTED",
+        ...(user.role === "ADMIN" ? {} : pendingReviewScopeWhere),
+      },
+      orderBy: [{ submittedAt: "asc" }, { updatedAt: "asc" }],
+      take: 8,
+      include: {
+        user: {
+          include: {
+            department: true,
+            team: true,
+            manager: true,
+            reviewOwner: true,
+          },
+        },
+      },
+    }),
     prisma.objective.count({ where: objectiveScopeWhere }),
     prisma.keyResult.count({ where: krScopeWhere }),
     prisma.keyResult.groupBy({
@@ -167,13 +204,34 @@ export default async function DashboardPage() {
     prisma.keyResult.findMany({
       where: {
         ...krScopeWhere,
-        OR: [{ status: { in: ["AT_RISK", "OFF_TRACK"] } }, { pacingStatus: "BEHIND" }, { confidenceScore: { lte: 2 } }],
+        ...krRiskWhere,
       },
       orderBy: [{ confidenceScore: "asc" }, { updatedAt: "desc" }],
       take: 8,
       include: {
         owner: true,
         objective: true,
+      },
+    }),
+    prisma.managerReview.findMany({
+      where: {
+        decision: "RISK_FLAGGED",
+        ...escalatedReviewScopeWhere,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      include: {
+        manager: true,
+        weeklyReport: {
+          include: {
+            user: {
+              include: {
+                department: true,
+                team: true,
+              },
+            },
+          },
+        },
       },
     }),
     isCompanyViewer
@@ -190,6 +248,17 @@ export default async function DashboardPage() {
     const report = reportsByUserId.get(scopedUser.id);
     return !report || !submittedReportStatuses.includes(report.status as (typeof submittedReportStatuses)[number]);
   });
+  const reviewableReports = reportsThisWeek.filter((report) => submittedReportStatuses.includes(report.status as (typeof submittedReportStatuses)[number]));
+  const completedReviews = reviewableReports.filter((report) => report.status === "REVIEWED" || report.status === "NEEDS_FOLLOW_UP");
+  const pendingReviewsByOwner = Array.from(
+    pendingReviewReports
+      .reduce((groups, report) => {
+        const label = report.user.reviewOwner?.name ?? report.user.manager?.name ?? "Unassigned reviewer";
+        groups.set(label, (groups.get(label) ?? 0) + 1);
+        return groups;
+      }, new Map<string, number>())
+      .entries(),
+  ).map(([label, count]) => ({ label, count }));
 
   return (
     <div className="stack">
@@ -224,6 +293,17 @@ export default async function DashboardPage() {
         <StatCard label="Objectives" value={String(totalObjectives)} detail="visible scope" tone="info" />
         <StatCard label="Key Results" value={String(totalKrs)} detail="visible scope" tone="success" />
         <StatCard label="Pending Reviews" value={String(pendingReviews)} detail="submitted reports" tone="warning" />
+      </div>
+
+      <div className="grid grid-3">
+        <StatCard
+          label="Review Completion"
+          value={formatReviewCompletionRate(completedReviews.length, reviewableReports.length)}
+          detail={`${completedReviews.length} of ${reviewableReports.length} reviewable reports`}
+          tone={reviewableReports.length === 0 || completedReviews.length === reviewableReports.length ? "success" : "warning"}
+        />
+        <StatCard label="Escalated Reviews" value={String(escalatedReviews.length)} detail="risk flagged" tone={escalatedReviews.length > 0 ? "danger" : "success"} />
+        <StatCard label="Missing Updates" value={String(missingReportUsers.length)} detail="current week" tone={missingReportUsers.length > 0 ? "warning" : "success"} />
       </div>
 
       <div className="grid grid-2">
@@ -346,6 +426,12 @@ export default async function DashboardPage() {
                     <Badge tone="warning">Missing</Badge>
                   </div>
                 ))}
+                {pendingReviewsByOwner.map((group) => (
+                  <div className="route-item" key={group.label}>
+                    <span>Pending review owner: {group.label}</span>
+                    <strong>{group.count}</strong>
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -367,6 +453,8 @@ export default async function DashboardPage() {
                     <br />
                     <span className="muted">
                       {kr.objective.title} / {kr.owner.name} / Confidence {kr.confidenceScore}/5
+                      <br />
+                      {getKrRiskReasons(kr).join(", ")}
                     </span>
                   </span>
                   <span className="table-actions">
@@ -380,6 +468,31 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <h2>Escalations</h2>
+          <p>Manager-flagged weekly report risks in your visible scope.</p>
+        </CardHeader>
+        <CardContent>
+          <div className="route-grid">
+            {escalatedReviews.map((review) => (
+              <div className="route-item" key={review.id}>
+                <span>
+                  <strong>{review.weeklyReport.user.name}</strong>
+                  <br />
+                  <span className="muted">
+                    Flagged by {review.manager.name} / {review.weeklyReport.user.department?.name ?? "No department"}
+                    {review.comment ? ` / ${review.comment}` : ""}
+                  </span>
+                </span>
+                <Badge tone="danger">Escalated</Badge>
+              </div>
+            ))}
+            {escalatedReviews.length === 0 ? <div className="route-item">No manager-flagged escalations in your visible scope.</div> : null}
+          </div>
+        </CardContent>
+      </Card>
 
       {isCompanyViewer ? (
         <Card>

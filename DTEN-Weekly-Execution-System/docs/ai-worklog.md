@@ -794,3 +794,89 @@ New-chat resume prompt:
 ```text
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 10 delegated review routing is complete. Please help me continue with Day 11: escalation and better risk detection.
 ```
+
+## Release 2 Day 11 - Escalation And Better Risk Detection
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added centralized KR risk detection helpers in `src/lib/risk-detection.ts`.
+- KR risk detection now treats these as risk signals:
+  - status AT_RISK
+  - status OFF_TRACK
+  - status ON_HOLD
+  - pacing BEHIND
+  - pacing NO_UPDATE
+  - confidence score <= 2
+  - low progress under 25 percent while not completed
+- Dashboard risk list now uses centralized risk detection and displays risk reasons.
+- Dashboard now shows review completion rate for visible current-week reports.
+- Dashboard now shows current-week missing update count as a first-class metric.
+- Dashboard now shows manager-flagged escalations in the user's visible scope.
+- Dashboard now groups submitted/pending reports by effective review owner.
+- Manager dashboard scope continues to use delegated review ownership.
+- Review action now escalates RISK_FLAGGED reviews upward by notifying the reviewer's effective review owner.
+- Review audit metadata now stores `escalationOwnerId` when a risk is escalated upward.
+```
+
+Seed/reset behavior update:
+
+```text
+- Going forward, each completed development day should reset the local demo database unless Tony says not to.
+- The seed data now keeps the example weekly report in the previous week instead of the current week.
+- This leaves the current week empty after reset so seeded users can create and submit fresh weekly reports for testing.
+- The seeded historical report is NEEDS_FOLLOW_UP with a RISK_FLAGGED review so escalation UI has demo data.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+- Database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+historical seeded report: engineer@dten.com, NEEDS_FOLLOW_UP, week of 2026-05-04, reviewer manager@dten.com, review RISK_FLAGGED
+```
+
+Visible Day 11 test path:
+
+```text
+1. Log in as head@dten.com / Password123!.
+2. Open `/dashboard`.
+3. Confirm Escalations shows the historical engineer risk flagged by manager@dten.com.
+4. Log in as engineer@dten.com / Password123!.
+5. Open `/weekly-report/current` and confirm a fresh current-week report can be created/submitted.
+6. Log in as manager@dten.com / Password123! and review the submitted report.
+7. Choose Risk Flagged to confirm an escalation notification is created for head@dten.com.
+```
+
+Day 12 target:
+
+```text
+Build department health comparison:
+- Department-level totals for objectives and KRs.
+- KRs by status and pacing per department.
+- Average confidence by department.
+- Missing weekly reports by department.
+- Pending review and escalation counts by department.
+- CEO/company dashboard department comparison table.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 11 escalation and risk detection is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 12: department health comparison.
+```
