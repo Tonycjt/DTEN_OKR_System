@@ -7,6 +7,7 @@ import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonth
 import { getEffectiveReviewOwnerId } from "@/lib/review-routing";
 import { getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
 import { requireUser } from "@/server/auth";
+import { sendKrBlockedEmail, sendReviewRequestedEmail } from "@/server/email-notifications";
 import { prisma } from "@/server/prisma";
 
 const priorityTypes: PriorityType[] = ["KR_LINKED", "AD_HOC"];
@@ -231,6 +232,7 @@ export async function submitWeeklyReportAction(formData: FormData) {
       user: {
         select: {
           id: true,
+          email: true,
           name: true,
           managerId: true,
           reviewOwnerId: true,
@@ -266,15 +268,33 @@ export async function submitWeeklyReportAction(formData: FormData) {
 
   const reviewOwnerId = getEffectiveReviewOwnerId(report.user);
 
-  if (reviewOwnerId) {
+  const reviewOwner = reviewOwnerId
+    ? await prisma.user.findUnique({
+        where: { id: reviewOwnerId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+        },
+      })
+    : null;
+
+  if (reviewOwner) {
     await prisma.notification.create({
       data: {
-        userId: reviewOwnerId,
-        type: "REPORT_SUBMITTED",
-        title: "Weekly report submitted",
+        userId: reviewOwner.id,
+        type: "REVIEW_REQUESTED",
+        title: "Review requested",
         body: `${report.user.name} submitted a weekly report for review.`,
         relatedUrl: "/reviews/pending",
       },
+    });
+
+    await sendReviewRequestedEmail({
+      reviewer: reviewOwner,
+      reportOwner: report.user,
+      weekStart: report.weekStart,
+      weekEnd: report.weekEnd,
     });
   }
 
@@ -321,6 +341,13 @@ export async function savePriorityCheckInAction(formData: FormData) {
       linkedKeyResult: {
         include: {
           monthlyTargets: true,
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
         },
       },
     },
@@ -345,6 +372,7 @@ export async function savePriorityCheckInAction(formData: FormData) {
     progressPercent,
     currentMonthTargetPercent: currentTarget?.targetPercent,
   });
+  const becameBlocked = linkedKeyResult.status !== "ON_HOLD" && status === "ON_HOLD";
 
   const existingCheckIn = await prisma.checkIn.findFirst({
     where: {
@@ -395,6 +423,18 @@ export async function savePriorityCheckInAction(formData: FormData) {
       },
     });
 
+    if (becameBlocked) {
+      await tx.notification.create({
+        data: {
+          userId: linkedKeyResult.ownerId,
+          type: "KR_BLOCKED",
+          title: "KR blocked",
+          body: `${linkedKeyResult.title} was marked blocked/on hold.`,
+          relatedUrl: `/key-results/${keyResultId}`,
+        },
+      });
+    }
+
     await tx.auditLog.create({
       data: {
         actorId: user.id,
@@ -412,10 +452,21 @@ export async function savePriorityCheckInAction(formData: FormData) {
     });
   });
 
+  if (becameBlocked) {
+    await sendKrBlockedEmail({
+      owner: linkedKeyResult.owner,
+      keyResultTitle: linkedKeyResult.title,
+      blocker: optionalString(formData.get("blocker")),
+      relatedPath: `/key-results/${keyResultId}`,
+    });
+  }
+
   revalidatePath("/weekly-report/current");
   revalidatePath("/weekly-report/history");
   revalidatePath(`/key-results/${keyResultId}`);
   revalidatePath(`/objectives/${linkedKeyResult.objectiveId}`);
   revalidatePath("/my-okrs");
   revalidatePath("/company-okrs");
+  revalidatePath("/notifications");
+  revalidatePath("/dashboard");
 }

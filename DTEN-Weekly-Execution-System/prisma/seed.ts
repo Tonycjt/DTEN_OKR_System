@@ -419,8 +419,8 @@ async function main() {
     data: [
       {
         userId: manager.id,
-        type: "REPORT_SUBMITTED",
-        title: "Weekly report submitted",
+        type: "REVIEW_REQUESTED",
+        title: "Review requested",
         body: `${engineer.name} submitted a weekly report for review.`,
         relatedUrl: "/reviews/pending",
       },

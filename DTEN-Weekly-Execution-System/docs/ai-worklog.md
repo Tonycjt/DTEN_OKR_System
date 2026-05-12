@@ -1197,6 +1197,104 @@ New-chat resume prompt:
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 15 comment threads on KRs and reports are complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 16: email notification foundation.
 ```
 
+## Release 2 Day 16 - Email Notification Foundation
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added email provider abstraction in `src/server/email.ts`.
+- Added local/dev email logging mode, with `EMAIL_PROVIDER=dev-log` as the default.
+- Added disabled email mode for environments that should suppress outbound email behavior.
+- Added email event helpers in `src/server/email-notifications.ts`.
+- Added email env documentation in `.env.example`:
+  - EMAIL_PROVIDER
+  - EMAIL_FROM
+  - APP_BASE_URL
+- Added notification enum values for Day 16 email-backed events:
+  - REVIEW_REQUESTED
+  - WEEKLY_REPORT_OVERDUE
+  - KR_BLOCKED
+- Added migration `20260512160000_add_email_notification_types`.
+- Weekly report submission now creates a Review Requested notification and sends a dev-log review request email to the effective review owner.
+- Follow-up creation now sends a dev-log follow-up assignment email to the assignee.
+- KR blocked/on-hold transitions now create a KR Blocked notification and send a dev-log email to the KR owner.
+- KR blocked/on-hold detection is wired from both KR detail edits and weekly report check-ins.
+- Added overdue weekly report email processor in `src/server/weekly-report-overdue.ts`.
+- Added command `npm run email:overdue` to process the previous completed week, mark missing/draft reports OVERDUE, create in-app overdue notifications, and emit dev-log emails.
+- Email sending is intentionally non-blocking so email config/provider issues do not prevent the underlying workflow from saving.
+```
+
+Verification:
+
+```powershell
+docker compose up -d
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:generate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:migrate -- --name add_email_notification_types
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+& 'C:\Program Files\nodejs\npm.cmd' run email:overdue
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Docker PostgreSQL container was running.
+- Prisma schema validation passed.
+- Prisma Client generated successfully.
+- Email notification enum migration applied successfully.
+- Lint passed.
+- Production build passed.
+- Seed completed successfully.
+- `npm run email:overdue` emitted dev-log emails for manager@dten.com, sales@dten.com, and head@dten.com for the previous completed week of May 4, 2026 - May 10, 2026.
+- Final database reset/seed completed after the email job smoke test.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+notifications by type:
+- FOLLOW_UP_REQUESTED: 2
+- KR_COMMENT: 1
+- FOLLOW_UP_ASSIGNED: 1
+- REPORT_COMMENT: 1
+- REVIEW_REQUESTED: 1
+```
+
+Visible Day 16 test path:
+
+```text
+1. Keep EMAIL_PROVIDER unset or set EMAIL_PROVIDER="dev-log".
+2. Log in as engineer@dten.com / Password123!.
+3. Open `/weekly-report/current`, add at least one priority, and submit the report.
+4. Confirm the dev server terminal logs a Review Requested email to manager@dten.com.
+5. Log in as manager@dten.com / Password123!.
+6. Open the D7X KR detail page and create a follow-up assigned to engineer@dten.com.
+7. Confirm the dev server terminal logs a Follow-up Assigned email to engineer@dten.com.
+8. On the same KR detail page, change the KR status to On Hold and save.
+9. Confirm the dev server terminal logs a KR Blocked email to the KR owner and `/notifications` shows the KR Blocked notification.
+10. Run `npm run email:overdue` to process prior-week missing reports and confirm dev-log overdue emails appear in the terminal.
+```
+
+Day 17 target:
+
+```text
+Build advanced dashboard filtering:
+- Add dashboard filters for department, team, owner, status, confidence, pacing, and quarter where useful.
+- Keep default dashboard views role-aware.
+- Apply filters to KR/risk/department health sections without breaking existing role scopes.
+- Keep reset behavior at the end of the day.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 16 email notification foundation is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 17: advanced dashboard filtering.
+```
+
 ## Standing User Instructions For Future Chats
 
 Use these instructions for all future work unless Tony explicitly says otherwise:
@@ -1232,16 +1330,17 @@ Current local commands and assumptions:
 Latest status before switching chats:
 
 ```text
-- Release 2 Day 15 is complete.
-- A small UI polish fix was also completed after Day 15:
-  - Assigned Follow-ups status selector on `/dashboard` now uses `.inline-select`.
-  - Files changed: `src/app/dashboard/page.tsx`, `src/app/globals.css`.
+- Release 2 Day 16 is complete.
+- Email notification foundation is implemented with dev-log mode by default.
+- A small UI polish fix was completed after Day 16:
+  - Follow-up status selector on `/key-results/:id` now uses `.inline-select`, matching the dashboard follow-up selector.
+  - Files changed: `src/app/key-results/[id]/page.tsx`.
   - Verification passed: `npm run lint`, `npm run build`.
-- The local database was last reset after Day 15, with `currentWeekReports = 0`.
+- The local database was last reset after Day 16, with `currentWeekReports = 0`.
 ```
 
 Recommended next prompt:
 
 ```text
-Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 15 is complete, and the next target is Day 16: email notification foundation. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 16 is complete, and the next target is Day 17: advanced dashboard filtering. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
 ```

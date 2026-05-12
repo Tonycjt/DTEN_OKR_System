@@ -12,6 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:studio": "prisma studio",
+    "email:overdue": "tsx src/scripts/send-weekly-report-overdue-emails.ts",
     "test": "vitest",
     "test:e2e": "playwright test"
   },

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { FollowUpSourceType, FollowUpStatus, UserRole } from "@prisma/client";
 import { requireUser } from "@/server/auth";
+import { sendFollowUpAssignedEmail } from "@/server/email-notifications";
 import { prisma } from "@/server/prisma";
 
 const creatorRoles: UserRole[] = ["ADMIN", "CEO", "DEPARTMENT_HEAD", "MANAGER"];
@@ -58,6 +59,19 @@ export async function createFollowUpAction(formData: FormData) {
     throw new Error("Invalid follow-up source.");
   }
 
+  const owner = await prisma.user.findUnique({
+    where: { id: ownerId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+    },
+  });
+
+  if (!owner) {
+    throw new Error("Follow-up owner not found.");
+  }
+
   await prisma.$transaction(async (tx) => {
     const followUp = await tx.followUp.create({
       data: {
@@ -94,6 +108,14 @@ export async function createFollowUpAction(formData: FormData) {
         },
       },
     });
+  });
+
+  await sendFollowUpAssignedEmail({
+    assignee: owner,
+    assigner: user,
+    content,
+    dueDate,
+    relatedPath: redirectPath,
   });
 
   revalidatePath("/dashboard");

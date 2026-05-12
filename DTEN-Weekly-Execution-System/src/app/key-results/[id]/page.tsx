@@ -319,7 +319,7 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
                       <form action={updateFollowUpStatusAction} className="table-actions">
                         <input name="followUpId" type="hidden" value={followUp.id} />
                         <input name="redirectPath" type="hidden" value={`/key-results/${keyResult.id}`} />
-                        <select defaultValue={followUp.status} name="status">
+                        <select className="inline-select" defaultValue={followUp.status} name="status">
                           {["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"].map((status) => (
                             <option key={status} value={status}>
                               {formatEnumLabel(status)}

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { ObjectiveLevel, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
 import { requireUser } from "@/server/auth";
+import { sendKrBlockedEmail } from "@/server/email-notifications";
 import { prisma } from "@/server/prisma";
 
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
@@ -148,6 +149,7 @@ export async function createKeyResultAction(formData: FormData) {
   const progressPercent = calculateProgressPercent(startValue, currentValue, targetValue);
   const confidenceScore = clamp(intValue(formData.get("confidenceScore"), 3), 1, 5);
   const status = requiredString(formData.get("status"), "Status") as WorkStatus;
+  const ownerId = requiredString(formData.get("ownerId"), "Owner");
 
   if (!workStatuses.includes(status)) {
     throw new Error("Invalid KR status.");
@@ -163,7 +165,7 @@ export async function createKeyResultAction(formData: FormData) {
   const keyResult = await prisma.keyResult.create({
     data: {
       objectiveId,
-      ownerId: requiredString(formData.get("ownerId"), "Owner"),
+      ownerId,
       title: requiredString(formData.get("title"), "Title"),
       metricName: optionalString(formData.get("metricName")),
       startValue,
@@ -193,9 +195,40 @@ export async function createKeyResultAction(formData: FormData) {
     },
   });
 
+  if (status === "ON_HOLD") {
+    const owner = await prisma.user.findUnique({
+      where: { id: ownerId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
+    });
+
+    if (owner) {
+      await prisma.notification.create({
+        data: {
+          userId: owner.id,
+          type: "KR_BLOCKED",
+          title: "KR blocked",
+          body: `${keyResult.title} was created as blocked/on hold.`,
+          relatedUrl: `/key-results/${keyResult.id}`,
+        },
+      });
+
+      await sendKrBlockedEmail({
+        owner,
+        keyResultTitle: keyResult.title,
+        relatedPath: `/key-results/${keyResult.id}`,
+      });
+    }
+  }
+
   revalidatePath(`/objectives/${objectiveId}`);
   revalidatePath("/company-okrs");
   revalidatePath("/my-okrs");
+  revalidatePath("/notifications");
+  revalidatePath("/dashboard");
   redirect(`/key-results/${keyResult.id}`);
 }
 
@@ -210,17 +243,38 @@ export async function updateKeyResultAction(formData: FormData) {
   const currentMonthIndex = getCurrentQuarterMonthIndex();
   const currentMonthTargetPercent = numberValue(formData.get(`targetPercent${currentMonthIndex}`), Number.NaN);
   const status = requiredString(formData.get("status"), "Status") as WorkStatus;
+  const ownerId = requiredString(formData.get("ownerId"), "Owner");
 
   if (!workStatuses.includes(status)) {
     throw new Error("Invalid KR status.");
   }
 
-  await prisma.keyResult.update({
+  const existingKeyResult = await prisma.keyResult.findUnique({
+    where: { id: keyResultId },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      owner: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  if (!existingKeyResult) {
+    throw new Error("Key Result not found.");
+  }
+
+  const updatedKeyResult = await prisma.keyResult.update({
     where: { id: keyResultId },
     data: {
       title: requiredString(formData.get("title"), "Title"),
       metricName: optionalString(formData.get("metricName")),
-      ownerId: requiredString(formData.get("ownerId"), "Owner"),
+      ownerId,
       startValue,
       currentValue,
       targetValue,
@@ -231,6 +285,15 @@ export async function updateKeyResultAction(formData: FormData) {
         progressPercent,
         currentMonthTargetPercent: Number.isFinite(currentMonthTargetPercent) ? currentMonthTargetPercent : null,
       }),
+    },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+        },
+      },
     },
   });
 
@@ -267,8 +330,28 @@ export async function updateKeyResultAction(formData: FormData) {
     },
   });
 
+  if (existingKeyResult.status !== "ON_HOLD" && status === "ON_HOLD") {
+    await prisma.notification.create({
+      data: {
+        userId: updatedKeyResult.ownerId,
+        type: "KR_BLOCKED",
+        title: "KR blocked",
+        body: `${updatedKeyResult.title} was marked blocked/on hold.`,
+        relatedUrl: `/key-results/${keyResultId}`,
+      },
+    });
+
+    await sendKrBlockedEmail({
+      owner: updatedKeyResult.owner,
+      keyResultTitle: updatedKeyResult.title,
+      relatedPath: `/key-results/${keyResultId}`,
+    });
+  }
+
   revalidatePath(`/key-results/${keyResultId}`);
   revalidatePath(`/objectives/${objectiveId}`);
   revalidatePath("/company-okrs");
   revalidatePath("/my-okrs");
+  revalidatePath("/notifications");
+  revalidatePath("/dashboard");
 }
