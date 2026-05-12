@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { ReviewDecision } from "@prisma/client";
+import { canReviewOwnedReport, getEffectiveReviewOwnerId } from "@/lib/review-routing";
 import { requireRole } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
@@ -35,7 +36,13 @@ export async function submitManagerReviewAction(formData: FormData) {
   const report = await prisma.weeklyReport.findUnique({
     where: { id: weeklyReportId },
     include: {
-      user: true,
+      user: {
+        select: {
+          id: true,
+          managerId: true,
+          reviewOwnerId: true,
+        },
+      },
     },
   });
 
@@ -43,12 +50,11 @@ export async function submitManagerReviewAction(formData: FormData) {
     throw new Error("Weekly report not found.");
   }
 
-  const canReviewAny = manager.role === "ADMIN" || manager.role === "CEO" || manager.role === "DEPARTMENT_HEAD";
-
-  if (!canReviewAny && report.user.managerId !== manager.id) {
-    throw new Error("You can only review reports from your direct reports.");
+  if (!canReviewOwnedReport(manager, report.user)) {
+    throw new Error("You can only review reports routed to you.");
   }
 
+  const reviewOwnerId = getEffectiveReviewOwnerId(report.user);
   const nextReportStatus = decision === "APPROVED" ? "REVIEWED" : "NEEDS_FOLLOW_UP";
   const comment = optionalString(formData.get("comment"));
 
@@ -89,6 +95,7 @@ export async function submitManagerReviewAction(formData: FormData) {
         metadata: {
           decision,
           reviewedUserId: report.userId,
+          reviewOwnerId,
         },
       },
     });
@@ -98,4 +105,5 @@ export async function submitManagerReviewAction(formData: FormData) {
   revalidatePath("/reviews/history");
   revalidatePath("/weekly-report/history");
   revalidatePath("/notifications");
+  revalidatePath("/dashboard");
 }

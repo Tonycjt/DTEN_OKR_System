@@ -1,4 +1,4 @@
-import type { UserRole } from "@prisma/client";
+import type { Prisma, UserRole } from "@prisma/client";
 
 export type ReviewSubject = {
   id: string;
@@ -25,4 +25,16 @@ export function canReviewOwnedReport(reviewer: ReviewViewer, reportOwner: Review
   }
 
   return isReviewOwner(reviewer.id, reportOwner);
+}
+
+export function reviewOwnerWhere(reviewerId: string): Prisma.UserWhereInput {
+  return {
+    OR: [{ reviewOwnerId: reviewerId }, { reviewOwnerId: null, managerId: reviewerId }],
+  };
+}
+
+export function reviewQueueWhere(reviewerId: string): Prisma.WeeklyReportWhereInput {
+  return {
+    user: reviewOwnerWhere(reviewerId),
+  };
 }

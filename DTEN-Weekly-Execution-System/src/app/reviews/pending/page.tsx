@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { priorityStatusTone, weeklyReportStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { reviewQueueWhere } from "@/lib/review-routing";
 import { formatWeekRange } from "@/lib/week";
 import { requireRole } from "@/server/auth";
 import { prisma } from "@/server/prisma";
@@ -15,12 +16,11 @@ const decisions: ReviewDecision[] = ["APPROVED", "NEEDS_FOLLOW_UP", "RISK_FLAGGE
 
 export default async function PendingReviewsPage() {
   const manager = await requireRole(["ADMIN", "CEO", "DEPARTMENT_HEAD", "MANAGER"]);
-  const canReviewAny = manager.role === "ADMIN" || manager.role === "CEO" || manager.role === "DEPARTMENT_HEAD";
 
   const reports = await prisma.weeklyReport.findMany({
     where: {
       status: "SUBMITTED",
-      ...(canReviewAny ? {} : { user: { managerId: manager.id } }),
+      ...(manager.role === "ADMIN" ? {} : reviewQueueWhere(manager.id)),
     },
     orderBy: [{ weekStart: "desc" }, { submittedAt: "asc" }],
     include: {
@@ -56,7 +56,7 @@ export default async function PendingReviewsPage() {
 
   return (
     <div className="stack">
-      <PageHeader title="Pending Reviews" description="Submitted weekly reports waiting for manager review." />
+      <PageHeader title="Pending Reviews" description="Submitted weekly reports routed to you for review." />
 
       <div className="stack">
         {reports.map((report) => (

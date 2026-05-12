@@ -720,3 +720,77 @@ New-chat resume prompt:
 ```text
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 9 is complete. Please help me continue with Day 10: delegated review routing using users.reviewOwnerId with fallback to managerId.
 ```
+
+## Release 2 Day 10 - Delegated Review Routing
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Extended `src/lib/review-routing.ts` with reusable Prisma where helpers for review-owner scope.
+- Updated weekly report submission to notify the effective review owner instead of always notifying `managerId`.
+- Added `reviewOwnerId` to weekly report submission audit metadata.
+- Updated `/reviews/pending` so CEO, department heads, and managers only see reports routed to them.
+- Removed broad CEO/department-head review access from the review action authorization check.
+- Kept `ADMIN` as a system/operator override for review action and pending queue visibility.
+- Updated dashboard pending-review count to use delegated review routing.
+- Updated manager dashboard scoped users to use delegated review ownership with fallback to manager.
+- Revalidated dashboard, notifications, and pending reviews after report submission/review actions.
+```
+
+Current delegated review rule:
+
+```text
+Effective reviewer = user.reviewOwnerId ?? user.managerId
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+```
+
+Database sanity check:
+
+```text
+- Seeded reviewer queue query now checks `reviewOwnerId` first and falls back to `managerId`.
+- Current local database has no submitted reports assigned to ceo@dten.com, head@dten.com, or manager@dten.com.
+- One older submitted local report belongs to juntao.chen@dten.com and has no review owner or manager, so it does not appear in any delegated seeded-user queue.
+```
+
+Visible Day 10 test path:
+
+```text
+1. Log in as engineer@dten.com / Password123!.
+2. Create or load the current weekly report and submit it.
+3. Log in as manager@dten.com / Password123!.
+4. Confirm the engineer report appears in `/reviews/pending`.
+5. Log in as head@dten.com / Password123!.
+6. Confirm the engineer report does not appear in `/reviews/pending`.
+7. Submit a manager weekly report, then confirm it routes to head@dten.com.
+8. Submit a department-head weekly report, then confirm it routes to ceo@dten.com.
+```
+
+Day 11 target:
+
+```text
+Build escalation and better risk detection:
+- Centralize KR/report risk detection helpers.
+- Surface blocked, low-confidence, behind, and repeated-miss conditions.
+- Escalate manager-flagged risk items upward.
+- Add CEO/manager dashboard visibility for escalated reports or KRs.
+- Add missing review counts by manager/department and review completion rate.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 10 delegated review routing is complete. Please help me continue with Day 11: escalation and better risk detection.
+```

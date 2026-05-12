@@ -9,6 +9,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatCard } from "@/components/ui/stat-card";
 import { pacingStatusTone, weeklyReportStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { reviewOwnerWhere, reviewQueueWhere } from "@/lib/review-routing";
 import { formatShortDate, getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
@@ -45,7 +46,7 @@ export default async function DashboardPage() {
 
   const userScopeWhere: Prisma.UserWhereInput = {
     isActive: true,
-    ...(isCompanyViewer ? {} : isDepartmentViewer ? { departmentId: user.departmentId } : isManager ? { managerId: user.id } : { id: user.id }),
+    ...(isCompanyViewer ? {} : isDepartmentViewer ? { departmentId: user.departmentId } : isManager ? reviewOwnerWhere(user.id) : { id: user.id }),
   };
 
   const [currentReport, assignedKrs, followUpReports, unreadNotifications, scopedUsers] = await Promise.all([
@@ -137,12 +138,14 @@ export default async function DashboardPage() {
         user: true,
       },
     }),
-    prisma.weeklyReport.count({
-      where: {
-        status: "SUBMITTED",
-        userId: { in: reportScopeUserIds },
-      },
-    }),
+    user.role === "EMPLOYEE"
+      ? Promise.resolve(0)
+      : prisma.weeklyReport.count({
+          where: {
+            status: "SUBMITTED",
+            ...(user.role === "ADMIN" ? {} : reviewQueueWhere(user.id)),
+          },
+        }),
     prisma.objective.count({ where: objectiveScopeWhere }),
     prisma.keyResult.count({ where: krScopeWhere }),
     prisma.keyResult.groupBy({

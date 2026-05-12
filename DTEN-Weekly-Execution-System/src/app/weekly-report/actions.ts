@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PriorityStatus, PriorityType, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
+import { getEffectiveReviewOwnerId } from "@/lib/review-routing";
 import { getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
@@ -228,8 +229,11 @@ export async function submitWeeklyReportAction(formData: FormData) {
     include: {
       priorities: true,
       user: {
-        include: {
-          manager: true,
+        select: {
+          id: true,
+          name: true,
+          managerId: true,
+          reviewOwnerId: true,
         },
       },
     },
@@ -260,10 +264,12 @@ export async function submitWeeklyReportAction(formData: FormData) {
     },
   });
 
-  if (report.user.managerId) {
+  const reviewOwnerId = getEffectiveReviewOwnerId(report.user);
+
+  if (reviewOwnerId) {
     await prisma.notification.create({
       data: {
-        userId: report.user.managerId,
+        userId: reviewOwnerId,
         type: "REPORT_SUBMITTED",
         title: "Weekly report submitted",
         body: `${report.user.name} submitted a weekly report for review.`,
@@ -281,12 +287,16 @@ export async function submitWeeklyReportAction(formData: FormData) {
       metadata: {
         weekStart: report.weekStart.toISOString(),
         priorityCount: report.priorities.length,
+        reviewOwnerId,
       },
     },
   });
 
   revalidatePath("/weekly-report/current");
   revalidatePath("/weekly-report/history");
+  revalidatePath("/reviews/pending");
+  revalidatePath("/dashboard");
+  revalidatePath("/notifications");
   redirect("/weekly-report/history");
 }
 
