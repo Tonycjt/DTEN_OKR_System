@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { WorkStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
+import { createFollowUpAction, updateFollowUpStatusAction } from "@/app/follow-ups/actions";
 import { addKeyResultCommentAction } from "@/app/key-results/actions";
 import { updateKeyResultAction } from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +25,10 @@ type KeyResultDetailPageProps = {
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
 export default async function KeyResultDetailPage({ params }: KeyResultDetailPageProps) {
-  await requireUser();
+  const currentUser = await requireUser();
   const { id } = await params;
 
-  const [keyResult, users] = await Promise.all([
+  const [keyResult, users, followUps] = await Promise.all([
     prisma.keyResult.findUnique({
       where: { id },
       include: {
@@ -52,6 +53,17 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
       },
     }),
     prisma.user.findMany({ orderBy: { name: "asc" } }),
+    prisma.followUp.findMany({
+      where: {
+        sourceObjectType: "KEY_RESULT",
+        sourceObjectId: id,
+      },
+      orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
+      include: {
+        owner: true,
+        assignedBy: true,
+      },
+    }),
   ]);
 
   if (!keyResult) {
@@ -68,6 +80,7 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
     label: formatShortDate(checkIn.weeklyReport.weekStart),
     value: checkIn.confidenceScore,
   }));
+  const canCreateFollowUp = currentUser.role === "ADMIN" || currentUser.role === "CEO" || currentUser.role === "DEPARTMENT_HEAD" || currentUser.role === "MANAGER";
 
   return (
     <div className="stack">
@@ -257,6 +270,79 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <h2>Follow-ups</h2>
+            <p>Create and track action items tied to this KR.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="stack">
+              {canCreateFollowUp ? (
+                <form action={createFollowUpAction} className="form-shell">
+                  <input name="sourceObjectType" type="hidden" value="KEY_RESULT" />
+                  <input name="sourceObjectId" type="hidden" value={keyResult.id} />
+                  <input name="redirectPath" type="hidden" value={`/key-results/${keyResult.id}`} />
+                  <label className="field">
+                    <span>Owner</span>
+                    <select defaultValue={keyResult.ownerId} name="ownerId" required>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Follow-up</span>
+                    <textarea name="content" placeholder="Specific action needed to reduce risk or unblock progress." required />
+                  </label>
+                  <label className="field">
+                    <span>Due Date</span>
+                    <input name="dueDate" type="date" />
+                  </label>
+                  <Button type="submit">Create Follow-up</Button>
+                </form>
+              ) : null}
+
+              <div className="route-grid">
+                {followUps.map((followUp) => (
+                  <div className="route-item" key={followUp.id}>
+                    <span>
+                      <strong>{followUp.content}</strong>
+                      <br />
+                      <span className="muted">
+                        Owner: {followUp.owner.name} / Assigned by {followUp.assignedBy.name}
+                        {followUp.dueDate ? ` / Due ${formatShortDate(followUp.dueDate)}` : ""}
+                      </span>
+                    </span>
+                    {followUp.ownerId === currentUser.id || followUp.assignedById === currentUser.id || currentUser.role === "ADMIN" ? (
+                      <form action={updateFollowUpStatusAction} className="table-actions">
+                        <input name="followUpId" type="hidden" value={followUp.id} />
+                        <input name="redirectPath" type="hidden" value={`/key-results/${keyResult.id}`} />
+                        <select defaultValue={followUp.status} name="status">
+                          {["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"].map((status) => (
+                            <option key={status} value={status}>
+                              {formatEnumLabel(status)}
+                            </option>
+                          ))}
+                        </select>
+                        <Button tone="secondary" type="submit">
+                          Save
+                        </Button>
+                      </form>
+                    ) : (
+                      <Badge>{formatEnumLabel(followUp.status)}</Badge>
+                    )}
+                  </div>
+                ))}
+                {followUps.length === 0 ? <div className="route-item">No follow-ups are linked to this KR yet.</div> : null}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-2">
         <Card>
           <CardHeader>
             <h2>Comments</h2>

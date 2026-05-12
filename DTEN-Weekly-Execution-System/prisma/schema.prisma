@@ -66,6 +66,7 @@ enum ReviewDecision {
 enum NotificationType {
   REPORT_SUBMITTED
   FOLLOW_UP_REQUESTED
+  FOLLOW_UP_ASSIGNED
   REPORT_REVIEWED
   KR_COMMENT
 }
@@ -76,6 +77,19 @@ enum AuditAction {
   SUBMITTED
   REVIEWED
   DELETED
+}
+
+enum FollowUpStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum FollowUpSourceType {
+  KEY_RESULT
+  WEEKLY_REPORT
+  MANAGER_REVIEW
 }
 
 model User {
@@ -107,6 +121,8 @@ model User {
   notifications    Notification[]
   comments         Comment[]
   auditLogs        AuditLog[]
+  assignedFollowUps FollowUp[] @relation("FollowUpOwner")
+  createdFollowUps  FollowUp[] @relation("FollowUpAssigner")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -338,6 +354,29 @@ model Notification {
   @@index([userId])
   @@index([type])
   @@index([readAt])
+}
+
+model FollowUp {
+  id               String             @id @default(cuid())
+  sourceObjectType FollowUpSourceType
+  sourceObjectId   String
+  ownerId          String
+  assignedById     String
+  content          String
+  dueDate          DateTime?
+  status           FollowUpStatus     @default(OPEN)
+
+  owner      User @relation("FollowUpOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  assignedBy User @relation("FollowUpAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sourceObjectType, sourceObjectId])
+  @@index([ownerId])
+  @@index([assignedById])
+  @@index([status])
+  @@index([dueDate])
 }
 
 model Comment {

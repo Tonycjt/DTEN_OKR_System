@@ -1,5 +1,6 @@
 import type { ReviewDecision } from "@prisma/client";
 import Link from "next/link";
+import { createFollowUpAction } from "@/app/follow-ups/actions";
 import { submitManagerReviewAction } from "@/app/reviews/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,24 @@ export default async function PendingReviewsPage() {
                     <textarea name="comment" placeholder="Add review notes, follow-up request, or risk context." />
                   </label>
                   <Button type="submit">Submit Review</Button>
+                </form>
+
+                <form action={createFollowUpAction} className="form-shell">
+                  <input name="sourceObjectType" type="hidden" value="WEEKLY_REPORT" />
+                  <input name="sourceObjectId" type="hidden" value={report.id} />
+                  <input name="ownerId" type="hidden" value={report.userId} />
+                  <input name="redirectPath" type="hidden" value="/reviews/pending" />
+                  <label className="field">
+                    <span>Assign Follow-up</span>
+                    <textarea name="content" placeholder="Specific next action for this report." required />
+                  </label>
+                  <label className="field">
+                    <span>Due Date</span>
+                    <input name="dueDate" type="date" />
+                  </label>
+                  <Button tone="secondary" type="submit">
+                    Assign Follow-up
+                  </Button>
                 </form>
               </div>
             </CardContent>

@@ -17,6 +17,7 @@ const password = "Password123!";
 
 async function resetDatabase() {
   await prisma.auditLog.deleteMany();
+  await prisma.followUp.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.managerReview.deleteMany();
@@ -402,6 +403,18 @@ async function main() {
     },
   });
 
+  const seededFollowUp = await prisma.followUp.create({
+    data: {
+      sourceObjectType: "KEY_RESULT",
+      sourceObjectId: shipD7x.id,
+      ownerId: engineer.id,
+      assignedById: manager.id,
+      content: "Close the partner validation evidence gap and update the D7X readiness KR.",
+      dueDate: new Date("2026-05-15T00:00:00.000Z"),
+      status: "OPEN",
+    },
+  });
+
   await prisma.notification.createMany({
     data: [
       {
@@ -424,6 +437,13 @@ async function main() {
         title: "Risk escalated",
         body: `${manager.name} flagged a weekly report risk for escalation.`,
         relatedUrl: "/dashboard",
+      },
+      {
+        userId: engineer.id,
+        type: "FOLLOW_UP_ASSIGNED",
+        title: "Follow-up assigned",
+        body: `${manager.name} assigned a follow-up on the D7X readiness KR.`,
+        relatedUrl: `/key-results/${shipD7x.id}`,
       },
       {
         userId: ceo.id,
@@ -458,6 +478,17 @@ async function main() {
         entityType: "WeeklyReport",
         entityId: weeklyReport.id,
         metadata: { weekStart: weekStart.toISOString(), weekEnd: weekEnd.toISOString() },
+      },
+      {
+        actorId: manager.id,
+        action: "CREATED",
+        entityType: "FollowUp",
+        entityId: seededFollowUp.id,
+        metadata: {
+          sourceObjectType: "KEY_RESULT",
+          sourceObjectId: shipD7x.id,
+          ownerId: engineer.id,
+        },
       },
       {
         actorId: manager.id,

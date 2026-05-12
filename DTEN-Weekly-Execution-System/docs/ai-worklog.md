@@ -1030,3 +1030,86 @@ New-chat resume prompt:
 ```text
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 13 KR trend tracking is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 14: follow-up items.
 ```
+
+## Release 2 Day 14 - Follow-up Items
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added `FollowUpStatus` enum.
+- Added `FollowUpSourceType` enum.
+- Added `FollowUp` Prisma model.
+- Added user relations for assigned and created follow-ups.
+- Added notification type `FOLLOW_UP_ASSIGNED`.
+- Added migration `20260512140000_add_follow_ups`.
+- Applied the migration to local Docker PostgreSQL.
+- Regenerated Prisma Client.
+- Added follow-up server actions in `src/app/follow-ups/actions.ts`.
+- Managers/leaders can create follow-ups from pending weekly reviews.
+- Managers/leaders can create follow-ups from KR detail pages.
+- Follow-up owners and assigners can update follow-up status.
+- Follow-up creation notifies the assignee.
+- Follow-up create/update events write audit logs.
+- Dashboard now shows assigned follow-ups and created follow-ups.
+- KR detail now shows linked follow-ups and status controls when the current user is allowed to update them.
+- Seed data now includes one open D7X KR follow-up assigned by manager@dten.com to engineer@dten.com.
+```
+
+Verification:
+
+```powershell
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:generate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:migrate
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Prisma schema validation passed.
+- Prisma Client generated successfully.
+- Follow-up migration applied successfully.
+- Lint passed.
+- Production build passed.
+- Database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+followUps: 1
+KEY_RESULT OPEN owner=engineer@dten.com assignedBy=manager@dten.com
+```
+
+Visible Day 14 test path:
+
+```text
+1. Log in as engineer@dten.com / Password123!.
+2. Open `/dashboard` and confirm Assigned Follow-ups shows the seeded D7X follow-up.
+3. Update the follow-up status from the dashboard.
+4. Log in as manager@dten.com / Password123!.
+5. Open the D7X KR detail page and create a new follow-up.
+6. Open `/dashboard` as manager and confirm Created Follow-ups shows the item.
+7. Submit a fresh current-week report as engineer, then open `/reviews/pending` as manager and assign a report follow-up.
+```
+
+Day 15 target:
+
+```text
+Build comment threads on KRs and reports:
+- Expand comments beyond KR-only where needed.
+- Add report-level comments or threaded discussion on weekly reports/reviews.
+- Notify relevant owners/managers for report comments.
+- Keep existing KR comment behavior.
+- Keep reset behavior at the end of the day.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 14 follow-up items are complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 15: comment threads on KRs and reports.
+```

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import type { Prisma, UserRole } from "@prisma/client";
+import type { FollowUpStatus, Prisma, UserRole } from "@prisma/client";
+import { updateFollowUpStatusAction } from "@/app/follow-ups/actions";
 import { Badge } from "@/components/ui/badge";
-import { LinkButton } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -16,6 +17,7 @@ import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
 const submittedReportStatuses = ["SUBMITTED", "REVIEWED", "NEEDS_FOLLOW_UP"] as const;
+const followUpStatuses: FollowUpStatus[] = ["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"];
 
 function averageConfidence(value: number | null | undefined) {
   return value == null ? "n/a" : `${value.toFixed(1)}/5`;
@@ -29,6 +31,22 @@ function compactCounts<T extends string>(counts: Map<T, number>, emptyLabel = "n
   }
 
   return entries.map(([label, count]) => `${formatEnumLabel(label)} ${count}`).join(" / ");
+}
+
+function followUpStatusTone(status: FollowUpStatus) {
+  if (status === "DONE") {
+    return "success";
+  }
+
+  if (status === "IN_PROGRESS") {
+    return "info";
+  }
+
+  if (status === "CANCELLED") {
+    return "neutral";
+  }
+
+  return "warning";
 }
 
 function roleDashboardLabel(role: UserRole) {
@@ -60,7 +78,7 @@ export default async function DashboardPage() {
     ...(isCompanyViewer ? {} : isDepartmentViewer ? { departmentId: user.departmentId } : isManager ? reviewOwnerWhere(user.id) : { id: user.id }),
   };
 
-  const [currentReport, assignedKrs, followUpReports, unreadNotifications, scopedUsers] = await Promise.all([
+  const [currentReport, assignedKrs, followUpReports, assignedFollowUps, createdFollowUps, unreadNotifications, scopedUsers] = await Promise.all([
     prisma.weeklyReport.findFirst({
       where: {
         userId: user.id,
@@ -94,6 +112,28 @@ export default async function DashboardPage() {
           orderBy: { createdAt: "desc" },
           include: { manager: true },
         },
+      },
+    }),
+    prisma.followUp.findMany({
+      where: {
+        ownerId: user.id,
+        status: { in: ["OPEN", "IN_PROGRESS"] },
+      },
+      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+      take: 6,
+      include: {
+        assignedBy: true,
+      },
+    }),
+    prisma.followUp.findMany({
+      where: {
+        assignedById: user.id,
+        status: { in: ["OPEN", "IN_PROGRESS"] },
+      },
+      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+      take: 6,
+      include: {
+        owner: true,
       },
     }),
     prisma.notification.count({
@@ -391,6 +431,71 @@ export default async function DashboardPage() {
           detail={unreadNotifications > 0 ? "needs attention" : "clear"}
           tone={unreadNotifications > 0 ? "warning" : "success"}
         />
+      </div>
+
+      <div className="grid grid-2">
+        <Card>
+          <CardHeader>
+            <h2>Assigned Follow-ups</h2>
+            <p>Open action items assigned to you from reviews, reports, and KRs.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="route-grid">
+              {assignedFollowUps.map((followUp) => (
+                <div className="route-item" key={followUp.id}>
+                  <span>
+                    <strong>{followUp.content}</strong>
+                    <br />
+                    <span className="muted">
+                      From {followUp.assignedBy.name}
+                      {followUp.dueDate ? ` / Due ${formatShortDate(followUp.dueDate)}` : ""}
+                    </span>
+                  </span>
+                  <form action={updateFollowUpStatusAction} className="table-actions">
+                    <input name="followUpId" type="hidden" value={followUp.id} />
+                    <input name="redirectPath" type="hidden" value="/dashboard" />
+                    <select defaultValue={followUp.status} name="status">
+                      {followUpStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {formatEnumLabel(status)}
+                        </option>
+                      ))}
+                    </select>
+                    <Button tone="secondary" type="submit">
+                      Save
+                    </Button>
+                  </form>
+                </div>
+              ))}
+              {assignedFollowUps.length === 0 ? <div className="route-item">No open follow-ups are assigned to you.</div> : null}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2>Created Follow-ups</h2>
+            <p>Open follow-ups you assigned to others.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="route-grid">
+              {createdFollowUps.map((followUp) => (
+                <div className="route-item" key={followUp.id}>
+                  <span>
+                    <strong>{followUp.content}</strong>
+                    <br />
+                    <span className="muted">
+                      Owner: {followUp.owner.name}
+                      {followUp.dueDate ? ` / Due ${formatShortDate(followUp.dueDate)}` : ""}
+                    </span>
+                  </span>
+                  <Badge tone={followUpStatusTone(followUp.status)}>{formatEnumLabel(followUp.status)}</Badge>
+                </div>
+              ))}
+              {createdFollowUps.length === 0 ? <div className="route-item">No open follow-ups created by you.</div> : null}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-3">
