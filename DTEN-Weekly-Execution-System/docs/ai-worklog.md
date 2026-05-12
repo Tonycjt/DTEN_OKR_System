@@ -1384,6 +1384,97 @@ New-chat resume prompt:
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 17 advanced dashboard filtering is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 18: advanced search.
 ```
 
+## Release 2 Day 18 - Advanced Search
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added `/search` as a role-scoped advanced search page.
+- Added Search to primary navigation for CEO, department head, manager, and employee users.
+- Search supports a text query and type filter:
+  - All result types
+  - Objectives
+  - Key Results
+  - Weekly Reports
+  - Comments
+  - Follow-ups
+- Objective results link to `/objectives/:id`.
+- KR results link to `/key-results/:id`.
+- Weekly report results link to the employee's report history or manager review queue depending on ownership.
+- Comment results link to the relevant KR detail, report history, or review queue.
+- Follow-up results link to the relevant KR detail when KR-linked, otherwise dashboard.
+- Search queries are scoped to the current user's role/review-visible users.
+- Managers cannot search outside their delegated review scope.
+- Employees only search their own visible reports/KRs/comments/follow-ups.
+- Added responsive search form styling in `src/app/globals.css`.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+- Database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+searchable seed counts:
+- objectives: 3
+- keyResults: 3
+- reports: 3
+- comments: 2
+- followUps: 1
+```
+
+Visible Day 18 test path:
+
+```text
+1. Log in as ceo@dten.com / Password123!.
+2. Open `/search`.
+3. Search for `D7X` with type `All result types`.
+4. Confirm KR/comment/follow-up related results appear and link to the D7X KR.
+5. Search for `partner` with type `Comments` or `Reports`.
+6. Confirm report/comment results link back to report history or review queue.
+7. Log in as manager@dten.com / Password123!.
+8. Search for `D7X` and confirm results remain limited to manager-visible execution data.
+9. Log in as sales@dten.com / Password123! and search for `D7X`; confirm Product Engineering-only data is not exposed.
+```
+
+Remaining Release 2 estimate:
+
+```text
+Release 2 looks about 2 more day-sized chunks from completion:
+- Day 19: dashboard CSV export and a basic weekly executive summary.
+- Day 20: Release 2 hardening, seeded-user smoke test, checklist, and polish.
+```
+
+Day 19 target:
+
+```text
+Build dashboard CSV export and weekly executive summary:
+- Export visible dashboard KR/risk/department health data to CSV.
+- Add a basic weekly executive summary view or generated server summary from current dashboard data.
+- Keep exports and summary role-scoped.
+- Keep reset behavior at the end of the day.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 18 advanced search is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 19: dashboard CSV export and weekly executive summary.
+```
+
 ## Standing User Instructions For Future Chats
 
 Use these instructions for all future work unless Tony explicitly says otherwise:
@@ -1419,14 +1510,14 @@ Current local commands and assumptions:
 Latest status before switching chats:
 
 ```text
-- Release 2 Day 17 is complete.
-- Advanced dashboard filtering is implemented on `/dashboard`.
-- Current estimate: Release 2 needs about 3 more day-sized chunks.
-- The local database was last reset after Day 17, with `currentWeekReports = 0`.
+- Release 2 Day 18 is complete.
+- Advanced role-scoped search is implemented on `/search`.
+- Current estimate: Release 2 needs about 2 more day-sized chunks.
+- The local database was last reset after Day 18, with `currentWeekReports = 0`.
 ```
 
 Recommended next prompt:
 
 ```text
-Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 17 is complete, and the next target is Day 18: advanced search. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 18 is complete, and the next target is Day 19: dashboard CSV export and weekly executive summary. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
 ```

@@ -6,6 +6,7 @@ import {
   Home,
   ListChecks,
   Network,
+  Search,
   ScrollText,
   Target,
   Users,
@@ -18,6 +19,7 @@ export const primaryNav = [
   { href: "/my-okrs", label: "My OKRs", icon: Target, roles: ["CEO", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
   { href: "/weekly-report/current", label: "Weekly Report", icon: ListChecks, roles: ["CEO", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
   { href: "/reviews/pending", label: "Reviews", icon: ClipboardCheck, roles: ["CEO", "DEPARTMENT_HEAD", "MANAGER"] },
+  { href: "/search", label: "Search", icon: Search, roles: ["CEO", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
   { href: "/notifications", label: "Notifications", icon: Bell, roles: ["CEO", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
 ] as const;
 
