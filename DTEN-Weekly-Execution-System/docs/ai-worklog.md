@@ -880,3 +880,81 @@ New-chat resume prompt:
 ```text
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 11 escalation and risk detection is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 12: department health comparison.
 ```
+
+## Release 2 Day 12 - Department Health Comparison
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added CEO/admin-only Department Health comparison table to `/dashboard`.
+- Department comparison shows:
+  - objective count
+  - KR count
+  - average KR confidence
+  - KR status summary
+  - KR pacing summary
+  - current-week review completion
+  - pending review count
+  - missing current-week reports
+  - KR risk count
+  - risk-flagged escalation count
+- Added a compact count formatter for dashboard status/pacing summaries.
+- Department health uses the current Monday-Sunday work week.
+- Department KR health is calculated from users' owned KRs.
+- Department objective count uses objectives assigned to the department.
+- Department escalation count uses RISK_FLAGGED reviews grouped by report owner's department.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+- Database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+Executive: users=1, objectives=2, krs=0
+Marketing: users=0, objectives=0, krs=0
+Product Engineering: users=3, objectives=1, krs=2
+Sales: users=1, objectives=0, krs=1
+```
+
+Visible Day 12 test path:
+
+```text
+1. Log in as ceo@dten.com / Password123!.
+2. Open `/dashboard`.
+3. Confirm Department Health appears below Escalations.
+4. Confirm Product Engineering shows objectives, KRs, risks, and the seeded escalation.
+5. Confirm Sales shows its owned KR.
+6. Confirm current-week reports remain open for fresh testing because reset leaves currentWeekReports = 0.
+```
+
+Day 13 target:
+
+```text
+Build KR trend tracking:
+- Use check-in history to show progress over time.
+- Show confidence trend over time.
+- Show status change history.
+- Add trend section to `/key-results/:id`.
+- Add compact trend indicators on dashboard/KR cards if useful.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 12 department health comparison is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 13: KR trend tracking.
+```

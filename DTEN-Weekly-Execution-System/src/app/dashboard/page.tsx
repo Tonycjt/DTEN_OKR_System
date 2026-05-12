@@ -21,6 +21,16 @@ function averageConfidence(value: number | null | undefined) {
   return value == null ? "n/a" : `${value.toFixed(1)}/5`;
 }
 
+function compactCounts<T extends string>(counts: Map<T, number>, emptyLabel = "none") {
+  const entries = Array.from(counts.entries()).filter(([, count]) => count > 0);
+
+  if (entries.length === 0) {
+    return emptyLabel;
+  }
+
+  return entries.map(([label, count]) => `${formatEnumLabel(label)} ${count}`).join(" / ");
+}
+
 function roleDashboardLabel(role: UserRole) {
   if (role === "CEO" || role === "ADMIN") {
     return "Company command view";
@@ -146,6 +156,9 @@ export default async function DashboardPage() {
     confidenceAggregate,
     riskKrs,
     escalatedReviews,
+    departmentsForHealth,
+    departmentPendingReports,
+    departmentEscalatedReviews,
     recentAuditLogs,
   ] = await Promise.all([
     prisma.weeklyReport.findMany({
@@ -235,6 +248,52 @@ export default async function DashboardPage() {
       },
     }),
     isCompanyViewer
+      ? prisma.department.findMany({
+          orderBy: { name: "asc" },
+          include: {
+            users: {
+              where: { isActive: true },
+              include: {
+                weeklyReports: {
+                  where: { weekStart },
+                  include: { reviews: true },
+                },
+                ownedKeyResults: true,
+              },
+            },
+            objectives: true,
+          },
+        })
+      : Promise.resolve([]),
+    isCompanyViewer
+      ? prisma.weeklyReport.findMany({
+          where: { status: "SUBMITTED" },
+          include: {
+            user: {
+              select: {
+                departmentId: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    isCompanyViewer
+      ? prisma.managerReview.findMany({
+          where: { decision: "RISK_FLAGGED" },
+          include: {
+            weeklyReport: {
+              include: {
+                user: {
+                  select: {
+                    departmentId: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    isCompanyViewer
       ? prisma.auditLog.findMany({
           orderBy: { createdAt: "desc" },
           take: 5,
@@ -259,6 +318,51 @@ export default async function DashboardPage() {
       }, new Map<string, number>())
       .entries(),
   ).map(([label, count]) => ({ label, count }));
+  const departmentPendingCounts = departmentPendingReports.reduce((counts, report) => {
+    const departmentId = report.user.departmentId ?? "unassigned";
+    counts.set(departmentId, (counts.get(departmentId) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const departmentEscalationCounts = departmentEscalatedReviews.reduce((counts, review) => {
+    const departmentId = review.weeklyReport.user.departmentId ?? "unassigned";
+    counts.set(departmentId, (counts.get(departmentId) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const departmentHealthRows = departmentsForHealth.map((department) => {
+    const keyResults = department.users.flatMap((departmentUser) => departmentUser.ownedKeyResults);
+    const currentReports = department.users.flatMap((departmentUser) => departmentUser.weeklyReports);
+    const submittedReports = currentReports.filter((report) => submittedReportStatuses.includes(report.status as (typeof submittedReportStatuses)[number]));
+    const completedDepartmentReviews = currentReports.filter((report) => report.status === "REVIEWED" || report.status === "NEEDS_FOLLOW_UP");
+    const missingReports = department.users.filter((departmentUser) => {
+      const report = departmentUser.weeklyReports[0];
+      return !report || !submittedReportStatuses.includes(report.status as (typeof submittedReportStatuses)[number]);
+    }).length;
+    const confidenceSum = keyResults.reduce((sum, kr) => sum + kr.confidenceScore, 0);
+    const statusCounts = keyResults.reduce((counts, kr) => {
+      counts.set(kr.status, (counts.get(kr.status) ?? 0) + 1);
+      return counts;
+    }, new Map<(typeof keyResults)[number]["status"], number>());
+    const pacingCounts = keyResults.reduce((counts, kr) => {
+      counts.set(kr.pacingStatus, (counts.get(kr.pacingStatus) ?? 0) + 1);
+      return counts;
+    }, new Map<(typeof keyResults)[number]["pacingStatus"], number>());
+    const riskCount = keyResults.filter((kr) => getKrRiskReasons(kr).length > 0).length;
+
+    return {
+      id: department.id,
+      name: department.name,
+      objectiveCount: department.objectives.length,
+      keyResultCount: keyResults.length,
+      statusSummary: compactCounts(statusCounts),
+      pacingSummary: compactCounts(pacingCounts),
+      averageConfidence: keyResults.length === 0 ? null : confidenceSum / keyResults.length,
+      missingReports,
+      pendingReviews: departmentPendingCounts.get(department.id) ?? 0,
+      escalations: departmentEscalationCounts.get(department.id) ?? 0,
+      reviewCompletion: formatReviewCompletionRate(completedDepartmentReviews.length, submittedReports.length),
+      riskCount,
+    };
+  });
 
   return (
     <div className="stack">
@@ -493,6 +597,67 @@ export default async function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {isCompanyViewer ? (
+        <Card>
+          <CardHeader>
+            <h2>Department Health</h2>
+            <p>Comparison of OKR health, review flow, missing updates, and escalations by department.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Department</th>
+                    <th>Objectives</th>
+                    <th>KRs</th>
+                    <th>Avg Confidence</th>
+                    <th>Status</th>
+                    <th>Pacing</th>
+                    <th>Reviews</th>
+                    <th>Missing</th>
+                    <th>Risks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {departmentHealthRows.map((department) => (
+                    <tr key={department.id}>
+                      <td>
+                        <strong>{department.name}</strong>
+                      </td>
+                      <td>{department.objectiveCount}</td>
+                      <td>{department.keyResultCount}</td>
+                      <td>{averageConfidence(department.averageConfidence)}</td>
+                      <td>{department.statusSummary}</td>
+                      <td>{department.pacingSummary}</td>
+                      <td>
+                        {department.reviewCompletion}
+                        <br />
+                        <span className="muted">{department.pendingReviews} pending</span>
+                      </td>
+                      <td>
+                        <Badge tone={department.missingReports > 0 ? "warning" : "success"}>{String(department.missingReports)}</Badge>
+                      </td>
+                      <td>
+                        <span className="table-actions">
+                          <Badge tone={department.riskCount > 0 ? "danger" : "success"}>{department.riskCount} KRs</Badge>
+                          <Badge tone={department.escalations > 0 ? "danger" : "success"}>{department.escalations} escalations</Badge>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {departmentHealthRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={9}>No departments are available.</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isCompanyViewer ? (
         <Card>
