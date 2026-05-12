@@ -641,3 +641,82 @@ Result:
 - Lint passed.
 - Production build passed.
 ```
+
+## Release 2 Day 9 - Review Ownership Foundation
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added `reviewOwnerId` to the Prisma `User` model for delegated review ownership.
+- Added `reviewOwner` and `reviewSubjects` self-relations on users.
+- Added migration `20260512120000_add_review_owner`, including a backfill from `managerId`.
+- Applied the migration to the local Docker PostgreSQL database.
+- Regenerated Prisma Client.
+- Updated seed data so the default review chain is explicit:
+  - head@dten.com -> ceo@dten.com
+  - manager@dten.com -> head@dten.com
+  - engineer@dten.com -> manager@dten.com
+  - sales@dten.com -> ceo@dten.com
+- Updated admin user create/edit forms with a Review Owner selector.
+- Updated admin user directory rows to show the effective review owner.
+- Updated user create behavior so blank Review Owner defaults to the selected manager.
+- Added shared review-routing helpers in `src/lib/review-routing.ts`.
+- Included `reviewOwnerId` in the current-user auth selection.
+```
+
+Verification:
+
+```powershell
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:generate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:migrate
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& '.\node_modules\.bin\prisma.cmd' migrate status
+```
+
+Result:
+
+```text
+- Prisma schema validation passed.
+- Prisma Client generated successfully.
+- Migration applied successfully.
+- Database schema is up to date.
+- Lint passed.
+- Production build passed.
+```
+
+Seeded review-owner sanity check:
+
+```text
+ceo@dten.com -> review owner: none
+engineer@dten.com -> review owner: manager@dten.com
+head@dten.com -> review owner: ceo@dten.com
+manager@dten.com -> review owner: head@dten.com
+sales@dten.com -> review owner: ceo@dten.com
+```
+
+Important behavior notes:
+
+```text
+- `reviewOwnerId` is the explicit delegated reviewer.
+- If `reviewOwnerId` is null, helper logic falls back to `managerId`.
+- Day 9 intentionally does not reroute pending reviews yet; current review pages still use the Release 1 logic.
+```
+
+Day 10 target:
+
+```text
+Implement delegated review routing:
+- Weekly report submission should notify the effective review owner.
+- Pending review queues should show reports where `reviewOwnerId` equals the reviewer, falling back to `managerId` when null.
+- Review authorization should use review ownership instead of broad CEO/department-head access.
+- CEO should see direct CEO-review items, not every submitted report, unless escalation logic is added later.
+- Review history should remain reviewer-specific.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 9 is complete. Please help me continue with Day 10: delegated review routing using users.reviewOwnerId with fallback to managerId.
+```

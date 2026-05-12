@@ -108,6 +108,7 @@ async function main() {
       title: "Head of Product Engineering",
       departmentId: productEngineering.id,
       managerId: ceo.id,
+      reviewOwnerId: ceo.id,
     },
   });
 
@@ -121,6 +122,7 @@ async function main() {
       departmentId: productEngineering.id,
       teamId: certificationTeam.id,
       managerId: departmentHead.id,
+      reviewOwnerId: departmentHead.id,
     },
   });
 
@@ -134,6 +136,7 @@ async function main() {
       departmentId: productEngineering.id,
       teamId: androidTeam.id,
       managerId: manager.id,
+      reviewOwnerId: manager.id,
     },
   });
 
@@ -147,6 +150,7 @@ async function main() {
       departmentId: sales.id,
       teamId: salesTeam.id,
       managerId: ceo.id,
+      reviewOwnerId: ceo.id,
     },
   });
 

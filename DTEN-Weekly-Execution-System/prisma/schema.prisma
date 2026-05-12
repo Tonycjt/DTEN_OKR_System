@@ -90,11 +90,14 @@ model User {
   departmentId String?
   teamId       String?
   managerId    String?
+  reviewOwnerId String?
 
   department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   team       Team?       @relation(fields: [teamId], references: [id], onDelete: SetNull)
   manager    User?       @relation("ManagerReports", fields: [managerId], references: [id], onDelete: SetNull)
   reports    User[]      @relation("ManagerReports")
+  reviewOwner User?       @relation("ReviewOwnerReports", fields: [reviewOwnerId], references: [id], onDelete: SetNull)
+  reviewSubjects User[]   @relation("ReviewOwnerReports")
 
   ownedObjectives Objective[]    @relation("ObjectiveOwner")
   ownedKeyResults  KeyResult[]   @relation("KeyResultOwner")
@@ -111,6 +114,7 @@ model User {
   @@index([departmentId])
   @@index([teamId])
   @@index([managerId])
+  @@index([reviewOwnerId])
 }
 
 model Department {

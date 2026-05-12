@@ -94,6 +94,8 @@ export async function createUserAction(formData: FormData) {
 
   const password = optionalString(formData.get("password")) ?? "Password123!";
   const passwordHash = await bcrypt.hash(password, 10);
+  const managerId = optionalString(formData.get("managerId"));
+  const reviewOwnerId = optionalString(formData.get("reviewOwnerId"));
 
   await prisma.user.create({
     data: {
@@ -104,7 +106,8 @@ export async function createUserAction(formData: FormData) {
       title: optionalString(formData.get("title")),
       departmentId: optionalString(formData.get("departmentId")),
       teamId: optionalString(formData.get("teamId")),
-      managerId: optionalString(formData.get("managerId")),
+      managerId,
+      reviewOwnerId: reviewOwnerId ?? managerId,
     },
   });
 
@@ -123,6 +126,7 @@ export async function updateUserAction(formData: FormData) {
 
   const password = optionalString(formData.get("password"));
   const managerId = optionalString(formData.get("managerId"));
+  const reviewOwnerId = optionalString(formData.get("reviewOwnerId"));
 
   await prisma.user.update({
     where: { id: userId },
@@ -134,6 +138,7 @@ export async function updateUserAction(formData: FormData) {
       departmentId: optionalString(formData.get("departmentId")),
       teamId: optionalString(formData.get("teamId")),
       managerId: managerId === userId ? null : managerId,
+      reviewOwnerId: reviewOwnerId === userId ? null : reviewOwnerId,
       ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}),
     },
   });

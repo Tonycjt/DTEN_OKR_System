@@ -19,6 +19,7 @@ export default async function UsersPage() {
         department: true,
         team: true,
         manager: true,
+        reviewOwner: true,
         _count: {
           select: {
             reports: true,
@@ -102,6 +103,17 @@ export default async function UsersPage() {
               <span>Manager</span>
               <select name="managerId">
                 <option value="">None</option>
+                {managerOptions.map((manager) => (
+                  <option key={manager.id} value={manager.id}>
+                    {manager.name} ({formatEnumLabel(manager.role)})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Review Owner</span>
+              <select name="reviewOwnerId">
+                <option value="">Default to manager</option>
                 {managerOptions.map((manager) => (
                   <option key={manager.id} value={manager.id}>
                     {manager.name} ({formatEnumLabel(manager.role)})
@@ -196,6 +208,17 @@ export default async function UsersPage() {
                           </select>
                         </label>
                         <label className="field">
+                          <span>Review Owner</span>
+                          <select defaultValue={user.reviewOwnerId ?? ""} name="reviewOwnerId">
+                            <option value="">Default to manager</option>
+                            {managerOptions.map((manager) => (
+                              <option key={manager.id} value={manager.id}>
+                                {manager.name} ({formatEnumLabel(manager.role)})
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
                           <span>Password</span>
                           <input name="password" placeholder="Leave unchanged" type="password" />
                         </label>
@@ -208,6 +231,8 @@ export default async function UsersPage() {
                     </td>
                     <td>
                       {user._count.ownedObjectives} objectives, {user._count.ownedKeyResults} KRs, {user._count.reports} reports
+                      <br />
+                      <span className="muted">Review owner: {user.reviewOwner?.name ?? user.manager?.name ?? "None"}</span>
                     </td>
                   </tr>
                 ))}

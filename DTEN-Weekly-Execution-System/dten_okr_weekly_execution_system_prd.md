@@ -1459,11 +1459,113 @@ Improve the system from basic tracking to smarter execution visibility.
 - Weekly executive summary generation.
 - Trend view for confidence and progress.
 - Department health comparison.
+- Company structure / management chain review system.
+- Delegated review workflow based on reporting relationships.
 - Comment threads on KRs and reports.
 - Follow-up task tracking.
 - Email notifications.
 - More advanced filtering and search.
 - Export dashboard data to CSV.
+```
+
+## R2.0 Company Structure & Delegated Review Workflow
+
+### Problem
+
+In a top-down management system, the CEO should not directly review every employee's weekly report. That would not scale. Instead, each person should be reviewed by their direct manager or assigned reviewer. The CEO should mainly review direct executive reports, department heads, or selected high-risk items.
+
+### Product Requirement
+
+The system must support a management-chain review model:
+
+```text
+CEO
+→ Executive / Department Head
+→ Manager / Team Lead
+→ Individual Contributor
+```
+
+Each user should have a review owner. By default, this should be the user's primary manager.
+
+```text
+review_owner_id = primary_manager_id
+```
+
+The system should allow exceptions where a local manager or project manager reviews the user instead:
+
+```text
+review_owner_id can be primary_manager_id or local_manager_id
+```
+
+### Required Data Model Addition
+
+Add or confirm the following field on users:
+
+```text
+users
+- review_owner_id
+```
+
+If `review_owner_id` is null, default to `primary_manager_id`.
+
+### Review Routing Logic
+
+When a weekly report is submitted:
+
+```text
+1. Find the report owner's review_owner_id.
+2. Create a pending review for that reviewer.
+3. Show the report in that reviewer's pending review queue.
+4. Do not show every employee report directly to the CEO unless the CEO is the review owner or the item is escalated.
+```
+
+### CEO Review Scope
+
+The CEO dashboard should show:
+
+```text
+- Direct reports needing CEO review.
+- Department-level execution health.
+- High-risk or escalated KRs.
+- Missing review counts by manager or department.
+- Review completion rate across the company.
+```
+
+The CEO should not be expected to approve every weekly report.
+
+### Manager Review Responsibility
+
+Each manager should review:
+
+```text
+- Direct reports assigned to them.
+- Users whose review_owner_id equals the manager's user_id.
+- Escalated items from their team.
+```
+
+### Escalation Logic
+
+A report or KR should be escalated upward if:
+
+```text
+- Manager marks it as FLAGGED_RISK.
+- KR status is BLOCKED.
+- KR confidence_score <= 2.
+- KR pacing_status = BEHIND for multiple consecutive weeks.
+- User misses weekly report submission repeatedly.
+```
+
+Escalated items should appear in the next-level manager's dashboard and, if severe, in the CEO risk dashboard.
+
+### Acceptance Criteria
+
+```text
+- Each user has a review owner.
+- Submitted weekly reports route to the correct review owner.
+- Managers only see reports they are responsible for reviewing.
+- CEO can see direct-review items, high-risk items, and aggregate company review health.
+- CEO does not need to review every employee report.
+- Escalated reports or KRs can appear above the direct manager level.
 ```
 
 ## Release 2 Detailed Requirements
@@ -1527,13 +1629,16 @@ Filters:
 
 ## Release 3 Goal
 
-Improve OKR alignment, roll-up logic, and automation.
+Improve OKR alignment, roll-up logic, contribution weighting, and automation.
 
 ## Release 3 Features
 
 ```text
 - Auto roll-up from child objectives/KRs.
 - Weighted KR progress.
+- Objective progress auto-calculation.
+- Multi-owner objective contribution assignment.
+- Top-down objective assignment with contribution percentage.
 - Objective health calculation.
 - Advanced permission model.
 - Approval workflow for company-level OKRs.
@@ -1541,12 +1646,123 @@ Improve OKR alignment, roll-up logic, and automation.
 - SSO integration.
 ```
 
-### R3.1 Auto Roll-up
+### R3.1 Auto Roll-up and Weighted Objective Progress
+
+Objectives should no longer rely only on manual progress updates. Objective progress should be calculated from the progress of its child KRs and/or assigned child objectives.
+
+If an objective has KRs:
+
+```text
+objective_progress = weighted average of child KR progress
+```
+
+If an objective has child objectives assigned to other users or teams:
+
+```text
+objective_progress = weighted average of child objective progress
+```
 
 If KR rollup_mode = AUTO:
 
 ```text
 KR progress = average or weighted average of linked child KRs/objectives.
+```
+
+### Required Data Model Addition: KR Weight
+
+Add a weight field to key results:
+
+```text
+key_results
+- weight_percent
+```
+
+Rule:
+
+```text
+For all KRs under the same objective, total weight_percent should equal 100.
+```
+
+Example:
+
+```text
+Objective: Launch Product X
+KR 1: Complete certification — 40%
+KR 2: Complete QA validation — 30%
+KR 3: Prepare sales enablement — 30%
+
+Objective progress =
+KR1 progress * 0.40 + KR2 progress * 0.30 + KR3 progress * 0.30
+```
+
+### Required Data Model Addition: Objective Assignments
+
+When a top-level objective is assigned to multiple people, teams, or departments, the system should store contribution percentage separately from the objective itself.
+
+```text
+objective_assignments
+- id
+- parent_objective_id
+- assigned_objective_id
+- assignee_id
+- assignee_type: USER / TEAM / DEPARTMENT
+- contribution_percent
+- created_at
+- updated_at
+```
+
+Rule:
+
+```text
+For all assignments under the same parent objective, total contribution_percent should equal 100.
+```
+
+Example:
+
+```text
+CEO Objective: Improve product and solution leadership
+
+Assigned contribution:
+- Product Engineering Objective: 60%
+- Sales Enablement Objective: 25%
+- Customer Success Objective: 15%
+
+CEO objective progress =
+Product Engineering progress * 0.60
++ Sales Enablement progress * 0.25
++ Customer Success progress * 0.15
+```
+
+### Top-down Assignment Logic
+
+When the CEO creates a company objective and assigns it to multiple owners:
+
+```text
+1. CEO creates company objective.
+2. CEO assigns contribution percentages to departments, teams, or people.
+3. System creates or links child objectives for each assignee.
+4. Each child objective has its own KRs.
+5. Child objective progress rolls up to the CEO objective based on contribution_percent.
+```
+
+### Validation Rules
+
+```text
+- KR weights under one objective should total 100%.
+- Objective assignment contribution percentages under one parent objective should total 100%.
+- System should warn if total is below or above 100%.
+- For draft objectives, incomplete weight totals are allowed.
+- For published/active objectives, weight totals must equal 100%.
+```
+
+### Acceptance Criteria
+
+```text
+- Objective progress can be automatically calculated from weighted KRs.
+- Parent objective progress can be automatically calculated from weighted child objectives.
+- CEO can assign one objective to multiple people/teams/departments with contribution percentages.
+- System validates that contribution percentages total 100% before objective is activated.
+- Dashboards use calculated objective progress instead of manual progress when auto-calculation is enabled.
 ```
 
 ### R3.2 Objective Health Calculation

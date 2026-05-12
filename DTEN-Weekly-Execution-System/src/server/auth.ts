@@ -70,6 +70,7 @@ export async function getCurrentUser() {
         departmentId: true,
         teamId: true,
         managerId: true,
+        reviewOwnerId: true,
         department: {
           select: {
             id: true,
