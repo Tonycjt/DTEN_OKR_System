@@ -79,6 +79,19 @@ function activeFilterCount(filters: DashboardFilters) {
   return Object.values(filters).filter(Boolean).length;
 }
 
+function dashboardFilterSearch(filters: DashboardFilters) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) {
+      params.set(key, value);
+    }
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
 function confidenceFilterLabel(filter: ConfidenceFilter) {
   if (filter === "LOW") {
     return "Low (1-2)";
@@ -204,6 +217,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const user = await requireUser();
   const filters = parseDashboardFilters((await searchParams) ?? {});
   const filtersActiveCount = activeFilterCount(filters);
+  const filterSearch = dashboardFilterSearch(filters);
   const weekStart = getMondayWeekStart();
   const weekEnd = getSundayWeekEnd(weekStart);
   const isCompanyViewer = user.role === "ADMIN" || user.role === "CEO";
@@ -600,10 +614,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         title={`Welcome, ${user.name}`}
         description={`${roleDashboardLabel(user.role)} for ${formatShortDate(weekStart)} to ${formatShortDate(weekEnd)}.`}
         actions={
-          <LinkButton href="/weekly-report/current">
-            Open Weekly Report
-            <ArrowRight size={16} aria-hidden="true" />
-          </LinkButton>
+          <span className="table-actions">
+            <LinkButton href="/weekly-report/current">
+              Open Weekly Report
+              <ArrowRight size={16} aria-hidden="true" />
+            </LinkButton>
+            <LinkButton href={`/dashboard/export${filterSearch}`} tone="secondary">
+              Export CSV
+            </LinkButton>
+            {user.role === "EMPLOYEE" ? null : (
+              <LinkButton href="/executive-summary" tone="secondary">
+                Summary
+              </LinkButton>
+            )}
+          </span>
         }
       />
 

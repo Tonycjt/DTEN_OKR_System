@@ -1475,6 +1475,146 @@ New-chat resume prompt:
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 18 advanced search is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 19: dashboard CSV export and weekly executive summary.
 ```
 
+## Release 2 Day 19 - Dashboard CSV Export And Weekly Executive Summary
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added shared role-scoped dashboard export/summary helpers in `src/lib/dashboard-export.ts`.
+- Added `/dashboard/export` route handler that returns a CSV attachment.
+- CSV export includes visible:
+  - Objectives
+  - Key Results
+  - Risk Items
+  - Current-week Weekly Reports
+- CSV export respects signed-in user role scope.
+- CSV export accepts dashboard filter query params for department, team, owner, status, confidence, pacing, and quarter.
+- Added `/executive-summary` page.
+- Added Summary navigation for CEO, department head, and manager users.
+- Weekly executive summary shows:
+  - visible users
+  - review completion
+  - missing updates
+  - objective count
+  - KR count
+  - average KR confidence
+  - summary narrative
+  - top risk KRs
+  - escalations
+  - department snapshot
+- Dashboard header now links to filtered CSV export and the summary page.
+- Summary/export data is generated server-side from the signed-in user's allowed scope.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+- Database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+CEO CSV rows: 8
+CEO summary visible users: 5
+CEO summary KRs: 3
+CEO summary risk KRs: 2
+```
+
+Visible Day 19 test path:
+
+```text
+1. Log in as ceo@dten.com / Password123!.
+2. Open `/dashboard`.
+3. Apply dashboard filters such as Product Engineering, AT_RISK, BEHIND, and 2026-Q2.
+4. Click Export CSV and confirm a CSV downloads with filtered visible dashboard rows.
+5. Click Summary or open `/executive-summary`.
+6. Confirm the summary shows visible users, review completion, missing updates, top risks, escalations, and department snapshot.
+7. Log in as manager@dten.com / Password123!.
+8. Open `/executive-summary` and confirm the summary is limited to manager-visible execution scope.
+```
+
+Release 2 scope update after Day 19:
+
+```text
+Tony added a new Release 2 PRD requirement after Day 19:
+- R2.5 Excel-Based Organization Structure Import.
+- This should be implemented before Release 2 final hardening.
+- Release 2 now looks about 2 more day-sized chunks from completion:
+  - Day 20: Excel / CSV organization structure import and org tree.
+  - Day 21: Release 2 hardening, seeded-user smoke test, checklist, bug fixes, and polish.
+```
+
+Day 20 target:
+
+```text
+Build R2.5 Excel / CSV organization structure import:
+- Add admin-only organization import page.
+- Support CSV upload/paste/import for required columns:
+  - name
+  - email
+  - title
+  - role
+  - department
+  - team
+  - primary_manager_email
+  - review_owner_email
+  - employment_status
+- Support optional columns where practical:
+  - local_manager_email
+  - location
+  - office
+  - employee_id
+  - start_date
+  - avatar_url
+- Validate before applying:
+  - valid emails
+  - duplicate emails
+  - required fields
+  - valid role values
+  - valid employment status values
+  - department required for active users
+  - manager/review-owner references exist in file or DB
+  - no circular manager relationships
+  - no circular review-owner relationships
+  - CEO/root user may have no manager
+- Apply import to database:
+  - create/update users by email
+  - create missing departments/teams when allowed
+  - set managerId and reviewOwnerId
+  - mark inactive users as isActive=false
+  - write audit logs
+- Add import summary:
+  - created
+  - updated
+  - inactive
+  - departments created
+  - teams created
+  - manager/review-owner relationships updated
+  - skipped rows
+  - validation errors
+- Add an internal organization tree view generated from database relationships.
+- Ensure weekly report review routing continues to use reviewOwnerId with managerId fallback.
+- Reset demo database at the end.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 19 dashboard CSV export and weekly executive summary is complete. Tony added PRD requirement R2.5 Excel-Based Organization Structure Import. Please continue with Day 20: Excel / CSV organization structure import and org tree before Release 2 final hardening.
+```
+
 ## Standing User Instructions For Future Chats
 
 Use these instructions for all future work unless Tony explicitly says otherwise:
@@ -1510,14 +1650,18 @@ Current local commands and assumptions:
 Latest status before switching chats:
 
 ```text
-- Release 2 Day 18 is complete.
-- Advanced role-scoped search is implemented on `/search`.
+- Release 2 Day 19 is complete.
+- Dashboard CSV export is implemented at `/dashboard/export`.
+- Weekly executive summary is implemented at `/executive-summary`.
+- Tony added a new Release 2 PRD requirement: R2.5 Excel-Based Organization Structure Import.
+- New next step is Day 20: build Excel / CSV organization structure import and org tree.
+- Release 2 final hardening should move after that, likely Day 21.
 - Current estimate: Release 2 needs about 2 more day-sized chunks.
-- The local database was last reset after Day 18, with `currentWeekReports = 0`.
+- The local database was last reset after Day 19, with `currentWeekReports = 0`.
 ```
 
 Recommended next prompt:
 
 ```text
-Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 18 is complete, and the next target is Day 19: dashboard CSV export and weekly executive summary. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 19 is complete. Tony added PRD requirement R2.5 Excel-Based Organization Structure Import, so the next target is Day 20: Excel / CSV organization structure import and org tree. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
 ```

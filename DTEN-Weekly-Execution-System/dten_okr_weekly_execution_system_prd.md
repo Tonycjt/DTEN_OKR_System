@@ -1466,6 +1466,10 @@ Improve the system from basic tracking to smarter execution visibility.
 - Email notifications.
 - More advanced filtering and search.
 - Export dashboard data to CSV.
+- Excel / CSV organization structure import.
+- Organization import validation.
+- Organization tree view generated from imported data.
+- Review-owner routing based on imported company structure.
 ```
 
 ## R2.0 Company Structure & Delegated Review Workflow
@@ -1566,6 +1570,13 @@ Escalated items should appear in the next-level manager's dashboard and, if seve
 - CEO can see direct-review items, high-risk items, and aggregate company review health.
 - CEO does not need to review every employee report.
 - Escalated reports or KRs can appear above the direct manager level.
+- Admin can import company structure from Excel / CSV.
+- Import validates required fields, duplicate emails, manager references, review-owner references, and circular relationships.
+- Imported users, departments, teams, managers, and review owners are saved to the database.
+- Organization tree view displays imported reporting relationships.
+- Weekly report review routing uses imported review_owner_id.
+- CEO dashboard does not require CEO to review every employee directly.
+- Import summary shows created, updated, skipped, inactive, and error rows.
 ```
 
 ## Release 2 Detailed Requirements
@@ -1622,6 +1633,207 @@ Filters:
 - Pacing
 - Quarter
 ```
+
+## R2.5 Excel-Based Organization Structure Import
+
+### Goal
+
+Replace hidden tag-based relationship management with a readable and maintainable company-structure import system.
+
+As the company grows, manager relationships, reviewer ownership, department membership, and team membership should not be managed only through hidden tags. The system should allow admins to maintain company structure in Excel / CSV format, validate the file, and import it into the DTEN OKR database.
+
+This is a foundational Release 2 requirement because weekly report review routing depends on accurate company structure.
+
+### Recommended Architecture
+
+The organization structure workflow should follow this model:
+
+Excel / CSV org file
+→ Import and validation tool
+→ DTEN OKR database
+→ Website uses database relationships
+
+The Excel / CSV file is an input mechanism for easier editing and bulk management.
+
+The database remains the runtime source of truth for the OKR system.
+
+### Required Import File Columns
+
+The Excel / CSV file should support the following required columns:
+
+- name
+- email
+- title
+- role
+- department
+- team
+- primary_manager_email
+- review_owner_email
+- employment_status
+
+Optional columns:
+
+- local_manager_email
+- location
+- office
+- employee_id
+- start_date
+- avatar_url
+
+### Field Definitions
+
+name:
+The employee's display name.
+
+email:
+The employee's unique identifier. Email should be used to match imported rows to existing users.
+
+title:
+The employee's job title, such as Software Engineer, Engineering Manager, VP Sales, or CEO.
+
+role:
+The system permission role.
+
+Allowed role values:
+
+- ADMIN
+- CEO
+- EXECUTIVE
+- DEPARTMENT_HEAD
+- MANAGER
+- EMPLOYEE
+- VIEWER
+
+department:
+The user's department. If the department does not exist, the import process may create it.
+
+team:
+The user's team. If the team does not exist, the import process may create it under the given department.
+
+primary_manager_email:
+The email of the user's official manager.
+
+review_owner_email:
+The email of the person responsible for reviewing this user's weekly report.
+
+employment_status:
+Whether the user is active or inactive.
+
+Allowed values:
+
+- ACTIVE
+- INACTIVE
+
+local_manager_email:
+Optional. Used when a user has a local/project manager different from the primary manager.
+
+### Import Validation Rules
+
+Before applying changes, the system must validate:
+
+- Every row has a valid email.
+- Every email is unique inside the import file.
+- Required fields are present.
+- Role values are valid.
+- Employment status values are valid.
+- Department values are present for active users.
+- Manager emails exist either in the import file or in the current database.
+- Review owner emails exist either in the import file or in the current database.
+- No circular manager relationships exist.
+- No circular review-owner relationships exist.
+- CEO/root user does not require a primary manager.
+- Inactive users should not receive new weekly report assignments.
+
+If validation fails, the system should show errors and should not apply partial changes unless explicitly supported.
+
+### Import Behavior
+
+When importing the organization file, the system should:
+
+1. Parse the uploaded Excel / CSV file.
+2. Validate all rows.
+3. Show validation errors before applying changes.
+4. Create missing departments if allowed.
+5. Create missing teams if allowed.
+6. Create new users.
+7. Update existing users by email.
+8. Set department_id.
+9. Set team_id.
+10. Set primary_manager_id.
+11. Set local_manager_id if provided.
+12. Set review_owner_id.
+13. Set employment_status.
+14. Generate an import summary.
+15. Write audit logs for created or updated users and relationships.
+
+### Import Summary
+
+After import, the system should display:
+
+- users created
+- users updated
+- users marked inactive
+- departments created
+- teams created
+- manager relationships updated
+- review owners updated
+- validation errors
+- skipped rows
+
+### Organization Tree View
+
+After import, the system should provide an internal organization tree view generated from database relationships.
+
+The tree should show:
+
+- name
+- title
+- role
+- email
+- department
+- team
+- primary manager
+- review owner
+- direct reports
+
+The purpose of this view is to make the company structure visible and auditable inside the DTEN OKR system.
+
+### Review Routing Rule
+
+Weekly report review routing should use the imported review_owner_id.
+
+When a user submits a weekly report:
+
+1. The system finds the user's review_owner_id.
+2. The report appears in that review owner's pending review queue.
+3. If review_owner_id is empty, the system falls back to primary_manager_id.
+4. If both are empty, the report is flagged as missing reviewer configuration.
+
+The CEO should only directly review users whose review_owner_id is the CEO, plus escalated high-risk items.
+
+### Source of Truth Rule
+
+The Excel / CSV file is not the runtime source of truth.
+
+The database is the runtime source of truth after import.
+
+The Excel / CSV file is used for bulk editing, setup, and synchronization.
+
+### Acceptance Criteria
+
+- Admin can upload an Excel / CSV organization file.
+- System validates the file before applying changes.
+- System prevents duplicate emails.
+- System detects missing manager references.
+- System detects missing review owner references.
+- System detects circular manager or review-owner relationships.
+- System creates or updates users, departments, teams, and relationships.
+- Imported organization structure is visible in an internal org tree.
+- Weekly report review routing uses imported review_owner_id.
+- If review_owner_id is missing, system falls back to primary_manager_id.
+- If no reviewer can be found, system flags the user as missing reviewer configuration.
+- CEO does not need to review all employees directly.
+- Audit logs record organization import changes.
 
 ---
 
