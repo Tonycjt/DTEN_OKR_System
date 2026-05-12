@@ -208,6 +208,10 @@ function csvValue(value: string | number | null | undefined) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
+function csvConfidence(value: number) {
+  return `${value} of 5`;
+}
+
 export function rowsToCsv(rows: DashboardCsvRow[]) {
   const headers: Array<keyof DashboardCsvRow> = ["section", "type", "name", "owner", "department", "status", "pacing", "confidence", "progress", "details", "url"];
   return [headers.join(","), ...rows.map((row) => headers.map((header) => csvValue(row[header])).join(","))].join("\n");
@@ -248,7 +252,7 @@ export async function buildDashboardCsvRows(user: DashboardExportUser, filters: 
       department: objective.department?.name ?? "",
       status: formatEnumLabel(objective.status),
       pacing: "",
-      confidence: `${objective.confidenceScore}/5`,
+      confidence: csvConfidence(objective.confidenceScore),
       progress: `${Math.round(objective.progressPercent)}%`,
       details: objective.quarter,
       url: new URL(`/objectives/${objective.id}`, baseUrl).toString(),
@@ -261,7 +265,7 @@ export async function buildDashboardCsvRows(user: DashboardExportUser, filters: 
       department: kr.owner.department?.name ?? "",
       status: formatEnumLabel(kr.status),
       pacing: formatEnumLabel(kr.pacingStatus),
-      confidence: `${kr.confidenceScore}/5`,
+      confidence: csvConfidence(kr.confidenceScore),
       progress: `${Math.round(kr.progressPercent)}%`,
       details: kr.objective.title,
       url: new URL(`/key-results/${kr.id}`, baseUrl).toString(),
@@ -274,7 +278,7 @@ export async function buildDashboardCsvRows(user: DashboardExportUser, filters: 
       department: kr.owner.department?.name ?? "",
       status: formatEnumLabel(kr.status),
       pacing: formatEnumLabel(kr.pacingStatus),
-      confidence: `${kr.confidenceScore}/5`,
+      confidence: csvConfidence(kr.confidenceScore),
       progress: `${Math.round(kr.progressPercent)}%`,
       details: getKrRiskReasons(kr).join("; "),
       url: new URL(`/key-results/${kr.id}`, baseUrl).toString(),
