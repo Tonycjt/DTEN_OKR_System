@@ -69,6 +69,7 @@ enum NotificationType {
   FOLLOW_UP_ASSIGNED
   REPORT_REVIEWED
   KR_COMMENT
+  REPORT_COMMENT
 }
 
 enum AuditAction {
@@ -260,6 +261,7 @@ model WeeklyReport {
   priorities WeeklyPriority[]
   checkIns   CheckIn[]
   reviews    ManagerReview[]
+  comments   Comment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -381,17 +383,20 @@ model FollowUp {
 
 model Comment {
   id          String @id @default(cuid())
-  keyResultId String
+  keyResultId String?
+  weeklyReportId String?
   authorId    String
   body        String
 
-  keyResult KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  keyResult KeyResult? @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  weeklyReport WeeklyReport? @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
   author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([keyResultId])
+  @@index([weeklyReportId])
   @@index([authorId])
 }
 

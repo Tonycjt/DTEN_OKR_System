@@ -1113,3 +1113,135 @@ New-chat resume prompt:
 ```text
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 14 follow-up items are complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 15: comment threads on KRs and reports.
 ```
+
+## Release 2 Day 15 - Comment Threads On KRs And Reports
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Expanded `Comment` so it can attach to either a KR or a weekly report.
+- Added optional `weeklyReportId` relation on comments.
+- Added `comments` relation on weekly reports.
+- Added notification type `REPORT_COMMENT`.
+- Added migration `20260512150000_add_report_comments`.
+- Applied the migration to local Docker PostgreSQL.
+- Regenerated Prisma Client.
+- Added weekly report comment server action in `src/app/comments/actions.ts`.
+- Report comment permissions allow the report owner, assigned reviewer, and admin override.
+- Report comments notify the report owner and effective review owner when applicable.
+- Report comments create audit log entries.
+- `/reviews/pending` now includes report comment thread and add-comment form.
+- `/weekly-report/history` now includes report comment thread and add-comment form for the employee.
+- Existing KR comment behavior remains intact.
+- Seed data now includes one KR comment and one report comment.
+```
+
+Verification:
+
+```powershell
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:generate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:migrate
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Prisma schema validation passed.
+- Prisma Client generated successfully.
+- Report comments migration applied successfully.
+- Lint passed.
+- Production build passed.
+- Database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+krComments: 1
+reportComments: 1
+reportCommentNotifications: 1
+```
+
+Visible Day 15 test path:
+
+```text
+1. Log in as engineer@dten.com / Password123!.
+2. Open `/weekly-report/history` and confirm the historical report shows Report Comments.
+3. Add a comment on the report.
+4. Log in as manager@dten.com / Password123!.
+5. Submit a fresh current-week report as engineer, then open `/reviews/pending` as manager.
+6. Add a report comment from the review queue.
+7. Confirm the employee sees that comment in `/weekly-report/history`.
+8. Confirm KR comments still appear on the D7X KR detail page.
+```
+
+Day 16 target:
+
+```text
+Build email notification foundation:
+- Add email provider abstraction.
+- Use local/dev logging mode by default.
+- Trigger emails for weekly report overdue, manager review requested, follow-up assigned, and KR blocked.
+- Add env config in `.env.example`.
+- Keep reset behavior at the end of the day.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 15 comment threads on KRs and reports are complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 16: email notification foundation.
+```
+
+## Standing User Instructions For Future Chats
+
+Use these instructions for all future work unless Tony explicitly says otherwise:
+
+```text
+- Active development folder is `DTEN-Weekly-Execution-System`.
+- Main project PRD is `DTEN-Weekly-Execution-System/dten_okr_weekly_execution_system_prd.md`.
+- The parent workspace is `DTEN_OKR_System`, but do not treat sibling folders as active unless Tony asks.
+- Read the three docs in `docs/` plus this worklog when resuming in a new chat.
+- Preserve Tony's PRD edits; do not overwrite or casually reformat the PRD.
+- Keep `docs/ai-worklog.md` updated at the end of every work session.
+- For each new development day, reset/reseed the local demo database at the end unless Tony says not to.
+- Reset command is `& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed`.
+- The reset should leave the current week open for testing. Verify `currentWeekReports = 0` when practical.
+- Include a basic test process in every final response for any new functionality.
+- The test process should name which seeded user to log in as, which route to open, what to click/change, and what result to confirm.
+- Keep using seeded users with password `Password123!`.
+- When a UI imperfection is reported, make a focused polish fix, run lint/build, and include a short visual test path.
+- Continue using the Release 1 style of small day-sized chunks for Release 2 work.
+```
+
+Current local commands and assumptions:
+
+```text
+- Start app: .\start-dev.cmd
+- Start DB: .\start-db.cmd
+- Stop DB: .\stop-db.cmd
+- Docker container: dten-weekly-postgres
+- Local DB URL: postgresql://postgres:postgres@localhost:5432/dten_weekly_execution?schema=public
+- Verification baseline: prisma validate/generate/migrate when schema changes, then npm run lint, npm run build, npm run prisma:seed.
+```
+
+Latest status before switching chats:
+
+```text
+- Release 2 Day 15 is complete.
+- A small UI polish fix was also completed after Day 15:
+  - Assigned Follow-ups status selector on `/dashboard` now uses `.inline-select`.
+  - Files changed: `src/app/dashboard/page.tsx`, `src/app/globals.css`.
+  - Verification passed: `npm run lint`, `npm run build`.
+- The local database was last reset after Day 15, with `currentWeekReports = 0`.
+```
+
+Recommended next prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 15 is complete, and the next target is Day 16: email notification foundation. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
+```

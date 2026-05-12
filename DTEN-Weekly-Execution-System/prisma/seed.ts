@@ -446,6 +446,13 @@ async function main() {
         relatedUrl: `/key-results/${shipD7x.id}`,
       },
       {
+        userId: engineer.id,
+        type: "REPORT_COMMENT",
+        title: "New report comment",
+        body: `${manager.name} commented on your weekly report.`,
+        relatedUrl: "/weekly-report/history",
+      },
+      {
         userId: ceo.id,
         type: "KR_COMMENT",
         title: "High-risk KR needs attention",
@@ -460,6 +467,14 @@ async function main() {
       keyResultId: shipD7x.id,
       authorId: ceo.id,
       body: "Please keep this KR visible in the leadership dashboard until the partner blocker is closed.",
+    },
+  });
+
+  const reportComment = await prisma.comment.create({
+    data: {
+      weeklyReportId: weeklyReport.id,
+      authorId: manager.id,
+      body: "Please add the partner validation evidence link when it is available.",
     },
   });
 
@@ -478,6 +493,16 @@ async function main() {
         entityType: "WeeklyReport",
         entityId: weeklyReport.id,
         metadata: { weekStart: weekStart.toISOString(), weekEnd: weekEnd.toISOString() },
+      },
+      {
+        actorId: manager.id,
+        action: "CREATED",
+        entityType: "Comment",
+        entityId: reportComment.id,
+        metadata: {
+          weeklyReportId: weeklyReport.id,
+          reportOwnerId: engineer.id,
+        },
       },
       {
         actorId: manager.id,

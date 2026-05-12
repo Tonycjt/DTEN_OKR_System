@@ -1,5 +1,6 @@
 import type { ReviewDecision } from "@prisma/client";
 import Link from "next/link";
+import { addWeeklyReportCommentAction } from "@/app/comments/actions";
 import { createFollowUpAction } from "@/app/follow-ups/actions";
 import { submitManagerReviewAction } from "@/app/reviews/actions";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,12 @@ export default async function PendingReviewsPage() {
           user: true,
         },
         orderBy: { createdAt: "desc" },
+      },
+      comments: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          author: true,
+        },
       },
     },
   });
@@ -144,6 +151,33 @@ export default async function PendingReviewsPage() {
                     Assign Follow-up
                   </Button>
                 </form>
+
+                <div className="stack">
+                  <h3>Report Comments</h3>
+                  <form action={addWeeklyReportCommentAction} className="form-shell">
+                    <input name="weeklyReportId" type="hidden" value={report.id} />
+                    <input name="redirectPath" type="hidden" value="/reviews/pending" />
+                    <label className="field">
+                      <span>Add Comment</span>
+                      <textarea name="body" placeholder="Ask a follow-up question or add review context." required />
+                    </label>
+                    <Button tone="secondary" type="submit">
+                      Add Comment
+                    </Button>
+                  </form>
+                  <div className="route-grid">
+                    {report.comments.map((comment) => (
+                      <div className="route-item" key={comment.id}>
+                        <span>
+                          <strong>{comment.author.name}</strong>
+                          <br />
+                          <span className="muted">{comment.body}</span>
+                        </span>
+                      </div>
+                    ))}
+                    {report.comments.length === 0 ? <div className="route-item">No report comments yet.</div> : null}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

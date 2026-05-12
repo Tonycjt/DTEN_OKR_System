@@ -454,7 +454,7 @@ export default async function DashboardPage() {
                   <form action={updateFollowUpStatusAction} className="table-actions">
                     <input name="followUpId" type="hidden" value={followUp.id} />
                     <input name="redirectPath" type="hidden" value="/dashboard" />
-                    <select defaultValue={followUp.status} name="status">
+                    <select className="inline-select" defaultValue={followUp.status} name="status">
                       {followUpStatuses.map((status) => (
                         <option key={status} value={status}>
                           {formatEnumLabel(status)}
