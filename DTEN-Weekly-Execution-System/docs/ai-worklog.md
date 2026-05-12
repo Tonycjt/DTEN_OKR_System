@@ -1295,6 +1295,95 @@ New-chat resume prompt:
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 16 email notification foundation is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 17: advanced dashboard filtering.
 ```
 
+## Release 2 Day 17 - Advanced Dashboard Filtering
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added URL-backed dashboard filters on `/dashboard`.
+- Filters include:
+  - Department
+  - Team
+  - Owner
+  - Status
+  - Confidence
+  - Pacing
+  - Quarter
+- Filter options are generated from the current user's existing role-visible scope.
+- Filters narrow the already-authorized user scope instead of expanding access.
+- Dashboard aggregate cards now use the filtered user/KR/objective scope.
+- Risk Items now use the filtered KR scope.
+- Missing Updates and review completion use the filtered user/report scope.
+- Pending review counts and pending review owner groups use the filtered report scope.
+- CEO/admin Department Health now respects department, team, owner, KR status, confidence, pacing, and quarter filters where applicable.
+- Added Apply Filters and Reset controls.
+- Added responsive filter form styling in `src/app/globals.css`.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+- Database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+seeded KRs by status/pacing:
+- ON_TRACK / ON_PACE: 1
+- AT_RISK / BEHIND: 2
+```
+
+Visible Day 17 test path:
+
+```text
+1. Log in as ceo@dten.com / Password123!.
+2. Open `/dashboard`.
+3. Use Dashboard Filters to select Product Engineering, AT_RISK, BEHIND, and 2026-Q2.
+4. Confirm company health, risk items, and Department Health narrow to the filtered scope.
+5. Click Reset and confirm the full CEO dashboard returns.
+6. Log in as manager@dten.com / Password123!.
+7. Open `/dashboard` and confirm filter options are limited to the manager's review-visible users.
+8. Apply Owner or Status filters and confirm the manager dashboard narrows without showing users outside their scope.
+```
+
+Remaining Release 2 estimate:
+
+```text
+Release 2 looks about 3 more day-sized chunks from completion:
+- Day 18: advanced search across OKRs/reports/comments/follow-ups.
+- Day 19: dashboard CSV export and a basic weekly executive summary.
+- Day 20: Release 2 hardening, seeded-user smoke test, checklist, and polish.
+```
+
+Day 18 target:
+
+```text
+Build advanced search:
+- Add searchable route for OKRs/KRs, weekly reports, comments, and follow-ups.
+- Keep results role-scoped.
+- Support simple text query and useful type filters.
+- Link each result to the appropriate detail or workflow page.
+- Keep reset behavior at the end of the day.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 17 advanced dashboard filtering is complete, and the local database was reset with currentWeekReports = 0. Please help me continue with Day 18: advanced search.
+```
+
 ## Standing User Instructions For Future Chats
 
 Use these instructions for all future work unless Tony explicitly says otherwise:
@@ -1330,17 +1419,14 @@ Current local commands and assumptions:
 Latest status before switching chats:
 
 ```text
-- Release 2 Day 16 is complete.
-- Email notification foundation is implemented with dev-log mode by default.
-- A small UI polish fix was completed after Day 16:
-  - Follow-up status selector on `/key-results/:id` now uses `.inline-select`, matching the dashboard follow-up selector.
-  - Files changed: `src/app/key-results/[id]/page.tsx`.
-  - Verification passed: `npm run lint`, `npm run build`.
-- The local database was last reset after Day 16, with `currentWeekReports = 0`.
+- Release 2 Day 17 is complete.
+- Advanced dashboard filtering is implemented on `/dashboard`.
+- Current estimate: Release 2 needs about 3 more day-sized chunks.
+- The local database was last reset after Day 17, with `currentWeekReports = 0`.
 ```
 
 Recommended next prompt:
 
 ```text
-Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 16 is complete, and the next target is Day 17: advanced dashboard filtering. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 17 is complete, and the next target is Day 18: advanced search. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
 ```

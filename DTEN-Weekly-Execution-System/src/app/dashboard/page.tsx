@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import type { FollowUpStatus, Prisma, UserRole } from "@prisma/client";
+import type { FollowUpStatus, PacingStatus, Prisma, UserRole, WorkStatus } from "@prisma/client";
 import { updateFollowUpStatusAction } from "@/app/follow-ups/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -18,6 +18,25 @@ import { prisma } from "@/server/prisma";
 
 const submittedReportStatuses = ["SUBMITTED", "REVIEWED", "NEEDS_FOLLOW_UP"] as const;
 const followUpStatuses: FollowUpStatus[] = ["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"];
+const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
+const pacingStatuses: PacingStatus[] = ["NO_TARGET", "NO_UPDATE", "ON_PACE", "BEHIND"];
+const confidenceFilters = ["LOW", "MEDIUM", "HIGH"] as const;
+
+type ConfidenceFilter = (typeof confidenceFilters)[number];
+type DashboardSearchParams = Record<string, string | string[] | undefined>;
+type DashboardPageProps = {
+  searchParams?: Promise<DashboardSearchParams>;
+};
+
+type DashboardFilters = {
+  departmentId?: string;
+  teamId?: string;
+  ownerId?: string;
+  status?: WorkStatus;
+  confidence?: ConfidenceFilter;
+  pacing?: PacingStatus;
+  quarter?: string;
+};
 
 function averageConfidence(value: number | null | undefined) {
   return value == null ? "n/a" : `${value.toFixed(1)}/5`;
@@ -31,6 +50,122 @@ function compactCounts<T extends string>(counts: Map<T, number>, emptyLabel = "n
   }
 
   return entries.map(([label, count]) => `${formatEnumLabel(label)} ${count}`).join(" / ");
+}
+
+function firstSearchParam(params: DashboardSearchParams, key: string) {
+  const value = params[key];
+  const firstValue = Array.isArray(value) ? value[0] : value;
+  const text = firstValue?.trim();
+  return text ? text : undefined;
+}
+
+function parseDashboardFilters(params: DashboardSearchParams): DashboardFilters {
+  const status = firstSearchParam(params, "status");
+  const confidence = firstSearchParam(params, "confidence");
+  const pacing = firstSearchParam(params, "pacing");
+
+  return {
+    departmentId: firstSearchParam(params, "departmentId"),
+    teamId: firstSearchParam(params, "teamId"),
+    ownerId: firstSearchParam(params, "ownerId"),
+    quarter: firstSearchParam(params, "quarter"),
+    status: status && workStatuses.includes(status as WorkStatus) ? (status as WorkStatus) : undefined,
+    confidence: confidence && confidenceFilters.includes(confidence as ConfidenceFilter) ? (confidence as ConfidenceFilter) : undefined,
+    pacing: pacing && pacingStatuses.includes(pacing as PacingStatus) ? (pacing as PacingStatus) : undefined,
+  };
+}
+
+function activeFilterCount(filters: DashboardFilters) {
+  return Object.values(filters).filter(Boolean).length;
+}
+
+function confidenceFilterLabel(filter: ConfidenceFilter) {
+  if (filter === "LOW") {
+    return "Low (1-2)";
+  }
+
+  if (filter === "MEDIUM") {
+    return "Medium (3)";
+  }
+
+  return "High (4-5)";
+}
+
+function confidenceWhere(filter?: ConfidenceFilter) {
+  if (filter === "LOW") {
+    return { confidenceScore: { lte: 2 } };
+  }
+
+  if (filter === "MEDIUM") {
+    return { confidenceScore: 3 };
+  }
+
+  if (filter === "HIGH") {
+    return { confidenceScore: { gte: 4 } };
+  }
+
+  return {};
+}
+
+function andUserWhere(...clauses: Prisma.UserWhereInput[]) {
+  const activeClauses = clauses.filter((clause) => Object.keys(clause).length > 0);
+  if (activeClauses.length === 0) {
+    return {};
+  }
+
+  return activeClauses.length === 1 ? activeClauses[0] : { AND: activeClauses };
+}
+
+function andKeyResultWhere(...clauses: Prisma.KeyResultWhereInput[]) {
+  const activeClauses = clauses.filter((clause) => Object.keys(clause).length > 0);
+  if (activeClauses.length === 0) {
+    return {};
+  }
+
+  return activeClauses.length === 1 ? activeClauses[0] : { AND: activeClauses };
+}
+
+function andObjectiveWhere(...clauses: Prisma.ObjectiveWhereInput[]) {
+  const activeClauses = clauses.filter((clause) => Object.keys(clause).length > 0);
+  if (activeClauses.length === 0) {
+    return {};
+  }
+
+  return activeClauses.length === 1 ? activeClauses[0] : { AND: activeClauses };
+}
+
+function noneKeyResultWhere(): Prisma.KeyResultWhereInput {
+  return { id: "__no_matching_key_results__" };
+}
+
+function noneObjectiveWhere(): Prisma.ObjectiveWhereInput {
+  return { id: "__no_matching_objectives__" };
+}
+
+function noneWeeklyReportWhere(): Prisma.WeeklyReportWhereInput {
+  return { id: "__no_matching_weekly_reports__" };
+}
+
+function noneManagerReviewWhere(): Prisma.ManagerReviewWhereInput {
+  return { id: "__no_matching_manager_reviews__" };
+}
+
+function andWeeklyReportWhere(...clauses: Prisma.WeeklyReportWhereInput[]) {
+  const activeClauses = clauses.filter((clause) => Object.keys(clause).length > 0);
+  if (activeClauses.length === 0) {
+    return {};
+  }
+
+  return activeClauses.length === 1 ? activeClauses[0] : { AND: activeClauses };
+}
+
+function andManagerReviewWhere(...clauses: Prisma.ManagerReviewWhereInput[]) {
+  const activeClauses = clauses.filter((clause) => Object.keys(clause).length > 0);
+  if (activeClauses.length === 0) {
+    return {};
+  }
+
+  return activeClauses.length === 1 ? activeClauses[0] : { AND: activeClauses };
 }
 
 function followUpStatusTone(status: FollowUpStatus) {
@@ -65,20 +200,28 @@ function roleDashboardLabel(role: UserRole) {
   return "Employee execution view";
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const user = await requireUser();
+  const filters = parseDashboardFilters((await searchParams) ?? {});
+  const filtersActiveCount = activeFilterCount(filters);
   const weekStart = getMondayWeekStart();
   const weekEnd = getSundayWeekEnd(weekStart);
   const isCompanyViewer = user.role === "ADMIN" || user.role === "CEO";
   const isDepartmentViewer = user.role === "DEPARTMENT_HEAD" && Boolean(user.departmentId);
   const isManager = user.role === "MANAGER";
 
-  const userScopeWhere: Prisma.UserWhereInput = {
+  const baseUserScopeWhere: Prisma.UserWhereInput = {
     isActive: true,
     ...(isCompanyViewer ? {} : isDepartmentViewer ? { departmentId: user.departmentId } : isManager ? reviewOwnerWhere(user.id) : { id: user.id }),
   };
+  const filteredUserScopeWhere = andUserWhere(
+    baseUserScopeWhere,
+    filters.departmentId ? { departmentId: filters.departmentId } : {},
+    filters.teamId ? { teamId: filters.teamId } : {},
+    filters.ownerId ? { id: filters.ownerId } : {},
+  );
 
-  const [currentReport, assignedKrs, followUpReports, assignedFollowUps, createdFollowUps, unreadNotifications, scopedUsers] = await Promise.all([
+  const [currentReport, assignedKrs, followUpReports, assignedFollowUps, createdFollowUps, unreadNotifications, filterOptionUsers, scopedUsers] = await Promise.all([
     prisma.weeklyReport.findFirst({
       where: {
         userId: user.id,
@@ -143,7 +286,15 @@ export default async function DashboardPage() {
       },
     }),
     prisma.user.findMany({
-      where: userScopeWhere,
+      where: baseUserScopeWhere,
+      orderBy: { name: "asc" },
+      include: {
+        department: true,
+        team: true,
+      },
+    }),
+    prisma.user.findMany({
+      where: filteredUserScopeWhere,
       orderBy: { name: "asc" },
       include: {
         department: true,
@@ -152,30 +303,67 @@ export default async function DashboardPage() {
     }),
   ]);
 
+  const filterDepartments = Array.from(
+    filterOptionUsers
+      .reduce((departments, optionUser) => {
+        if (optionUser.department) {
+          departments.set(optionUser.department.id, optionUser.department.name);
+        }
+
+        return departments;
+      }, new Map<string, string>())
+      .entries(),
+  )
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const filterTeams = Array.from(
+    filterOptionUsers
+      .reduce((teams, optionUser) => {
+        if (optionUser.team && (!filters.departmentId || optionUser.team.departmentId === filters.departmentId)) {
+          teams.set(optionUser.team.id, optionUser.team.name);
+        }
+
+        return teams;
+      }, new Map<string, string>())
+      .entries(),
+  )
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const scopedUserIds = scopedUsers.map((scopedUser) => scopedUser.id);
-  const reportScopeUserIds = scopedUserIds.length > 0 ? scopedUserIds : [user.id];
-  const krScopeWhere: Prisma.KeyResultWhereInput = isCompanyViewer
-    ? {}
-    : isDepartmentViewer
-      ? { owner: { departmentId: user.departmentId } }
-      : isManager
-        ? { ownerId: { in: reportScopeUserIds } }
-        : { ownerId: user.id };
-  const objectiveScopeWhere: Prisma.ObjectiveWhereInput = isCompanyViewer
+  const baseScopedUserIds = filterOptionUsers.map((optionUser) => optionUser.id);
+  const userIdScopeWhere = scopedUserIds.length > 0 ? { ownerId: { in: scopedUserIds } } : noneKeyResultWhere();
+  const objectiveUserIdScopeWhere = scopedUserIds.length > 0 ? { ownerId: { in: scopedUserIds } } : noneObjectiveWhere();
+  const krDimensionFilterWhere: Prisma.KeyResultWhereInput = {
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.pacing ? { pacingStatus: filters.pacing } : {}),
+    ...confidenceWhere(filters.confidence),
+    ...(filters.quarter ? { objective: { quarter: filters.quarter } } : {}),
+  };
+  const objectiveDimensionFilterWhere: Prisma.ObjectiveWhereInput = {
+    ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+    ...(filters.teamId ? { teamId: filters.teamId } : {}),
+    ...(filters.ownerId ? { ownerId: filters.ownerId } : {}),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...confidenceWhere(filters.confidence),
+    ...(filters.quarter ? { quarter: filters.quarter } : {}),
+  };
+  const baseObjectiveScopeWhere: Prisma.ObjectiveWhereInput = isCompanyViewer
     ? {}
     : isDepartmentViewer
       ? { departmentId: user.departmentId }
-      : isManager
-        ? { ownerId: { in: reportScopeUserIds } }
-        : { ownerId: user.id };
-  const pendingReviewScopeWhere: Prisma.WeeklyReportWhereInput = isCompanyViewer
-    ? { userId: { in: reportScopeUserIds } }
-    : isDepartmentViewer
-      ? { user: { departmentId: user.departmentId } }
-      : isManager
-        ? reviewQueueWhere(user.id)
-        : { userId: user.id };
-  const escalatedReviewScopeWhere: Prisma.ManagerReviewWhereInput = isCompanyViewer
+      : baseScopedUserIds.length > 0
+        ? { ownerId: { in: baseScopedUserIds } }
+        : noneObjectiveWhere();
+  const krScopeWhere = andKeyResultWhere(userIdScopeWhere, krDimensionFilterWhere);
+  const objectiveScopeWhere = andObjectiveWhere(
+    isCompanyViewer || isDepartmentViewer ? baseObjectiveScopeWhere : objectiveUserIdScopeWhere,
+    objectiveDimensionFilterWhere,
+  );
+  const reportUserScopeWhere: Prisma.WeeklyReportWhereInput = scopedUserIds.length > 0 ? { userId: { in: scopedUserIds } } : noneWeeklyReportWhere();
+  const pendingReviewScopeWhere = andWeeklyReportWhere(reportUserScopeWhere, isManager ? reviewQueueWhere(user.id) : {});
+  const managerReviewUserScopeWhere: Prisma.ManagerReviewWhereInput =
+    scopedUserIds.length > 0 ? { weeklyReport: { userId: { in: scopedUserIds } } } : noneManagerReviewWhere();
+  const escalatedReviewBaseScopeWhere: Prisma.ManagerReviewWhereInput = isCompanyViewer
     ? {}
     : isDepartmentViewer
       ? { weeklyReport: { user: { departmentId: user.departmentId } } }
@@ -184,6 +372,7 @@ export default async function DashboardPage() {
             OR: [{ manager: reviewOwnerWhere(user.id) }, { weeklyReport: { user: reviewOwnerWhere(user.id) } }],
           }
         : { weeklyReport: { userId: user.id } };
+  const escalatedReviewScopeWhere = andManagerReviewWhere(managerReviewUserScopeWhere, escalatedReviewBaseScopeWhere);
 
   const [
     reportsThisWeek,
@@ -196,16 +385,14 @@ export default async function DashboardPage() {
     confidenceAggregate,
     riskKrs,
     escalatedReviews,
+    filterQuarters,
     departmentsForHealth,
     departmentPendingReports,
     departmentEscalatedReviews,
     recentAuditLogs,
   ] = await Promise.all([
     prisma.weeklyReport.findMany({
-      where: {
-        userId: { in: reportScopeUserIds },
-        weekStart,
-      },
+      where: andWeeklyReportWhere(reportUserScopeWhere, { weekStart }),
       include: {
         user: true,
       },
@@ -213,16 +400,10 @@ export default async function DashboardPage() {
     user.role === "EMPLOYEE"
       ? Promise.resolve(0)
       : prisma.weeklyReport.count({
-          where: {
-            status: "SUBMITTED",
-            ...(user.role === "ADMIN" ? {} : reviewQueueWhere(user.id)),
-          },
+          where: andWeeklyReportWhere(pendingReviewScopeWhere, { status: "SUBMITTED" }),
         }),
     prisma.weeklyReport.findMany({
-      where: {
-        status: "SUBMITTED",
-        ...(user.role === "ADMIN" ? {} : pendingReviewScopeWhere),
-      },
+      where: andWeeklyReportWhere(pendingReviewScopeWhere, { status: "SUBMITTED" }),
       orderBy: [{ submittedAt: "asc" }, { updatedAt: "asc" }],
       take: 8,
       include: {
@@ -255,10 +436,7 @@ export default async function DashboardPage() {
       },
     }),
     prisma.keyResult.findMany({
-      where: {
-        ...krScopeWhere,
-        ...krRiskWhere,
-      },
+      where: andKeyResultWhere(krScopeWhere, krRiskWhere),
       orderBy: [{ confidenceScore: "asc" }, { updatedAt: "desc" }],
       take: 8,
       include: {
@@ -267,10 +445,7 @@ export default async function DashboardPage() {
       },
     }),
     prisma.managerReview.findMany({
-      where: {
-        decision: "RISK_FLAGGED",
-        ...escalatedReviewScopeWhere,
-      },
+      where: andManagerReviewWhere(escalatedReviewScopeWhere, { decision: "RISK_FLAGGED" }),
       orderBy: { createdAt: "desc" },
       take: 6,
       include: {
@@ -287,27 +462,41 @@ export default async function DashboardPage() {
         },
       },
     }),
+    prisma.objective.findMany({
+      where: baseObjectiveScopeWhere,
+      select: {
+        quarter: true,
+      },
+      orderBy: {
+        quarter: "desc",
+      },
+    }),
     isCompanyViewer
       ? prisma.department.findMany({
+          where: filters.departmentId ? { id: filters.departmentId } : {},
           orderBy: { name: "asc" },
           include: {
             users: {
-              where: { isActive: true },
+              where: filteredUserScopeWhere,
               include: {
                 weeklyReports: {
                   where: { weekStart },
                   include: { reviews: true },
                 },
-                ownedKeyResults: true,
+                ownedKeyResults: {
+                  where: krDimensionFilterWhere,
+                },
               },
             },
-            objectives: true,
+            objectives: {
+              where: objectiveDimensionFilterWhere,
+            },
           },
         })
       : Promise.resolve([]),
     isCompanyViewer
       ? prisma.weeklyReport.findMany({
-          where: { status: "SUBMITTED" },
+          where: andWeeklyReportWhere(reportUserScopeWhere, { status: "SUBMITTED" }),
           include: {
             user: {
               select: {
@@ -319,7 +508,7 @@ export default async function DashboardPage() {
       : Promise.resolve([]),
     isCompanyViewer
       ? prisma.managerReview.findMany({
-          where: { decision: "RISK_FLAGGED" },
+          where: andManagerReviewWhere(managerReviewUserScopeWhere, { decision: "RISK_FLAGGED" }),
           include: {
             weeklyReport: {
               include: {
@@ -403,6 +592,7 @@ export default async function DashboardPage() {
       riskCount,
     };
   });
+  const filterQuarterOptions = Array.from(new Set(filterQuarters.map((objective) => objective.quarter))).sort().reverse();
 
   return (
     <div className="stack">
@@ -416,6 +606,101 @@ export default async function DashboardPage() {
           </LinkButton>
         }
       />
+
+      <Card>
+        <CardHeader>
+          <h2>Dashboard Filters</h2>
+          <p>Refine visible OKR health without changing your role-based access scope.</p>
+        </CardHeader>
+        <CardContent>
+          <form className="dashboard-filter-form" method="get">
+            <label className="field">
+              <span>Department</span>
+              <select defaultValue={filters.departmentId ?? ""} name="departmentId">
+                <option value="">All visible departments</option>
+                {filterDepartments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Team</span>
+              <select defaultValue={filters.teamId ?? ""} name="teamId">
+                <option value="">All visible teams</option>
+                {filterTeams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Owner</span>
+              <select defaultValue={filters.ownerId ?? ""} name="ownerId">
+                <option value="">All visible owners</option>
+                {filterOptionUsers.map((optionUser) => (
+                  <option key={optionUser.id} value={optionUser.id}>
+                    {optionUser.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Status</span>
+              <select defaultValue={filters.status ?? ""} name="status">
+                <option value="">All statuses</option>
+                {workStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {formatEnumLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Confidence</span>
+              <select defaultValue={filters.confidence ?? ""} name="confidence">
+                <option value="">All confidence levels</option>
+                {confidenceFilters.map((confidence) => (
+                  <option key={confidence} value={confidence}>
+                    {confidenceFilterLabel(confidence)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Pacing</span>
+              <select defaultValue={filters.pacing ?? ""} name="pacing">
+                <option value="">All pacing states</option>
+                {pacingStatuses.map((pacing) => (
+                  <option key={pacing} value={pacing}>
+                    {formatEnumLabel(pacing)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Quarter</span>
+              <select defaultValue={filters.quarter ?? ""} name="quarter">
+                <option value="">All quarters</option>
+                {filterQuarterOptions.map((quarter) => (
+                  <option key={quarter} value={quarter}>
+                    {quarter}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="dashboard-filter-actions">
+              <Button type="submit">Apply Filters</Button>
+              <LinkButton href="/dashboard" tone="secondary">
+                Reset
+              </LinkButton>
+              <Badge tone={filtersActiveCount > 0 ? "info" : "neutral"}>{filtersActiveCount} active</Badge>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-3">
         <StatCard
