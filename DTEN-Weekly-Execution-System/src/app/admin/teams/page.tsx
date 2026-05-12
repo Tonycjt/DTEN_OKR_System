@@ -1,4 +1,4 @@
-import { createTeamAction } from "@/app/admin/actions";
+import { createTeamAction, updateTeamAction } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -26,7 +26,7 @@ export default async function TeamsPage() {
 
   return (
     <div className="stack">
-      <PageHeader title="Teams" description="Create and view teams inside departments." />
+      <PageHeader title="Teams" description="Create, edit, and view teams inside departments." />
 
       <Card>
         <CardHeader>
@@ -70,9 +70,7 @@ export default async function TeamsPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Department</th>
-                  <th>Description</th>
+                  <th>Edit Team</th>
                   <th>Users</th>
                   <th>Objectives</th>
                 </tr>
@@ -80,9 +78,34 @@ export default async function TeamsPage() {
               <tbody>
                 {teams.map((team) => (
                   <tr key={team.id}>
-                    <td>{team.name}</td>
-                    <td>{team.department.name}</td>
-                    <td>{team.description ?? <span className="muted">No description</span>}</td>
+                    <td>
+                      <form action={updateTeamAction} className="form-grid">
+                        <input name="teamId" type="hidden" value={team.id} />
+                        <label className="field">
+                          <span>Name</span>
+                          <input defaultValue={team.name} name="name" required />
+                        </label>
+                        <label className="field">
+                          <span>Department</span>
+                          <select defaultValue={team.departmentId} name="departmentId" required>
+                            {departments.map((department) => (
+                              <option key={department.id} value={department.id}>
+                                {department.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field wide">
+                          <span>Description</span>
+                          <input defaultValue={team.description ?? ""} name="description" />
+                        </label>
+                        <div className="wide">
+                          <Button type="submit" tone="secondary">
+                            Save Team
+                          </Button>
+                        </div>
+                      </form>
+                    </td>
                     <td>{team._count.users}</td>
                     <td>{team._count.objectives}</td>
                   </tr>

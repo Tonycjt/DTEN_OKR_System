@@ -527,3 +527,117 @@ Day 8 target:
 ```text
 Release 1 finalization: full seeded-user smoke test, dashboard visual pass at mobile/desktop widths, role/access review, audit/notification edge cases, and PRD acceptance checklist.
 ```
+
+## Day 8 - Release 1 Finalization
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added edit support for departments, teams, and users on admin pages.
+- Added objective edit support on objective detail pages.
+- Added KR comment creation from KR detail pages.
+- KR comments now notify the KR owner and the owner's manager when applicable.
+- KR comments also create audit log entries.
+- Tightened mobile route item/action wrapping to prevent notification/dashboard overflow.
+- Added `docs/release-1-acceptance-checklist.md` mapping PRD Definition of Done items to implemented evidence.
+```
+
+Release 1 hardening checks:
+
+```text
+- Confirmed Docker PostgreSQL container is running.
+- Validated Prisma schema.
+- Ran database smoke query against local PostgreSQL.
+- Confirmed seeded users are present.
+- Confirmed seeded current-week report, priority, check-in, review, notifications, comments, audit logs, pending manager review, and CEO risk KRs exist.
+- Ran browser smoke with Playwright for CEO, manager, and engineer personas.
+- Checked desktop routes for dashboard, OKRs, notifications, admin pages, reviews, and weekly reports.
+- Checked mobile routes at 390px for dashboard, current weekly report, and notifications.
+- Fixed mobile `/notifications` horizontal overflow found during smoke testing.
+```
+
+Verification:
+
+```powershell
+docker compose up -d
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- PostgreSQL container running.
+- Prisma schema valid.
+- Lint passed.
+- Production build passed.
+- Playwright Release 1 smoke passed.
+```
+
+Database smoke result:
+
+```text
+users: 6
+departments: 4
+teams: 3
+objectives: 5
+keyResults: 5
+monthlyTargets: 15
+reports: 4
+priorities: 3
+checkIns: 2
+reviews: 2
+notifications: 5
+comments: 1
+auditLogs: 15
+seededUsersPresent: true
+managerPending: 1
+engineerCurrentReport: SUBMITTED, 1 priority, 1 check-in, 1 review
+ceoRiskKrs: 4
+```
+
+Release 1 status:
+
+```text
+Release 1 is complete and smoke-tested.
+```
+
+Recommended next target:
+
+```text
+Start Release 2 planning or do a user-guided demo pass with DTEN-specific copy, role policies, and visual polish feedback.
+```
+
+## Post-Release 1 Role-Based Navigation Fix
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Updated sidebar navigation to receive the current user.
+- Added role metadata to primary and admin navigation items.
+- Hid admin navigation entries from users without the matching role.
+- Hid the entire Admin section when no admin links are visible.
+- Hid authenticated work links on unauthenticated pages such as login.
+- Employee users no longer see Company OKRs, Reviews, or Admin menu items in the sidebar.
+- Manager users see Reviews but not Admin menu items.
+- Department Head users see org admin links but not Audit Log.
+- CEO users see leadership work links plus org admin links and Audit Log.
+- Clarified that `ADMIN` is a system/operator role, not an official OKR execution role.
+- Admin users now only see Admin menu items in the sidebar.
+- Admin brand/home link now points to `/admin/users` instead of `/dashboard`.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- Lint passed.
+- Production build passed.
+```

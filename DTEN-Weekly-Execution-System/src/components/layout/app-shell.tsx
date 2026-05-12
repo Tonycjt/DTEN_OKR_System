@@ -8,7 +8,7 @@ type CurrentUser = Awaited<ReturnType<typeof getCurrentUser>>;
 export function AppShell({ children, user }: { children: ReactNode; user: CurrentUser }) {
   return (
     <div className="app-shell">
-      <Sidebar />
+      <Sidebar user={user} />
       <div className="main-shell">
         <TopBar user={user} />
         <main className="page-shell">{children}</main>

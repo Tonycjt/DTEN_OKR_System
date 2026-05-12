@@ -1,5 +1,5 @@
 import type { UserRole } from "@prisma/client";
-import { createUserAction } from "@/app/admin/actions";
+import { createUserAction, updateUserAction } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -45,7 +45,7 @@ export default async function UsersPage() {
 
   return (
     <div className="stack">
-      <PageHeader title="Users" description="Create users and assign roles, departments, teams, and managers." />
+      <PageHeader title="Users" description="Create and edit users, roles, departments, teams, and managers." />
 
       <Card>
         <CardHeader>
@@ -130,12 +130,7 @@ export default async function UsersPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Department</th>
-                  <th>Team</th>
-                  <th>Manager</th>
+                  <th>Edit User</th>
                   <th>Owned Work</th>
                 </tr>
               </thead>
@@ -143,15 +138,74 @@ export default async function UsersPage() {
                 {users.map((user) => (
                   <tr key={user.id}>
                     <td>
-                      <strong>{user.name}</strong>
-                      <br />
-                      <span className="muted">{user.title ?? "No title"}</span>
+                      <form action={updateUserAction} className="form-grid">
+                        <input name="userId" type="hidden" value={user.id} />
+                        <label className="field">
+                          <span>Name</span>
+                          <input defaultValue={user.name} name="name" required />
+                        </label>
+                        <label className="field">
+                          <span>Email</span>
+                          <input defaultValue={user.email} name="email" required type="email" />
+                        </label>
+                        <label className="field">
+                          <span>Title</span>
+                          <input defaultValue={user.title ?? ""} name="title" />
+                        </label>
+                        <label className="field">
+                          <span>Role</span>
+                          <select defaultValue={user.role} name="role" required>
+                            {roleOptions.map((role) => (
+                              <option key={role} value={role}>
+                                {formatEnumLabel(role)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Department</span>
+                          <select defaultValue={user.departmentId ?? ""} name="departmentId">
+                            <option value="">None</option>
+                            {departments.map((department) => (
+                              <option key={department.id} value={department.id}>
+                                {department.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Team</span>
+                          <select defaultValue={user.teamId ?? ""} name="teamId">
+                            <option value="">None</option>
+                            {teams.map((team) => (
+                              <option key={team.id} value={team.id}>
+                                {team.department.name} / {team.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Manager</span>
+                          <select defaultValue={user.managerId ?? ""} name="managerId">
+                            <option value="">None</option>
+                            {managerOptions.map((manager) => (
+                              <option key={manager.id} value={manager.id}>
+                                {manager.name} ({formatEnumLabel(manager.role)})
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Password</span>
+                          <input name="password" placeholder="Leave unchanged" type="password" />
+                        </label>
+                        <div className="wide">
+                          <Button type="submit" tone="secondary">
+                            Save User
+                          </Button>
+                        </div>
+                      </form>
                     </td>
-                    <td>{user.email}</td>
-                    <td>{formatEnumLabel(user.role)}</td>
-                    <td>{user.department?.name ?? <span className="muted">None</span>}</td>
-                    <td>{user.team?.name ?? <span className="muted">None</span>}</td>
-                    <td>{user.manager?.name ?? <span className="muted">None</span>}</td>
                     <td>
                       {user._count.ownedObjectives} objectives, {user._count.ownedKeyResults} KRs, {user._count.reports} reports
                     </td>

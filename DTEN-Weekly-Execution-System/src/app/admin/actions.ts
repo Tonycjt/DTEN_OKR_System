@@ -37,6 +37,22 @@ export async function createDepartmentAction(formData: FormData) {
   revalidatePath("/admin/departments");
 }
 
+export async function updateDepartmentAction(formData: FormData) {
+  await requireRole(orgManagerRoles);
+
+  await prisma.department.update({
+    where: { id: requiredString(formData.get("departmentId"), "Department") },
+    data: {
+      name: requiredString(formData.get("name"), "Department name"),
+      description: optionalString(formData.get("description")),
+    },
+  });
+
+  revalidatePath("/admin/departments");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/teams");
+}
+
 export async function createTeamAction(formData: FormData) {
   await requireRole(orgManagerRoles);
 
@@ -49,6 +65,22 @@ export async function createTeamAction(formData: FormData) {
   });
 
   revalidatePath("/admin/teams");
+}
+
+export async function updateTeamAction(formData: FormData) {
+  await requireRole(orgManagerRoles);
+
+  await prisma.team.update({
+    where: { id: requiredString(formData.get("teamId"), "Team") },
+    data: {
+      name: requiredString(formData.get("name"), "Team name"),
+      description: optionalString(formData.get("description")),
+      departmentId: requiredString(formData.get("departmentId"), "Department"),
+    },
+  });
+
+  revalidatePath("/admin/teams");
+  revalidatePath("/admin/users");
 }
 
 export async function createUserAction(formData: FormData) {
@@ -77,4 +109,35 @@ export async function createUserAction(formData: FormData) {
   });
 
   revalidatePath("/admin/users");
+}
+
+export async function updateUserAction(formData: FormData) {
+  await requireRole(orgManagerRoles);
+
+  const userId = requiredString(formData.get("userId"), "User");
+  const role = requiredString(formData.get("role"), "Role") as UserRole;
+
+  if (!allowedRoles.includes(role)) {
+    throw new Error("Invalid role.");
+  }
+
+  const password = optionalString(formData.get("password"));
+  const managerId = optionalString(formData.get("managerId"));
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      email: requiredString(formData.get("email"), "Email").toLowerCase(),
+      name: requiredString(formData.get("name"), "Name"),
+      role,
+      title: optionalString(formData.get("title")),
+      departmentId: optionalString(formData.get("departmentId")),
+      teamId: optionalString(formData.get("teamId")),
+      managerId: managerId === userId ? null : managerId,
+      ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}),
+    },
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/dashboard");
 }

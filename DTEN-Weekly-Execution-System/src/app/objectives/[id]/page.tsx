@@ -1,7 +1,7 @@
 import Link from "next/link";
-import type { WorkStatus } from "@prisma/client";
+import type { ObjectiveLevel, WorkStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
-import { createKeyResultAction } from "@/app/objectives/actions";
+import { createKeyResultAction, updateObjectiveAction } from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,12 +19,13 @@ type ObjectiveDetailPageProps = {
 };
 
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
+const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
 
 export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPageProps) {
   await requireUser();
   const { id } = await params;
 
-  const [objective, users] = await Promise.all([
+  const [objective, users, departments, teams, parentObjectives] = await Promise.all([
     prisma.objective.findUnique({
       where: { id },
       include: {
@@ -45,6 +46,17 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
       },
     }),
     prisma.user.findMany({ orderBy: { name: "asc" } }),
+    prisma.department.findMany({ orderBy: { name: "asc" } }),
+    prisma.team.findMany({
+      orderBy: [{ department: { name: "asc" } }, { name: "asc" }],
+      include: { department: true },
+    }),
+    prisma.objective.findMany({
+      where: {
+        NOT: { id },
+      },
+      orderBy: [{ level: "asc" }, { title: "asc" }],
+    }),
   ]);
 
   if (!objective) {
@@ -109,10 +121,109 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
 
         <Card>
           <CardHeader>
-            <h2>Add Key Result</h2>
-            <p>Create a measurable KR under this objective with monthly targets.</p>
+            <h2>Edit Objective</h2>
+            <p>Update objective ownership, alignment, progress, confidence, and status.</p>
           </CardHeader>
           <CardContent>
+            <form action={updateObjectiveAction} className="form-grid">
+              <input name="objectiveId" type="hidden" value={objective.id} />
+              <label className="field wide">
+                <span>Title</span>
+                <input defaultValue={objective.title} name="title" required />
+              </label>
+              <label className="field wide">
+                <span>Description</span>
+                <textarea defaultValue={objective.description ?? ""} name="description" />
+              </label>
+              <label className="field">
+                <span>Quarter</span>
+                <input defaultValue={objective.quarter} name="quarter" required />
+              </label>
+              <label className="field">
+                <span>Level</span>
+                <select defaultValue={objective.level} name="level" required>
+                  {objectiveLevels.map((level) => (
+                    <option key={level} value={level}>
+                      {formatEnumLabel(level)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Owner</span>
+                <select defaultValue={objective.ownerId} name="ownerId" required>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Status</span>
+                <select defaultValue={objective.status} name="status" required>
+                  {workStatuses.map((status) => (
+                    <option key={status} value={status}>
+                      {formatEnumLabel(status)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Department</span>
+                <select defaultValue={objective.departmentId ?? ""} name="departmentId">
+                  <option value="">None</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Team</span>
+                <select defaultValue={objective.teamId ?? ""} name="teamId">
+                  <option value="">None</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.department.name} / {team.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Parent Objective</span>
+                <select defaultValue={objective.parentObjectiveId ?? ""} name="parentObjectiveId">
+                  <option value="">None</option>
+                  {parentObjectives.map((parentObjective) => (
+                    <option key={parentObjective.id} value={parentObjective.id}>
+                      {parentObjective.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Progress Percent</span>
+                <input defaultValue={objective.progressPercent} max="100" min="0" name="progressPercent" type="number" />
+              </label>
+              <label className="field">
+                <span>Confidence</span>
+                <input defaultValue={objective.confidenceScore} max="5" min="1" name="confidenceScore" type="number" />
+              </label>
+              <div className="wide">
+                <Button type="submit">Update Objective</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <h2>Add Key Result</h2>
+          <p>Create a measurable KR under this objective with monthly targets.</p>
+        </CardHeader>
+        <CardContent>
             <form action={createKeyResultAction} className="form-grid">
               <input name="objectiveId" type="hidden" value={objective.id} />
               <label className="field wide">
@@ -175,9 +286,8 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
                 <Button type="submit">Create KR</Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
-      </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

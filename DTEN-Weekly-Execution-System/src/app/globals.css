@@ -496,6 +496,7 @@ td {
 .table-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -533,5 +534,14 @@ td {
   .grid-3,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .route-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .route-item > span {
+    min-width: 0;
   }
 }

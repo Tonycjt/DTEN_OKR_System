@@ -1,4 +1,4 @@
-import { createDepartmentAction } from "@/app/admin/actions";
+import { createDepartmentAction, updateDepartmentAction } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -23,7 +23,7 @@ export default async function DepartmentsPage() {
 
   return (
     <div className="stack">
-      <PageHeader title="Departments" description="Create and view Release 1 department records." />
+      <PageHeader title="Departments" description="Create, edit, and view Release 1 department records." />
 
       <Card>
         <CardHeader>
@@ -57,8 +57,7 @@ export default async function DepartmentsPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Description</th>
+                  <th>Edit Department</th>
                   <th>Users</th>
                   <th>Teams</th>
                   <th>Objectives</th>
@@ -67,8 +66,24 @@ export default async function DepartmentsPage() {
               <tbody>
                 {departments.map((department) => (
                   <tr key={department.id}>
-                    <td>{department.name}</td>
-                    <td>{department.description ?? <span className="muted">No description</span>}</td>
+                    <td>
+                      <form action={updateDepartmentAction} className="form-grid">
+                        <input name="departmentId" type="hidden" value={department.id} />
+                        <label className="field">
+                          <span>Name</span>
+                          <input defaultValue={department.name} name="name" required />
+                        </label>
+                        <label className="field">
+                          <span>Description</span>
+                          <input defaultValue={department.description ?? ""} name="description" />
+                        </label>
+                        <div className="wide">
+                          <Button type="submit" tone="secondary">
+                            Save Department
+                          </Button>
+                        </div>
+                      </form>
+                    </td>
                     <td>{department._count.users}</td>
                     <td>{department._count.teams}</td>
                     <td>{department._count.objectives}</td>

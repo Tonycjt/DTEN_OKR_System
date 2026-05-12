@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { WorkStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
+import { addKeyResultCommentAction } from "@/app/key-results/actions";
 import { updateKeyResultAction } from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -209,10 +210,20 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
         <Card>
           <CardHeader>
             <h2>Comments</h2>
-            <p>{keyResult.comments.length} comments are linked to this KR.</p>
+            <p>{keyResult.comments.length} comments are linked to this KR. New comments notify the KR owner and their manager.</p>
           </CardHeader>
           <CardContent>
-            <div className="route-grid">
+            <div className="stack">
+              <form action={addKeyResultCommentAction} className="form-shell">
+                <input name="keyResultId" type="hidden" value={keyResult.id} />
+                <label className="field">
+                  <span>Add Comment</span>
+                  <textarea name="body" placeholder="Add risk context, follow-up notes, or executive guidance." required />
+                </label>
+                <Button type="submit">Add Comment</Button>
+              </form>
+
+              <div className="route-grid">
               {keyResult.comments.map((comment) => (
                 <div className="route-item" key={comment.id}>
                   <span>
@@ -223,6 +234,7 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
                 </div>
               ))}
               {keyResult.comments.length === 0 ? <div className="route-item">No comments yet.</div> : null}
+              </div>
             </div>
           </CardContent>
         </Card>

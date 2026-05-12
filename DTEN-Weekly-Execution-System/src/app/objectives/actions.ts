@@ -88,6 +88,57 @@ export async function createObjectiveAction(formData: FormData) {
   redirect(`/objectives/${objective.id}`);
 }
 
+export async function updateObjectiveAction(formData: FormData) {
+  const user = await requireUser();
+  const objectiveId = requiredString(formData.get("objectiveId"), "Objective");
+  const level = requiredString(formData.get("level"), "Level") as ObjectiveLevel;
+  const status = requiredString(formData.get("status"), "Status") as WorkStatus;
+  const parentObjectiveId = optionalString(formData.get("parentObjectiveId"));
+
+  if (!objectiveLevels.includes(level)) {
+    throw new Error("Invalid objective level.");
+  }
+
+  if (!workStatuses.includes(status)) {
+    throw new Error("Invalid objective status.");
+  }
+
+  if (parentObjectiveId === objectiveId) {
+    throw new Error("An objective cannot be aligned to itself.");
+  }
+
+  const objective = await prisma.objective.update({
+    where: { id: objectiveId },
+    data: {
+      title: requiredString(formData.get("title"), "Title"),
+      description: optionalString(formData.get("description")),
+      level,
+      status,
+      quarter: requiredString(formData.get("quarter"), "Quarter"),
+      progressPercent: clamp(numberValue(formData.get("progressPercent"), 0), 0, 100),
+      confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
+      ownerId: requiredString(formData.get("ownerId"), "Owner"),
+      departmentId: optionalString(formData.get("departmentId")),
+      teamId: optionalString(formData.get("teamId")),
+      parentObjectiveId,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: user.id,
+      action: "UPDATED",
+      entityType: "Objective",
+      entityId: objective.id,
+      metadata: { title: objective.title, status: objective.status, progressPercent: objective.progressPercent },
+    },
+  });
+
+  revalidatePath(`/objectives/${objectiveId}`);
+  revalidatePath("/company-okrs");
+  revalidatePath("/my-okrs");
+}
+
 export async function createKeyResultAction(formData: FormData) {
   const user = await requireUser();
   const objectiveId = requiredString(formData.get("objectiveId"), "Objective");
