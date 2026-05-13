@@ -118,6 +118,10 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
                 <span>{keyResult.confidenceScore}/5</span>
               </div>
               <div className="detail-row">
+                <span className="detail-label">Weight</span>
+                <span>{keyResult.weightPercent}% of objective progress</span>
+              </div>
+              <div className="detail-row">
                 <span className="detail-label">Values</span>
                 <span>
                   {keyResult.currentValue} current / {keyResult.targetValue} target
@@ -186,6 +190,10 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
               <label className="field">
                 <span>Confidence</span>
                 <input defaultValue={keyResult.confidenceScore} max="5" min="1" name="confidenceScore" type="number" />
+              </label>
+              <label className="field">
+                <span>Weight Percent</span>
+                <input defaultValue={keyResult.weightPercent} max="100" min="0" name="weightPercent" type="number" />
               </label>
               {[1, 2, 3].map((monthIndex) => {
                 const target = targetsByMonth.get(monthIndex);

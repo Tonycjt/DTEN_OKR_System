@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ObjectiveLevel, WorkStatus } from "@prisma/client";
+import type { ObjectiveLevel, ObjectiveProgressMode, WorkStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { createKeyResultAction, updateObjectiveAction } from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
@@ -20,6 +21,7 @@ type ObjectiveDetailPageProps = {
 
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
+const objectiveProgressModes: ObjectiveProgressMode[] = ["MANUAL", "AUTO"];
 
 export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPageProps) {
   await requireUser();
@@ -63,6 +65,13 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
     notFound();
   }
 
+  const krWeightValidation = validateObjectiveKrWeights({
+    weights: objective.keyResults.map((keyResult) => ({ percent: keyResult.weightPercent })),
+    status: objective.status,
+    approvalStatus: objective.approvalStatus,
+  });
+  const defaultNewKrWeight = objective.keyResults.length === 0 ? 100 : 0;
+
   return (
     <div className="stack">
       <PageHeader title={objective.title} description={objective.description ?? "Objective detail and KR management."} />
@@ -93,6 +102,14 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
               <div className="detail-row">
                 <span className="detail-label">Status</span>
                 <Badge tone={workStatusTone(objective.status)}>{formatEnumLabel(objective.status)}</Badge>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Progress Mode</span>
+                <Badge tone={objective.progressMode === "AUTO" ? "success" : "neutral"}>{formatEnumLabel(objective.progressMode)}</Badge>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Approval</span>
+                <span>{formatEnumLabel(objective.approvalStatus)}</span>
               </div>
               <div className="detail-row">
                 <span className="detail-label">Confidence</span>
@@ -170,6 +187,16 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
                 </select>
               </label>
               <label className="field">
+                <span>Progress Mode</span>
+                <select defaultValue={objective.progressMode} name="progressMode" required>
+                  {objectiveProgressModes.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {formatEnumLabel(mode)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
                 <span>Department</span>
                 <select defaultValue={objective.departmentId ?? ""} name="departmentId">
                   <option value="">None</option>
@@ -205,6 +232,7 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
               <label className="field">
                 <span>Progress Percent</span>
                 <input defaultValue={objective.progressPercent} max="100" min="0" name="progressPercent" type="number" />
+                {objective.progressMode === "AUTO" ? <small>Auto objectives recalculate from weighted child KRs after save.</small> : null}
               </label>
               <label className="field">
                 <span>Confidence</span>
@@ -270,6 +298,10 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
                 <span>Confidence</span>
                 <input defaultValue="3" max="5" min="1" name="confidenceScore" type="number" />
               </label>
+              <label className="field">
+                <span>Weight Percent</span>
+                <input defaultValue={defaultNewKrWeight} max="100" min="0" name="weightPercent" type="number" />
+              </label>
               {[1, 2, 3].map((monthIndex) => (
                 <div className="form-grid wide" key={monthIndex}>
                   <label className="field">
@@ -292,9 +324,16 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
       <Card>
         <CardHeader>
           <h2>Key Results</h2>
-          <p>{objective.keyResults.length} KRs are linked to this objective.</p>
+          <p>
+            {objective.keyResults.length} KRs are linked to this objective. KR weights total {krWeightValidation.total}%.
+          </p>
         </CardHeader>
         <CardContent>
+          {krWeightValidation.message ? (
+            <div className={`notice ${krWeightValidation.isValid ? "" : "notice-danger"}`}>{krWeightValidation.message}</div>
+          ) : (
+            <div className="notice">KR weights are balanced at 100%.</div>
+          )}
           <div className="table-wrap">
             <table>
               <thead>
@@ -304,6 +343,7 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
                   <th>Status</th>
                   <th>Pacing</th>
                   <th>Confidence</th>
+                  <th>Weight</th>
                   <th>Progress</th>
                   <th>Monthly Targets</th>
                 </tr>
@@ -326,6 +366,7 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
                       <Badge tone={pacingStatusTone(keyResult.pacingStatus)}>{formatEnumLabel(keyResult.pacingStatus)}</Badge>
                     </td>
                     <td>{keyResult.confidenceScore}/5</td>
+                    <td>{keyResult.weightPercent}%</td>
                     <td>
                       <div className="stack">
                         <span>
@@ -345,7 +386,7 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
                 ))}
                 {objective.keyResults.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>No KRs have been created for this objective yet.</td>
+                    <td colSpan={8}>No KRs have been created for this objective yet.</td>
                   </tr>
                 ) : null}
               </tbody>

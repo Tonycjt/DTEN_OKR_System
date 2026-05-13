@@ -27,3 +27,23 @@ export function calculatePacingStatus({
 
   return progressPercent >= currentMonthTargetPercent ? "ON_PACE" : "BEHIND";
 }
+
+export type WeightedProgressItem = {
+  progressPercent: number;
+  weightPercent: number | null | undefined;
+};
+
+export function calculateWeightedProgress(items: WeightedProgressItem[]) {
+  const totalWeight = items.reduce((total, item) => total + (Number.isFinite(item.weightPercent) ? Number(item.weightPercent) : 0), 0);
+
+  if (totalWeight <= 0) {
+    return 0;
+  }
+
+  const weightedTotal = items.reduce((total, item) => {
+    const weight = Number.isFinite(item.weightPercent) ? Number(item.weightPercent) : 0;
+    return total + item.progressPercent * (weight / totalWeight);
+  }, 0);
+
+  return Math.max(0, Math.min(100, Math.round(weightedTotal)));
+}

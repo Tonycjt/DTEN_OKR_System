@@ -2164,3 +2164,90 @@ Test process after this fix:
 5. Open `/company-okrs`.
 6. Confirm the seeded objective "Prepare D7X sales enablement for launch" is visible.
 ```
+
+## Release 3 Day 23 - Weighted KR Progress Inside One Objective
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added weighted progress calculation helper in `src/lib/okr-calculations.ts`.
+- Added focused weighted-progress tests in `src/lib/okr-calculations.test.ts`.
+- Added server roll-up helper in `src/server/objective-rollup.ts`.
+- KR create and edit forms now include `weightPercent`.
+- KR detail summary now shows the KR's objective contribution weight.
+- Objective detail now shows:
+  - progress mode
+  - approval status
+  - KR weight total
+  - balanced/invalid weight notice
+  - weight column in the KR table
+- Objective create/edit forms now expose `progressMode` as MANUAL or AUTO.
+- Server actions validate KR weight totals using `validateObjectiveKrWeights`.
+- Active/published objectives block invalid KR weight totals.
+- Draft objectives can keep incomplete weights with warning UI.
+- AUTO objectives recalculate stored `Objective.progressPercent` from weighted child KRs after:
+  - KR creation
+  - KR update
+  - weekly-report KR check-in save
+  - switching/saving an objective as AUTO
+- Revalidation now refreshes objective, OKR list, dashboard, and related KR surfaces after weighted roll-up changes.
+```
+
+Verification:
+
+```powershell
+& '.\node_modules\.bin\prisma.cmd' migrate status
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Prisma migration status is up to date.
+- Prisma schema validation passed.
+- Vitest passed: 3 test files, 13 tests.
+- Lint passed.
+- Production build passed.
+- Final database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+objectives: 4
+keyResults: 4
+objectiveAssignments: 2
+currentWeekReports: 0
+salesEnablementProgress: 25
+salesEnablementWeightTotal: 100
+```
+
+Visible Day 23 test path:
+
+```text
+1. Start the app with `.\start-dev.cmd`.
+2. Log in as `ceo@dten.com` / `Password123!`.
+3. Open `/company-okrs`.
+4. Open "Prepare D7X sales enablement for launch".
+5. Confirm Objective Summary shows Progress Mode = AUTO and progress = 25%.
+6. Confirm the Key Results section shows KR weights total 100% and a balanced weight notice.
+7. Open the KR "Publish D7X launch enablement kit".
+8. Change Current from 25 to 80, keep Weight Percent at 100, and click Update KR.
+9. Return to the objective detail page and confirm objective progress recalculates to 80%.
+10. Optional validation check: on the same KR, change Weight Percent from 100 to 60 and submit. Because the objective is published/active and has only one KR, the save should be blocked with a KR weights must total 100% error.
+```
+
+Day 24 target:
+
+```text
+Build parent/child objective contribution assignments:
+- Add objective assignment UI for parent objectives.
+- Link existing child objectives to parent contribution percentages.
+- Validate assignment contribution totals.
+- Show contribution table and parent roll-up math on objective detail.
+- Add audit logs for objective assignment changes.
+```

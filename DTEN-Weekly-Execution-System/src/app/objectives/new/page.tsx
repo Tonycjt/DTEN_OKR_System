@@ -1,4 +1,4 @@
-import type { ObjectiveLevel, WorkStatus } from "@prisma/client";
+import type { ObjectiveLevel, ObjectiveProgressMode, WorkStatus } from "@prisma/client";
 import { createObjectiveAction } from "@/app/objectives/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
+const objectiveProgressModes: ObjectiveProgressMode[] = ["MANUAL", "AUTO"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
 export default async function NewObjectivePage() {
@@ -54,6 +55,16 @@ export default async function NewObjectivePage() {
                 {workStatuses.map((status) => (
                   <option key={status} value={status}>
                     {formatEnumLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Progress Mode</span>
+              <select defaultValue="MANUAL" name="progressMode" required>
+                {objectiveProgressModes.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {formatEnumLabel(mode)}
                   </option>
                 ))}
               </select>

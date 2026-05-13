@@ -2,13 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ObjectiveLevel, WorkStatus } from "@prisma/client";
+import type { ObjectiveLevel, ObjectiveProgressMode, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
+import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { sendKrBlockedEmail } from "@/server/email-notifications";
+import { recalculateObjectiveProgressFromKrs } from "@/server/objective-rollup";
 import { prisma } from "@/server/prisma";
 
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
+const objectiveProgressModes: ObjectiveProgressMode[] = ["MANUAL", "AUTO"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
 function optionalString(value: FormDataEntryValue | null) {
@@ -49,6 +52,7 @@ export async function createObjectiveAction(formData: FormData) {
   const user = await requireUser();
   const level = requiredString(formData.get("level"), "Level") as ObjectiveLevel;
   const status = requiredString(formData.get("status"), "Status") as WorkStatus;
+  const progressMode = (optionalString(formData.get("progressMode")) ?? "MANUAL") as ObjectiveProgressMode;
 
   if (!objectiveLevels.includes(level)) {
     throw new Error("Invalid objective level.");
@@ -58,6 +62,10 @@ export async function createObjectiveAction(formData: FormData) {
     throw new Error("Invalid objective status.");
   }
 
+  if (!objectiveProgressModes.includes(progressMode)) {
+    throw new Error("Invalid objective progress mode.");
+  }
+
   const objective = await prisma.objective.create({
     data: {
       title: requiredString(formData.get("title"), "Title"),
@@ -65,6 +73,7 @@ export async function createObjectiveAction(formData: FormData) {
       level,
       status,
       quarter: requiredString(formData.get("quarter"), "Quarter"),
+      progressMode,
       progressPercent: clamp(numberValue(formData.get("progressPercent"), 0), 0, 100),
       confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
       ownerId: requiredString(formData.get("ownerId"), "Owner"),
@@ -94,6 +103,7 @@ export async function updateObjectiveAction(formData: FormData) {
   const objectiveId = requiredString(formData.get("objectiveId"), "Objective");
   const level = requiredString(formData.get("level"), "Level") as ObjectiveLevel;
   const status = requiredString(formData.get("status"), "Status") as WorkStatus;
+  const progressMode = (optionalString(formData.get("progressMode")) ?? "MANUAL") as ObjectiveProgressMode;
   const parentObjectiveId = optionalString(formData.get("parentObjectiveId"));
 
   if (!objectiveLevels.includes(level)) {
@@ -104,8 +114,40 @@ export async function updateObjectiveAction(formData: FormData) {
     throw new Error("Invalid objective status.");
   }
 
+  if (!objectiveProgressModes.includes(progressMode)) {
+    throw new Error("Invalid objective progress mode.");
+  }
+
   if (parentObjectiveId === objectiveId) {
     throw new Error("An objective cannot be aligned to itself.");
+  }
+
+  const existingObjective = await prisma.objective.findUnique({
+    where: { id: objectiveId },
+    select: {
+      approvalStatus: true,
+      keyResults: {
+        select: {
+          weightPercent: true,
+        },
+      },
+    },
+  });
+
+  if (!existingObjective) {
+    throw new Error("Objective not found.");
+  }
+
+  if (existingObjective.keyResults.length > 0) {
+    const weightValidation = validateObjectiveKrWeights({
+      weights: existingObjective.keyResults.map((keyResult) => ({ percent: keyResult.weightPercent })),
+      status,
+      approvalStatus: existingObjective.approvalStatus,
+    });
+
+    if (!weightValidation.isValid) {
+      throw new Error(weightValidation.message ?? "KR weights must be valid before saving.");
+    }
   }
 
   const objective = await prisma.objective.update({
@@ -116,7 +158,8 @@ export async function updateObjectiveAction(formData: FormData) {
       level,
       status,
       quarter: requiredString(formData.get("quarter"), "Quarter"),
-      progressPercent: clamp(numberValue(formData.get("progressPercent"), 0), 0, 100),
+      progressMode,
+      progressPercent: progressMode === "AUTO" ? undefined : clamp(numberValue(formData.get("progressPercent"), 0), 0, 100),
       confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
       ownerId: requiredString(formData.get("ownerId"), "Owner"),
       departmentId: optionalString(formData.get("departmentId")),
@@ -124,6 +167,12 @@ export async function updateObjectiveAction(formData: FormData) {
       parentObjectiveId,
     },
   });
+
+  if (progressMode === "AUTO") {
+    await prisma.$transaction(async (tx) => {
+      await recalculateObjectiveProgressFromKrs(tx, objectiveId);
+    });
+  }
 
   await prisma.auditLog.create({
     data: {
@@ -150,6 +199,7 @@ export async function createKeyResultAction(formData: FormData) {
   const confidenceScore = clamp(intValue(formData.get("confidenceScore"), 3), 1, 5);
   const status = requiredString(formData.get("status"), "Status") as WorkStatus;
   const ownerId = requiredString(formData.get("ownerId"), "Owner");
+  const weightPercent = clamp(numberValue(formData.get("weightPercent"), 0), 0, 100);
 
   if (!workStatuses.includes(status)) {
     throw new Error("Invalid KR status.");
@@ -162,37 +212,71 @@ export async function createKeyResultAction(formData: FormData) {
     currentMonthTargetPercent: Number.isFinite(currentMonthTargetPercent) ? currentMonthTargetPercent : null,
   });
 
-  const keyResult = await prisma.keyResult.create({
-    data: {
-      objectiveId,
-      ownerId,
-      title: requiredString(formData.get("title"), "Title"),
-      metricName: optionalString(formData.get("metricName")),
-      startValue,
-      currentValue,
-      targetValue,
-      progressPercent,
-      confidenceScore,
-      status,
-      pacingStatus,
-      monthlyTargets: {
-        create: [1, 2, 3].map((monthIndex) => ({
-          monthIndex,
-          targetValue: numberValue(formData.get(`targetValue${monthIndex}`), targetValue),
-          targetPercent: clamp(numberValue(formData.get(`targetPercent${monthIndex}`), monthIndex === 3 ? 100 : monthIndex * 33), 0, 100),
-        })),
+  const objective = await prisma.objective.findUnique({
+    where: { id: objectiveId },
+    select: {
+      status: true,
+      approvalStatus: true,
+      keyResults: {
+        select: {
+          weightPercent: true,
+        },
       },
     },
   });
 
-  await prisma.auditLog.create({
-    data: {
-      actorId: user.id,
-      action: "CREATED",
-      entityType: "KeyResult",
-      entityId: keyResult.id,
-      metadata: { title: keyResult.title, objectiveId },
-    },
+  if (!objective) {
+    throw new Error("Objective not found.");
+  }
+
+  const weightValidation = validateObjectiveKrWeights({
+    weights: [...objective.keyResults.map((keyResult) => ({ percent: keyResult.weightPercent })), { percent: weightPercent }],
+    status: objective.status,
+    approvalStatus: objective.approvalStatus,
+  });
+
+  if (!weightValidation.isValid) {
+    throw new Error(weightValidation.message ?? "KR weights must be valid before saving.");
+  }
+
+  const keyResult = await prisma.$transaction(async (tx) => {
+    const createdKeyResult = await tx.keyResult.create({
+      data: {
+        objectiveId,
+        ownerId,
+        title: requiredString(formData.get("title"), "Title"),
+        metricName: optionalString(formData.get("metricName")),
+        startValue,
+        currentValue,
+        targetValue,
+        progressPercent,
+        weightPercent,
+        confidenceScore,
+        status,
+        pacingStatus,
+        monthlyTargets: {
+          create: [1, 2, 3].map((monthIndex) => ({
+            monthIndex,
+            targetValue: numberValue(formData.get(`targetValue${monthIndex}`), targetValue),
+            targetPercent: clamp(numberValue(formData.get(`targetPercent${monthIndex}`), monthIndex === 3 ? 100 : monthIndex * 33), 0, 100),
+          })),
+        },
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "CREATED",
+        entityType: "KeyResult",
+        entityId: createdKeyResult.id,
+        metadata: { title: createdKeyResult.title, objectiveId, weightPercent },
+      },
+    });
+
+    await recalculateObjectiveProgressFromKrs(tx, objectiveId);
+
+    return createdKeyResult;
   });
 
   if (status === "ON_HOLD") {
@@ -244,6 +328,7 @@ export async function updateKeyResultAction(formData: FormData) {
   const currentMonthTargetPercent = numberValue(formData.get(`targetPercent${currentMonthIndex}`), Number.NaN);
   const status = requiredString(formData.get("status"), "Status") as WorkStatus;
   const ownerId = requiredString(formData.get("ownerId"), "Owner");
+  const weightPercent = clamp(numberValue(formData.get("weightPercent"), 100), 0, 100);
 
   if (!workStatuses.includes(status)) {
     throw new Error("Invalid KR status.");
@@ -255,6 +340,19 @@ export async function updateKeyResultAction(formData: FormData) {
       id: true,
       title: true,
       status: true,
+      weightPercent: true,
+      objective: {
+        select: {
+          status: true,
+          approvalStatus: true,
+          keyResults: {
+            select: {
+              id: true,
+              weightPercent: true,
+            },
+          },
+        },
+      },
       owner: {
         select: {
           id: true,
@@ -269,65 +367,84 @@ export async function updateKeyResultAction(formData: FormData) {
     throw new Error("Key Result not found.");
   }
 
-  const updatedKeyResult = await prisma.keyResult.update({
-    where: { id: keyResultId },
-    data: {
-      title: requiredString(formData.get("title"), "Title"),
-      metricName: optionalString(formData.get("metricName")),
-      ownerId,
-      startValue,
-      currentValue,
-      targetValue,
-      progressPercent,
-      confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
-      status,
-      pacingStatus: calculatePacingStatus({
-        progressPercent,
-        currentMonthTargetPercent: Number.isFinite(currentMonthTargetPercent) ? currentMonthTargetPercent : null,
-      }),
-    },
-    include: {
-      owner: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-        },
-      },
-    },
+  const weightValidation = validateObjectiveKrWeights({
+    weights: existingKeyResult.objective.keyResults.map((keyResult) => ({
+      percent: keyResult.id === keyResultId ? weightPercent : keyResult.weightPercent,
+    })),
+    status: existingKeyResult.objective.status,
+    approvalStatus: existingKeyResult.objective.approvalStatus,
   });
 
-  await Promise.all(
-    [1, 2, 3].map((monthIndex) =>
-      prisma.monthlyTarget.upsert({
-        where: {
-          keyResultId_monthIndex: {
-            keyResultId,
-            monthIndex,
+  if (!weightValidation.isValid) {
+    throw new Error(weightValidation.message ?? "KR weights must be valid before saving.");
+  }
+
+  const updatedKeyResult = await prisma.$transaction(async (tx) => {
+    const result = await tx.keyResult.update({
+      where: { id: keyResultId },
+      data: {
+        title: requiredString(formData.get("title"), "Title"),
+        metricName: optionalString(formData.get("metricName")),
+        ownerId,
+        startValue,
+        currentValue,
+        targetValue,
+        progressPercent,
+        weightPercent,
+        confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
+        status,
+        pacingStatus: calculatePacingStatus({
+          progressPercent,
+          currentMonthTargetPercent: Number.isFinite(currentMonthTargetPercent) ? currentMonthTargetPercent : null,
+        }),
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
           },
         },
-        create: {
-          keyResultId,
-          monthIndex,
-          targetValue: numberValue(formData.get(`targetValue${monthIndex}`), targetValue),
-          targetPercent: clamp(numberValue(formData.get(`targetPercent${monthIndex}`), monthIndex === 3 ? 100 : monthIndex * 33), 0, 100),
-        },
-        update: {
-          targetValue: numberValue(formData.get(`targetValue${monthIndex}`), targetValue),
-          targetPercent: clamp(numberValue(formData.get(`targetPercent${monthIndex}`), monthIndex === 3 ? 100 : monthIndex * 33), 0, 100),
-        },
-      })
-    )
-  );
+      },
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      actorId: user.id,
-      action: "UPDATED",
-      entityType: "KeyResult",
-      entityId: keyResultId,
-      metadata: { progressPercent, status },
-    },
+    await Promise.all(
+      [1, 2, 3].map((monthIndex) =>
+        tx.monthlyTarget.upsert({
+          where: {
+            keyResultId_monthIndex: {
+              keyResultId,
+              monthIndex,
+            },
+          },
+          create: {
+            keyResultId,
+            monthIndex,
+            targetValue: numberValue(formData.get(`targetValue${monthIndex}`), targetValue),
+            targetPercent: clamp(numberValue(formData.get(`targetPercent${monthIndex}`), monthIndex === 3 ? 100 : monthIndex * 33), 0, 100),
+          },
+          update: {
+            targetValue: numberValue(formData.get(`targetValue${monthIndex}`), targetValue),
+            targetPercent: clamp(numberValue(formData.get(`targetPercent${monthIndex}`), monthIndex === 3 ? 100 : monthIndex * 33), 0, 100),
+          },
+        })
+      )
+    );
+
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "UPDATED",
+        entityType: "KeyResult",
+        entityId: keyResultId,
+        metadata: { progressPercent, status, weightPercent },
+      },
+    });
+
+    await recalculateObjectiveProgressFromKrs(tx, objectiveId);
+
+    return result;
   });
 
   if (existingKeyResult.status !== "ON_HOLD" && status === "ON_HOLD") {

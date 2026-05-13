@@ -168,6 +168,23 @@ textarea {
   font-weight: 700;
 }
 
+.notice {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.notice-danger {
+  border-color: var(--danger-bg);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
 .page-shell {
   width: min(1180px, 100%);
   margin: 0 auto;

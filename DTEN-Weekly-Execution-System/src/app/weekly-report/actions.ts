@@ -8,6 +8,7 @@ import { getEffectiveReviewOwnerId } from "@/lib/review-routing";
 import { getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { sendKrBlockedEmail, sendReviewRequestedEmail } from "@/server/email-notifications";
+import { recalculateObjectiveProgressFromKrs } from "@/server/objective-rollup";
 import { prisma } from "@/server/prisma";
 
 const priorityTypes: PriorityType[] = ["KR_LINKED", "AD_HOC"];
@@ -422,6 +423,8 @@ export async function savePriorityCheckInAction(formData: FormData) {
         pacingStatus,
       },
     });
+
+    await recalculateObjectiveProgressFromKrs(tx, linkedKeyResult.objectiveId);
 
     if (becameBlocked) {
       await tx.notification.create({
