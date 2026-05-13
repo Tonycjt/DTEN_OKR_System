@@ -725,7 +725,24 @@ td {
   line-height: 1;
 }
 
-.inline-select:focus-visible {
+.inline-number {
+  min-height: 40px;
+  max-width: 88px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 10px;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.button-field {
+  justify-content: end;
+}
+
+.inline-select:focus-visible,
+.inline-number:focus-visible {
   border-color: var(--primary);
   outline: 3px solid rgb(15 111 181 / 0.18);
 }

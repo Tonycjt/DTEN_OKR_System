@@ -20,13 +20,21 @@ type KeyResultDetailPageProps = {
   params: Promise<{
     id: string;
   }>;
+  searchParams?: Promise<{
+    error?: string | string[];
+  }>;
 };
 
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
-export default async function KeyResultDetailPage({ params }: KeyResultDetailPageProps) {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function KeyResultDetailPage({ params, searchParams }: KeyResultDetailPageProps) {
   const currentUser = await requireUser();
   const { id } = await params;
+  const error = firstParam((await searchParams)?.error);
 
   const [keyResult, users, followUps] = await Promise.all([
     prisma.keyResult.findUnique({
@@ -90,6 +98,7 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
   return (
     <div className="stack">
       <PageHeader title={keyResult.title} description={keyResult.metricName ?? "Key Result detail and target management."} />
+      {error ? <div className="alert">{error}</div> : null}
 
       <div className="grid grid-2">
         <Card>

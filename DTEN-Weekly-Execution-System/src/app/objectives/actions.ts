@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ObjectiveLevel, ObjectiveProgressMode, WorkStatus } from "@prisma/client";
+import type { ObjectiveAssignmentAssigneeType, ObjectiveLevel, ObjectiveProgressMode, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
-import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
+import { validateObjectiveAssignmentContributions, validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { sendKrBlockedEmail } from "@/server/email-notifications";
 import { recalculateObjectiveProgressFromKrs } from "@/server/objective-rollup";
@@ -12,6 +12,7 @@ import { prisma } from "@/server/prisma";
 
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
 const objectiveProgressModes: ObjectiveProgressMode[] = ["MANUAL", "AUTO"];
+const objectiveAssignmentAssigneeTypes: ObjectiveAssignmentAssigneeType[] = ["USER", "TEAM", "DEPARTMENT"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
 function optionalString(value: FormDataEntryValue | null) {
@@ -48,22 +49,46 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
+function actionAlert(path: string, message: string): never {
+  redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+function parseAssigneeRef(value: FormDataEntryValue | null): { assigneeType: ObjectiveAssignmentAssigneeType; assigneeId: string } | null {
+  const text = optionalString(value);
+
+  if (!text) {
+    return null;
+  }
+
+  const [type, id] = text.split("::");
+
+  if (!type || !id || !objectiveAssignmentAssigneeTypes.includes(type as ObjectiveAssignmentAssigneeType)) {
+    return null;
+  }
+
+  return {
+    assigneeType: type as ObjectiveAssignmentAssigneeType,
+    assigneeId: id,
+  };
+}
+
 export async function createObjectiveAction(formData: FormData) {
   const user = await requireUser();
+  const alertPath = "/objectives/new";
   const level = requiredString(formData.get("level"), "Level") as ObjectiveLevel;
   const status = requiredString(formData.get("status"), "Status") as WorkStatus;
   const progressMode = (optionalString(formData.get("progressMode")) ?? "MANUAL") as ObjectiveProgressMode;
 
   if (!objectiveLevels.includes(level)) {
-    throw new Error("Invalid objective level.");
+    actionAlert(alertPath, "Invalid objective level.");
   }
 
   if (!workStatuses.includes(status)) {
-    throw new Error("Invalid objective status.");
+    actionAlert(alertPath, "Invalid objective status.");
   }
 
   if (!objectiveProgressModes.includes(progressMode)) {
-    throw new Error("Invalid objective progress mode.");
+    actionAlert(alertPath, "Invalid objective progress mode.");
   }
 
   const objective = await prisma.objective.create({
@@ -101,25 +126,26 @@ export async function createObjectiveAction(formData: FormData) {
 export async function updateObjectiveAction(formData: FormData) {
   const user = await requireUser();
   const objectiveId = requiredString(formData.get("objectiveId"), "Objective");
+  const alertPath = `/objectives/${objectiveId}`;
   const level = requiredString(formData.get("level"), "Level") as ObjectiveLevel;
   const status = requiredString(formData.get("status"), "Status") as WorkStatus;
   const progressMode = (optionalString(formData.get("progressMode")) ?? "MANUAL") as ObjectiveProgressMode;
   const parentObjectiveId = optionalString(formData.get("parentObjectiveId"));
 
   if (!objectiveLevels.includes(level)) {
-    throw new Error("Invalid objective level.");
+    actionAlert(alertPath, "Invalid objective level.");
   }
 
   if (!workStatuses.includes(status)) {
-    throw new Error("Invalid objective status.");
+    actionAlert(alertPath, "Invalid objective status.");
   }
 
   if (!objectiveProgressModes.includes(progressMode)) {
-    throw new Error("Invalid objective progress mode.");
+    actionAlert(alertPath, "Invalid objective progress mode.");
   }
 
   if (parentObjectiveId === objectiveId) {
-    throw new Error("An objective cannot be aligned to itself.");
+    actionAlert(alertPath, "An objective cannot be aligned to itself.");
   }
 
   const existingObjective = await prisma.objective.findUnique({
@@ -135,7 +161,7 @@ export async function updateObjectiveAction(formData: FormData) {
   });
 
   if (!existingObjective) {
-    throw new Error("Objective not found.");
+    actionAlert("/company-okrs", "Objective not found.");
   }
 
   if (existingObjective.keyResults.length > 0) {
@@ -146,7 +172,7 @@ export async function updateObjectiveAction(formData: FormData) {
     });
 
     if (!weightValidation.isValid) {
-      throw new Error(weightValidation.message ?? "KR weights must be valid before saving.");
+      actionAlert(alertPath, weightValidation.message ?? "KR weights must be valid before saving.");
     }
   }
 
@@ -192,6 +218,7 @@ export async function updateObjectiveAction(formData: FormData) {
 export async function createKeyResultAction(formData: FormData) {
   const user = await requireUser();
   const objectiveId = requiredString(formData.get("objectiveId"), "Objective");
+  const alertPath = `/objectives/${objectiveId}`;
   const startValue = numberValue(formData.get("startValue"), 0);
   const currentValue = numberValue(formData.get("currentValue"), startValue);
   const targetValue = numberValue(formData.get("targetValue"), 100);
@@ -202,7 +229,7 @@ export async function createKeyResultAction(formData: FormData) {
   const weightPercent = clamp(numberValue(formData.get("weightPercent"), 0), 0, 100);
 
   if (!workStatuses.includes(status)) {
-    throw new Error("Invalid KR status.");
+    actionAlert(alertPath, "Invalid KR status.");
   }
 
   const currentMonthIndex = getCurrentQuarterMonthIndex();
@@ -226,7 +253,7 @@ export async function createKeyResultAction(formData: FormData) {
   });
 
   if (!objective) {
-    throw new Error("Objective not found.");
+    actionAlert("/company-okrs", "Objective not found.");
   }
 
   const weightValidation = validateObjectiveKrWeights({
@@ -236,7 +263,7 @@ export async function createKeyResultAction(formData: FormData) {
   });
 
   if (!weightValidation.isValid) {
-    throw new Error(weightValidation.message ?? "KR weights must be valid before saving.");
+    actionAlert(alertPath, weightValidation.message ?? "KR weights must be valid before saving.");
   }
 
   const keyResult = await prisma.$transaction(async (tx) => {
@@ -320,6 +347,7 @@ export async function updateKeyResultAction(formData: FormData) {
   const user = await requireUser();
   const keyResultId = requiredString(formData.get("keyResultId"), "Key Result");
   const objectiveId = requiredString(formData.get("objectiveId"), "Objective");
+  const alertPath = `/key-results/${keyResultId}`;
   const startValue = numberValue(formData.get("startValue"), 0);
   const currentValue = numberValue(formData.get("currentValue"), startValue);
   const targetValue = numberValue(formData.get("targetValue"), 100);
@@ -331,7 +359,7 @@ export async function updateKeyResultAction(formData: FormData) {
   const weightPercent = clamp(numberValue(formData.get("weightPercent"), 100), 0, 100);
 
   if (!workStatuses.includes(status)) {
-    throw new Error("Invalid KR status.");
+    actionAlert(alertPath, "Invalid KR status.");
   }
 
   const existingKeyResult = await prisma.keyResult.findUnique({
@@ -364,7 +392,7 @@ export async function updateKeyResultAction(formData: FormData) {
   });
 
   if (!existingKeyResult) {
-    throw new Error("Key Result not found.");
+    actionAlert("/company-okrs", "Key Result not found.");
   }
 
   const weightValidation = validateObjectiveKrWeights({
@@ -376,7 +404,7 @@ export async function updateKeyResultAction(formData: FormData) {
   });
 
   if (!weightValidation.isValid) {
-    throw new Error(weightValidation.message ?? "KR weights must be valid before saving.");
+    actionAlert(alertPath, weightValidation.message ?? "KR weights must be valid before saving.");
   }
 
   const updatedKeyResult = await prisma.$transaction(async (tx) => {
@@ -470,5 +498,232 @@ export async function updateKeyResultAction(formData: FormData) {
   revalidatePath("/company-okrs");
   revalidatePath("/my-okrs");
   revalidatePath("/notifications");
+  revalidatePath("/dashboard");
+}
+
+export async function createObjectiveAssignmentAction(formData: FormData) {
+  const user = await requireUser();
+  const parentObjectiveId = requiredString(formData.get("parentObjectiveId"), "Parent objective");
+  const alertPath = `/objectives/${parentObjectiveId}`;
+  const assignee = parseAssigneeRef(formData.get("assigneeRef"));
+  const assignedObjectiveId = optionalString(formData.get("assignedObjectiveId"));
+  const contributionPercent = clamp(numberValue(formData.get("contributionPercent"), 0), 0, 100);
+
+  if (!assignee) {
+    actionAlert(alertPath, "Choose a valid assignment owner.");
+  }
+
+  if (assignedObjectiveId === parentObjectiveId) {
+    actionAlert(alertPath, "A parent objective cannot be assigned to itself.");
+  }
+
+  const parentObjective = await prisma.objective.findUnique({
+    where: { id: parentObjectiveId },
+    select: {
+      status: true,
+      approvalStatus: true,
+      parentAssignments: {
+        select: {
+          assignedObjectiveId: true,
+          assigneeId: true,
+          assigneeType: true,
+          contributionPercent: true,
+        },
+      },
+    },
+  });
+
+  if (!parentObjective) {
+    actionAlert("/company-okrs", "Parent objective not found.");
+  }
+
+  const duplicateAssignedObjective = assignedObjectiveId
+    ? parentObjective.parentAssignments.some((assignment) => assignment.assignedObjectiveId === assignedObjectiveId)
+    : false;
+
+  if (duplicateAssignedObjective) {
+    actionAlert(alertPath, "That child objective is already assigned to this parent objective.");
+  }
+
+  const duplicateAssignee = parentObjective.parentAssignments.some(
+    (assignment) => assignment.assigneeType === assignee.assigneeType && assignment.assigneeId === assignee.assigneeId
+  );
+
+  if (duplicateAssignee) {
+    actionAlert(alertPath, "That assignee already has a contribution assignment under this objective.");
+  }
+
+  const contributionValidation = validateObjectiveAssignmentContributions({
+    contributions: [...parentObjective.parentAssignments.map((assignment) => ({ percent: assignment.contributionPercent })), { percent: contributionPercent }],
+    status: parentObjective.status,
+    approvalStatus: parentObjective.approvalStatus,
+  });
+
+  if (!contributionValidation.isValid) {
+    actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+  }
+
+  const assignment = await prisma.objectiveAssignment.create({
+    data: {
+      parentObjectiveId,
+      assignedObjectiveId,
+      assigneeId: assignee.assigneeId,
+      assigneeType: assignee.assigneeType,
+      contributionPercent,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: user.id,
+      action: "CREATED",
+      entityType: "ObjectiveAssignment",
+      entityId: assignment.id,
+      metadata: {
+        parentObjectiveId,
+        assignedObjectiveId,
+        assigneeId: assignee.assigneeId,
+        assigneeType: assignee.assigneeType,
+        contributionPercent,
+      },
+    },
+  });
+
+  revalidatePath(alertPath);
+  revalidatePath("/company-okrs");
+  revalidatePath("/dashboard");
+}
+
+export async function updateObjectiveAssignmentAction(formData: FormData) {
+  const user = await requireUser();
+  const assignmentId = requiredString(formData.get("assignmentId"), "Objective assignment");
+  const parentObjectiveId = requiredString(formData.get("parentObjectiveId"), "Parent objective");
+  const alertPath = `/objectives/${parentObjectiveId}`;
+  const assignedObjectiveId = optionalString(formData.get("assignedObjectiveId"));
+  const contributionPercent = clamp(numberValue(formData.get("contributionPercent"), 0), 0, 100);
+
+  if (assignedObjectiveId === parentObjectiveId) {
+    actionAlert(alertPath, "A parent objective cannot be assigned to itself.");
+  }
+
+  const parentObjective = await prisma.objective.findUnique({
+    where: { id: parentObjectiveId },
+    select: {
+      status: true,
+      approvalStatus: true,
+      parentAssignments: {
+        select: {
+          id: true,
+          assignedObjectiveId: true,
+          contributionPercent: true,
+        },
+      },
+    },
+  });
+
+  if (!parentObjective) {
+    actionAlert("/company-okrs", "Parent objective not found.");
+  }
+
+  const duplicateAssignedObjective = assignedObjectiveId
+    ? parentObjective.parentAssignments.some((assignment) => assignment.id !== assignmentId && assignment.assignedObjectiveId === assignedObjectiveId)
+    : false;
+
+  if (duplicateAssignedObjective) {
+    actionAlert(alertPath, "That child objective is already assigned to this parent objective.");
+  }
+
+  const contributionValidation = validateObjectiveAssignmentContributions({
+    contributions: parentObjective.parentAssignments.map((assignment) => ({
+      percent: assignment.id === assignmentId ? contributionPercent : assignment.contributionPercent,
+    })),
+    status: parentObjective.status,
+    approvalStatus: parentObjective.approvalStatus,
+  });
+
+  if (!contributionValidation.isValid) {
+    actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+  }
+
+  const assignment = await prisma.objectiveAssignment.update({
+    where: { id: assignmentId },
+    data: {
+      assignedObjectiveId,
+      contributionPercent,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: user.id,
+      action: "UPDATED",
+      entityType: "ObjectiveAssignment",
+      entityId: assignment.id,
+      metadata: {
+        parentObjectiveId,
+        assignedObjectiveId,
+        contributionPercent,
+      },
+    },
+  });
+
+  revalidatePath(alertPath);
+  revalidatePath("/company-okrs");
+  revalidatePath("/dashboard");
+}
+
+export async function deleteObjectiveAssignmentAction(formData: FormData) {
+  const user = await requireUser();
+  const assignmentId = requiredString(formData.get("assignmentId"), "Objective assignment");
+  const parentObjectiveId = requiredString(formData.get("parentObjectiveId"), "Parent objective");
+  const alertPath = `/objectives/${parentObjectiveId}`;
+
+  const parentObjective = await prisma.objective.findUnique({
+    where: { id: parentObjectiveId },
+    select: {
+      status: true,
+      approvalStatus: true,
+      parentAssignments: {
+        select: {
+          id: true,
+          contributionPercent: true,
+        },
+      },
+    },
+  });
+
+  if (!parentObjective) {
+    actionAlert("/company-okrs", "Parent objective not found.");
+  }
+
+  const remainingAssignments = parentObjective.parentAssignments.filter((assignment) => assignment.id !== assignmentId);
+  const contributionValidation = validateObjectiveAssignmentContributions({
+    contributions: remainingAssignments.map((assignment) => ({ percent: assignment.contributionPercent })),
+    status: parentObjective.status,
+    approvalStatus: parentObjective.approvalStatus,
+  });
+
+  if (!contributionValidation.isValid) {
+    actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before deleting.");
+  }
+
+  await prisma.objectiveAssignment.delete({
+    where: { id: assignmentId },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: user.id,
+      action: "DELETED",
+      entityType: "ObjectiveAssignment",
+      entityId: assignmentId,
+      metadata: {
+        parentObjectiveId,
+      },
+    },
+  });
+
+  revalidatePath(alertPath);
+  revalidatePath("/company-okrs");
   revalidatePath("/dashboard");
 }

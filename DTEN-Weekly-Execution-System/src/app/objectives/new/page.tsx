@@ -11,8 +11,19 @@ const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "IND
 const objectiveProgressModes: ObjectiveProgressMode[] = ["MANUAL", "AUTO"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
-export default async function NewObjectivePage() {
+type NewObjectivePageProps = {
+  searchParams?: Promise<{
+    error?: string | string[];
+  }>;
+};
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function NewObjectivePage({ searchParams }: NewObjectivePageProps) {
   const user = await requireUser();
+  const error = firstParam((await searchParams)?.error);
 
   const [users, departments, teams, parentObjectives] = await Promise.all([
     prisma.user.findMany({ orderBy: { name: "asc" } }),
@@ -24,6 +35,7 @@ export default async function NewObjectivePage() {
   return (
     <div className="stack">
       <PageHeader title="Create Objective" description="Create a company, department, team, or individual objective." />
+      {error ? <div className="alert">{error}</div> : null}
       <Card>
         <CardHeader>
           <h2>Objective Details</h2>

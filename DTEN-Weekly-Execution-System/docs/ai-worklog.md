@@ -2251,3 +2251,114 @@ Build parent/child objective contribution assignments:
 - Show contribution table and parent roll-up math on objective detail.
 - Add audit logs for objective assignment changes.
 ```
+
+## Release 3 Day 24 - Parent / Child Objective Contribution Assignments
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added objective assignment management to objective detail pages.
+- Parent objectives now show:
+  - contribution assignment total
+  - balanced/invalid contribution notice
+  - assignment owner
+  - linked child objective
+  - contribution percent
+  - child objective progress
+  - weighted impact in progress points
+- Added create/update/delete assignment server actions:
+  - createObjectiveAssignmentAction
+  - updateObjectiveAssignmentAction
+  - deleteObjectiveAssignmentAction
+- Assignment actions validate:
+  - valid assignee owner selection
+  - no parent objective self-assignment
+  - no duplicate child objective assignment under the same parent
+  - no duplicate assignee under the same parent
+  - contribution totals according to draft vs active/published rules
+- Assignment changes create audit logs.
+- Added grouped owner picker for departments, teams, and users.
+- Added inline assignment edit controls for linked child objective and contribution percent.
+```
+
+Safety / alert behavior added:
+
+```text
+- Release 3 objective/KR/assignment validation failures now redirect back to the relevant page with an alert instead of throwing a server error into the website.
+- Alert rendering was added to:
+  - `/objectives/new`
+  - `/objectives/:id`
+  - `/key-results/:id`
+- Covered validation examples:
+  - invalid objective status/level/progress mode
+  - objective self-alignment
+  - invalid KR status
+  - invalid KR weight total
+  - duplicate objective assignment
+  - invalid contribution total
+  - deleting an assignment when the remaining active/published contribution total would no longer equal 100%
+- This establishes the pattern Tony requested: illegal operations should be blocked with user-facing alerts, not site crashes.
+```
+
+Verification:
+
+```powershell
+& '.\node_modules\.bin\prisma.cmd' migrate status
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Prisma migration status is up to date.
+- Prisma schema validation passed.
+- Vitest passed: 3 test files, 13 tests.
+- Lint passed.
+- Production build passed.
+- Final database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+objectives: 4
+keyResults: 4
+objectiveAssignments: 2
+currentWeekReports: 0
+parent objective: Re-establish product and solution leadership
+contributionTotal: 100
+child objectives:
+- Drive product certifications and GA readiness
+- Prepare D7X sales enablement for launch
+```
+
+Visible Day 24 test path:
+
+```text
+1. Start the app with `.\start-dev.cmd`.
+2. Log in as `ceo@dten.com` / `Password123!`.
+3. Open `/company-okrs`.
+4. Open "Re-establish product and solution leadership".
+5. Confirm Objective Contributions shows two assignments totaling 100%.
+6. Confirm the child objectives shown are:
+   - Drive product certifications and GA readiness
+   - Prepare D7X sales enablement for launch
+7. Try changing one contribution from 60% to 50% and click Save.
+8. Confirm the operation is blocked with an alert instead of a crash.
+9. Try deleting one assignment.
+10. Confirm the operation is blocked with an alert because the published objective would no longer total 100%.
+```
+
+Day 25 target:
+
+```text
+Build roll-up propagation and dashboard integration:
+- Recalculate parent objectives from child objective contribution progress.
+- Update parent objective progress after child objective/KR/check-in changes.
+- Use calculated objective progress consistently in company OKRs, my OKRs, dashboard, search, export, and executive summary.
+- Keep safe alert behavior for invalid user operations.
+```

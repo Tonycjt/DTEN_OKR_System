@@ -1,7 +1,13 @@
 import Link from "next/link";
 import type { ObjectiveLevel, ObjectiveProgressMode, WorkStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
-import { createKeyResultAction, updateObjectiveAction } from "@/app/objectives/actions";
+import {
+  createKeyResultAction,
+  createObjectiveAssignmentAction,
+  deleteObjectiveAssignmentAction,
+  updateObjectiveAction,
+  updateObjectiveAssignmentAction,
+} from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -9,7 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
-import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
+import { validateObjectiveAssignmentContributions, validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
@@ -17,15 +23,23 @@ type ObjectiveDetailPageProps = {
   params: Promise<{
     id: string;
   }>;
+  searchParams?: Promise<{
+    error?: string | string[];
+  }>;
 };
 
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
 const objectiveProgressModes: ObjectiveProgressMode[] = ["MANUAL", "AUTO"];
 
-export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPageProps) {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function ObjectiveDetailPage({ params, searchParams }: ObjectiveDetailPageProps) {
   await requireUser();
   const { id } = await params;
+  const error = firstParam((await searchParams)?.error);
 
   const [objective, users, departments, teams, parentObjectives] = await Promise.all([
     prisma.objective.findUnique({
@@ -36,6 +50,18 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
         team: true,
         parentObjective: true,
         childObjectives: true,
+        parentAssignments: {
+          orderBy: { contributionPercent: "desc" },
+          include: {
+            assignedObjective: {
+              include: {
+                owner: true,
+                department: true,
+                team: true,
+              },
+            },
+          },
+        },
         keyResults: {
           orderBy: { createdAt: "asc" },
           include: {
@@ -70,11 +96,32 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
     status: objective.status,
     approvalStatus: objective.approvalStatus,
   });
+  const assignmentContributionValidation = validateObjectiveAssignmentContributions({
+    contributions: objective.parentAssignments.map((assignment) => ({ percent: assignment.contributionPercent })),
+    status: objective.status,
+    approvalStatus: objective.approvalStatus,
+  });
   const defaultNewKrWeight = objective.keyResults.length === 0 ? 100 : 0;
+  const userNameById = new Map(users.map((user) => [user.id, user.name]));
+  const departmentNameById = new Map(departments.map((department) => [department.id, department.name]));
+  const teamNameById = new Map(teams.map((team) => [team.id, `${team.department.name} / ${team.name}`]));
+
+  function assignmentOwnerLabel(assignment: { assigneeType: "USER" | "TEAM" | "DEPARTMENT"; assigneeId: string }) {
+    if (assignment.assigneeType === "USER") {
+      return userNameById.get(assignment.assigneeId) ?? "Unknown user";
+    }
+
+    if (assignment.assigneeType === "TEAM") {
+      return teamNameById.get(assignment.assigneeId) ?? "Unknown team";
+    }
+
+    return departmentNameById.get(assignment.assigneeId) ?? "Unknown department";
+  }
 
   return (
     <div className="stack">
       <PageHeader title={objective.title} description={objective.description ?? "Objective detail and KR management."} />
+      {error ? <div className="alert">{error}</div> : null}
 
       <div className="grid grid-2">
         <Card>
@@ -387,6 +434,151 @@ export default async function ObjectiveDetailPage({ params }: ObjectiveDetailPag
                 {objective.keyResults.length === 0 ? (
                   <tr>
                     <td colSpan={8}>No KRs have been created for this objective yet.</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2>Objective Contributions</h2>
+          <p>
+            {objective.parentAssignments.length} assignments contribute to this objective. Contributions total {assignmentContributionValidation.total}%.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {assignmentContributionValidation.message ? (
+            <div className={`notice ${assignmentContributionValidation.isValid ? "" : "notice-danger"}`}>{assignmentContributionValidation.message}</div>
+          ) : (
+            <div className="notice">Objective assignment contributions are balanced at 100%.</div>
+          )}
+
+          <form action={createObjectiveAssignmentAction} className="form-grid">
+            <input name="parentObjectiveId" type="hidden" value={objective.id} />
+            <label className="field">
+              <span>Assignment Owner</span>
+              <select name="assigneeRef" required>
+                <option value="">Choose owner</option>
+                <optgroup label="Departments">
+                  {departments.map((department) => (
+                    <option key={department.id} value={`DEPARTMENT::${department.id}`}>
+                      {department.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Teams">
+                  {teams.map((team) => (
+                    <option key={team.id} value={`TEAM::${team.id}`}>
+                      {team.department.name} / {team.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Users">
+                  {users.map((user) => (
+                    <option key={user.id} value={`USER::${user.id}`}>
+                      {user.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </label>
+            <label className="field">
+              <span>Linked Child Objective</span>
+              <select name="assignedObjectiveId">
+                <option value="">No linked child objective yet</option>
+                {parentObjectives.map((parentObjective) => (
+                  <option key={parentObjective.id} value={parentObjective.id}>
+                    {parentObjective.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Contribution Percent</span>
+              <input defaultValue="0" max="100" min="0" name="contributionPercent" type="number" />
+            </label>
+            <div className="field button-field">
+              <Button type="submit">Add Assignment</Button>
+            </div>
+          </form>
+
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Owner</th>
+                  <th>Child Objective</th>
+                  <th>Contribution</th>
+                  <th>Child Progress</th>
+                  <th>Weighted Impact</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {objective.parentAssignments.map((assignment) => {
+                  const childProgress = assignment.assignedObjective?.progressPercent ?? 0;
+                  const weightedImpact = childProgress * (assignment.contributionPercent / 100);
+
+                  return (
+                    <tr key={assignment.id}>
+                      <td>
+                        <strong>{assignmentOwnerLabel(assignment)}</strong>
+                        <br />
+                        <span className="muted">{formatEnumLabel(assignment.assigneeType)}</span>
+                      </td>
+                      <td>
+                        {assignment.assignedObjective ? (
+                          <Link href={`/objectives/${assignment.assignedObjective.id}`}>{assignment.assignedObjective.title}</Link>
+                        ) : (
+                          <span className="muted">No child objective linked</span>
+                        )}
+                      </td>
+                      <td>{assignment.contributionPercent}%</td>
+                      <td>{Math.round(childProgress)}%</td>
+                      <td>{Math.round(weightedImpact)} pts</td>
+                      <td>
+                        <div className="stack">
+                          <form action={updateObjectiveAssignmentAction} className="table-actions">
+                            <input name="assignmentId" type="hidden" value={assignment.id} />
+                            <input name="parentObjectiveId" type="hidden" value={objective.id} />
+                            <select className="inline-select" defaultValue={assignment.assignedObjectiveId ?? ""} name="assignedObjectiveId">
+                              <option value="">No linked child objective</option>
+                              {parentObjectives.map((parentObjective) => (
+                                <option key={parentObjective.id} value={parentObjective.id}>
+                                  {parentObjective.title}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              className="inline-number"
+                              defaultValue={assignment.contributionPercent}
+                              max="100"
+                              min="0"
+                              name="contributionPercent"
+                              type="number"
+                            />
+                            <Button tone="secondary" type="submit">
+                              Save
+                            </Button>
+                          </form>
+                          <form action={deleteObjectiveAssignmentAction}>
+                            <input name="assignmentId" type="hidden" value={assignment.id} />
+                            <input name="parentObjectiveId" type="hidden" value={objective.id} />
+                            <Button tone="secondary" type="submit">
+                              Delete
+                            </Button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {objective.parentAssignments.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>No contribution assignments yet.</td>
                   </tr>
                 ) : null}
               </tbody>
