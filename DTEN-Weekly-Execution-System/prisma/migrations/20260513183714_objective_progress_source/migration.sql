@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "ObjectiveAssignment_parentObjectiveId_assigneeType_assigneeId_k" RENAME TO "ObjectiveAssignment_parentObjectiveId_assigneeType_assignee_key";

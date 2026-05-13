@@ -2,16 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ObjectiveAssignmentAssigneeType, ObjectiveLevel, ObjectiveProgressMode, WorkStatus } from "@prisma/client";
+import type { ObjectiveAssignmentAssigneeType, ObjectiveLevel, ObjectiveProgressSource, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
-import { validateObjectiveAssignmentContributions, validateObjectiveKrWeights } from "@/lib/rollup-validation";
+import { getRollupValidationTarget, validateObjectiveAssignmentContributions, validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { sendKrBlockedEmail } from "@/server/email-notifications";
 import { recalculateObjectiveAndParents, recalculateObjectiveProgress, recalculateParentObjectiveProgress } from "@/server/objective-rollup";
 import { prisma } from "@/server/prisma";
 
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
-const objectiveProgressModes: ObjectiveProgressMode[] = ["MANUAL", "AUTO"];
+const objectiveProgressSources: ObjectiveProgressSource[] = ["MANUAL", "DIRECT_KRS", "CHILD_OBJECTIVES"];
 const objectiveAssignmentAssigneeTypes: ObjectiveAssignmentAssigneeType[] = ["USER", "TEAM", "DEPARTMENT"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
@@ -53,6 +53,16 @@ function requiredStringOrAlert(value: FormDataEntryValue | null, fieldName: stri
   return text;
 }
 
+function parseProgressSource(formData: FormData, alertPath: string) {
+  const progressSource = (optionalString(formData.get("progressSource")) ?? "MANUAL") as ObjectiveProgressSource;
+
+  if (!objectiveProgressSources.includes(progressSource)) {
+    actionAlert(alertPath, "Invalid objective progress source.");
+  }
+
+  return progressSource;
+}
+
 function parseAssigneeRef(value: FormDataEntryValue | null): { assigneeType: ObjectiveAssignmentAssigneeType; assigneeId: string } | null {
   const text = optionalString(value);
 
@@ -77,7 +87,7 @@ export async function createObjectiveAction(formData: FormData) {
   const alertPath = "/objectives/new";
   const level = requiredStringOrAlert(formData.get("level"), "Level", alertPath) as ObjectiveLevel;
   const status = requiredStringOrAlert(formData.get("status"), "Status", alertPath) as WorkStatus;
-  const progressMode = (optionalString(formData.get("progressMode")) ?? "MANUAL") as ObjectiveProgressMode;
+  const progressSource = parseProgressSource(formData, alertPath);
 
   if (!objectiveLevels.includes(level)) {
     actionAlert(alertPath, "Invalid objective level.");
@@ -87,10 +97,6 @@ export async function createObjectiveAction(formData: FormData) {
     actionAlert(alertPath, "Invalid objective status.");
   }
 
-  if (!objectiveProgressModes.includes(progressMode)) {
-    actionAlert(alertPath, "Invalid objective progress mode.");
-  }
-
   const objective = await prisma.objective.create({
     data: {
       title: requiredStringOrAlert(formData.get("title"), "Title", alertPath),
@@ -98,8 +104,8 @@ export async function createObjectiveAction(formData: FormData) {
       level,
       status,
       quarter: requiredStringOrAlert(formData.get("quarter"), "Quarter", alertPath),
-      progressMode,
-      progressPercent: clamp(numberValue(formData.get("progressPercent"), 0), 0, 100),
+      progressSource,
+      progressPercent: progressSource === "MANUAL" ? clamp(numberValue(formData.get("progressPercent"), 0), 0, 100) : 0,
       confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
       ownerId: requiredStringOrAlert(formData.get("ownerId"), "Owner", alertPath),
       departmentId: optionalString(formData.get("departmentId")),
@@ -129,7 +135,7 @@ export async function updateObjectiveAction(formData: FormData) {
   const alertPath = `/objectives/${objectiveId}`;
   const level = requiredStringOrAlert(formData.get("level"), "Level", alertPath) as ObjectiveLevel;
   const status = requiredStringOrAlert(formData.get("status"), "Status", alertPath) as WorkStatus;
-  const progressMode = (optionalString(formData.get("progressMode")) ?? "MANUAL") as ObjectiveProgressMode;
+  const progressSource = parseProgressSource(formData, alertPath);
   const parentObjectiveId = optionalString(formData.get("parentObjectiveId"));
 
   if (!objectiveLevels.includes(level)) {
@@ -140,10 +146,6 @@ export async function updateObjectiveAction(formData: FormData) {
     actionAlert(alertPath, "Invalid objective status.");
   }
 
-  if (!objectiveProgressModes.includes(progressMode)) {
-    actionAlert(alertPath, "Invalid objective progress mode.");
-  }
-
   if (parentObjectiveId === objectiveId) {
     actionAlert(alertPath, "An objective cannot be aligned to itself.");
   }
@@ -152,6 +154,11 @@ export async function updateObjectiveAction(formData: FormData) {
     where: { id: objectiveId },
     select: {
       approvalStatus: true,
+      parentAssignments: {
+        select: {
+          contributionPercent: true,
+        },
+      },
       keyResults: {
         select: {
           weightPercent: true,
@@ -164,7 +171,9 @@ export async function updateObjectiveAction(formData: FormData) {
     actionAlert("/company-okrs", "Objective not found.");
   }
 
-  if (existingObjective.keyResults.length > 0) {
+  const validationTarget = getRollupValidationTarget(progressSource);
+
+  if (validationTarget === "KR_WEIGHTS" && existingObjective.keyResults.length > 0) {
     const weightValidation = validateObjectiveKrWeights({
       weights: existingObjective.keyResults.map((keyResult) => ({ percent: keyResult.weightPercent })),
       status,
@@ -176,6 +185,18 @@ export async function updateObjectiveAction(formData: FormData) {
     }
   }
 
+  if (validationTarget === "OBJECTIVE_ASSIGNMENTS" && existingObjective.parentAssignments.length > 0) {
+    const contributionValidation = validateObjectiveAssignmentContributions({
+      contributions: existingObjective.parentAssignments.map((assignment) => ({ percent: assignment.contributionPercent })),
+      status,
+      approvalStatus: existingObjective.approvalStatus,
+    });
+
+    if (!contributionValidation.isValid) {
+      actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+    }
+  }
+
   const objective = await prisma.objective.update({
     where: { id: objectiveId },
     data: {
@@ -184,8 +205,8 @@ export async function updateObjectiveAction(formData: FormData) {
       level,
       status,
       quarter: requiredStringOrAlert(formData.get("quarter"), "Quarter", alertPath),
-      progressMode,
-      progressPercent: progressMode === "AUTO" ? undefined : clamp(numberValue(formData.get("progressPercent"), 0), 0, 100),
+      progressSource,
+      progressPercent: progressSource === "MANUAL" ? clamp(numberValue(formData.get("progressPercent"), 0), 0, 100) : undefined,
       confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
       ownerId: requiredStringOrAlert(formData.get("ownerId"), "Owner", alertPath),
       departmentId: optionalString(formData.get("departmentId")),
@@ -195,10 +216,7 @@ export async function updateObjectiveAction(formData: FormData) {
   });
 
   await prisma.$transaction(async (tx) => {
-    if (progressMode === "AUTO") {
-      await recalculateObjectiveProgress(tx, objectiveId);
-    }
-
+    await recalculateObjectiveProgress(tx, objectiveId);
     await recalculateParentObjectiveProgress(tx, objectiveId);
   });
 
@@ -246,6 +264,7 @@ export async function createKeyResultAction(formData: FormData) {
     select: {
       status: true,
       approvalStatus: true,
+      progressSource: true,
       keyResults: {
         select: {
           weightPercent: true,
@@ -258,14 +277,20 @@ export async function createKeyResultAction(formData: FormData) {
     actionAlert("/company-okrs", "Objective not found.");
   }
 
-  const weightValidation = validateObjectiveKrWeights({
-    weights: [...objective.keyResults.map((keyResult) => ({ percent: keyResult.weightPercent })), { percent: weightPercent }],
-    status: objective.status,
-    approvalStatus: objective.approvalStatus,
-  });
+  if (objective.progressSource === "CHILD_OBJECTIVES") {
+    actionAlert(alertPath, "This objective calculates progress from child objectives. Switch progress source before adding direct KRs.");
+  }
 
-  if (!weightValidation.isValid) {
-    actionAlert(alertPath, weightValidation.message ?? "KR weights must be valid before saving.");
+  if (objective.progressSource === "DIRECT_KRS") {
+    const weightValidation = validateObjectiveKrWeights({
+      weights: [...objective.keyResults.map((keyResult) => ({ percent: keyResult.weightPercent })), { percent: weightPercent }],
+      status: objective.status,
+      approvalStatus: objective.approvalStatus,
+    });
+
+    if (!weightValidation.isValid) {
+      actionAlert(alertPath, weightValidation.message ?? "KR weights must be valid before saving.");
+    }
   }
 
   const keyResult = await prisma.$transaction(async (tx) => {
@@ -375,6 +400,7 @@ export async function updateKeyResultAction(formData: FormData) {
         select: {
           status: true,
           approvalStatus: true,
+          progressSource: true,
           keyResults: {
             select: {
               id: true,
@@ -397,16 +423,18 @@ export async function updateKeyResultAction(formData: FormData) {
     actionAlert("/company-okrs", "Key Result not found.");
   }
 
-  const weightValidation = validateObjectiveKrWeights({
-    weights: existingKeyResult.objective.keyResults.map((keyResult) => ({
-      percent: keyResult.id === keyResultId ? weightPercent : keyResult.weightPercent,
-    })),
-    status: existingKeyResult.objective.status,
-    approvalStatus: existingKeyResult.objective.approvalStatus,
-  });
+  if (existingKeyResult.objective.progressSource === "DIRECT_KRS") {
+    const weightValidation = validateObjectiveKrWeights({
+      weights: existingKeyResult.objective.keyResults.map((keyResult) => ({
+        percent: keyResult.id === keyResultId ? weightPercent : keyResult.weightPercent,
+      })),
+      status: existingKeyResult.objective.status,
+      approvalStatus: existingKeyResult.objective.approvalStatus,
+    });
 
-  if (!weightValidation.isValid) {
-    actionAlert(alertPath, weightValidation.message ?? "KR weights must be valid before saving.");
+    if (!weightValidation.isValid) {
+      actionAlert(alertPath, weightValidation.message ?? "KR weights must be valid before saving.");
+    }
   }
 
   const updatedKeyResult = await prisma.$transaction(async (tx) => {
@@ -524,6 +552,7 @@ export async function createObjectiveAssignmentAction(formData: FormData) {
     select: {
       status: true,
       approvalStatus: true,
+      progressSource: true,
       parentAssignments: {
         select: {
           assignedObjectiveId: true,
@@ -537,6 +566,10 @@ export async function createObjectiveAssignmentAction(formData: FormData) {
 
   if (!parentObjective) {
     actionAlert("/company-okrs", "Parent objective not found.");
+  }
+
+  if (parentObjective.progressSource === "DIRECT_KRS") {
+    actionAlert(alertPath, "This objective calculates progress from direct KRs. Switch progress source before adding child objective assignments.");
   }
 
   const duplicateAssignedObjective = assignedObjectiveId
@@ -555,14 +588,16 @@ export async function createObjectiveAssignmentAction(formData: FormData) {
     actionAlert(alertPath, "That assignee already has a contribution assignment under this objective.");
   }
 
-  const contributionValidation = validateObjectiveAssignmentContributions({
-    contributions: [...parentObjective.parentAssignments.map((assignment) => ({ percent: assignment.contributionPercent })), { percent: contributionPercent }],
-    status: parentObjective.status,
-    approvalStatus: parentObjective.approvalStatus,
-  });
+  if (parentObjective.progressSource === "CHILD_OBJECTIVES") {
+    const contributionValidation = validateObjectiveAssignmentContributions({
+      contributions: [...parentObjective.parentAssignments.map((assignment) => ({ percent: assignment.contributionPercent })), { percent: contributionPercent }],
+      status: parentObjective.status,
+      approvalStatus: parentObjective.approvalStatus,
+    });
 
-  if (!contributionValidation.isValid) {
-    actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+    if (!contributionValidation.isValid) {
+      actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+    }
   }
 
   const assignment = await prisma.objectiveAssignment.create({
@@ -626,6 +661,7 @@ export async function batchUpdateObjectiveAssignmentsAction(formData: FormData) 
     select: {
       status: true,
       approvalStatus: true,
+      progressSource: true,
       parentAssignments: {
         select: {
           id: true,
@@ -638,6 +674,10 @@ export async function batchUpdateObjectiveAssignmentsAction(formData: FormData) 
 
   if (!parentObjective) {
     actionAlert("/company-okrs", "Parent objective not found.");
+  }
+
+  if (parentObjective.progressSource === "DIRECT_KRS") {
+    actionAlert(alertPath, "This objective calculates progress from direct KRs. Switch progress source before editing child objective assignments.");
   }
 
   const existingIds = new Set(parentObjective.parentAssignments.map((assignment) => assignment.id));
@@ -653,14 +693,16 @@ export async function batchUpdateObjectiveAssignmentsAction(formData: FormData) 
     actionAlert(alertPath, "Each child objective can only be assigned once under the same parent objective.");
   }
 
-  const contributionValidation = validateObjectiveAssignmentContributions({
-    contributions: contributionPercents.map((percent) => ({ percent })),
-    status: parentObjective.status,
-    approvalStatus: parentObjective.approvalStatus,
-  });
+  if (parentObjective.progressSource === "CHILD_OBJECTIVES") {
+    const contributionValidation = validateObjectiveAssignmentContributions({
+      contributions: contributionPercents.map((percent) => ({ percent })),
+      status: parentObjective.status,
+      approvalStatus: parentObjective.approvalStatus,
+    });
 
-  if (!contributionValidation.isValid) {
-    actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+    if (!contributionValidation.isValid) {
+      actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+    }
   }
 
   await prisma.$transaction(async (tx) => {
@@ -720,6 +762,7 @@ export async function updateObjectiveAssignmentAction(formData: FormData) {
     select: {
       status: true,
       approvalStatus: true,
+      progressSource: true,
       parentAssignments: {
         select: {
           id: true,
@@ -734,6 +777,10 @@ export async function updateObjectiveAssignmentAction(formData: FormData) {
     actionAlert("/company-okrs", "Parent objective not found.");
   }
 
+  if (parentObjective.progressSource === "DIRECT_KRS") {
+    actionAlert(alertPath, "This objective calculates progress from direct KRs. Switch progress source before editing child objective assignments.");
+  }
+
   const duplicateAssignedObjective = assignedObjectiveId
     ? parentObjective.parentAssignments.some((assignment) => assignment.id !== assignmentId && assignment.assignedObjectiveId === assignedObjectiveId)
     : false;
@@ -742,16 +789,18 @@ export async function updateObjectiveAssignmentAction(formData: FormData) {
     actionAlert(alertPath, "That child objective is already assigned to this parent objective.");
   }
 
-  const contributionValidation = validateObjectiveAssignmentContributions({
-    contributions: parentObjective.parentAssignments.map((assignment) => ({
-      percent: assignment.id === assignmentId ? contributionPercent : assignment.contributionPercent,
-    })),
-    status: parentObjective.status,
-    approvalStatus: parentObjective.approvalStatus,
-  });
+  if (parentObjective.progressSource === "CHILD_OBJECTIVES") {
+    const contributionValidation = validateObjectiveAssignmentContributions({
+      contributions: parentObjective.parentAssignments.map((assignment) => ({
+        percent: assignment.id === assignmentId ? contributionPercent : assignment.contributionPercent,
+      })),
+      status: parentObjective.status,
+      approvalStatus: parentObjective.approvalStatus,
+    });
 
-  if (!contributionValidation.isValid) {
-    actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+    if (!contributionValidation.isValid) {
+      actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+    }
   }
 
   const assignment = await prisma.objectiveAssignment.update({
@@ -797,6 +846,7 @@ export async function deleteObjectiveAssignmentAction(formData: FormData) {
     select: {
       status: true,
       approvalStatus: true,
+      progressSource: true,
       parentAssignments: {
         select: {
           id: true,
@@ -811,14 +861,16 @@ export async function deleteObjectiveAssignmentAction(formData: FormData) {
   }
 
   const remainingAssignments = parentObjective.parentAssignments.filter((assignment) => assignment.id !== assignmentId);
-  const contributionValidation = validateObjectiveAssignmentContributions({
-    contributions: remainingAssignments.map((assignment) => ({ percent: assignment.contributionPercent })),
-    status: parentObjective.status,
-    approvalStatus: parentObjective.approvalStatus,
-  });
+  if (parentObjective.progressSource === "CHILD_OBJECTIVES") {
+    const contributionValidation = validateObjectiveAssignmentContributions({
+      contributions: remainingAssignments.map((assignment) => ({ percent: assignment.contributionPercent })),
+      status: parentObjective.status,
+      approvalStatus: parentObjective.approvalStatus,
+    });
 
-  if (!contributionValidation.isValid) {
-    actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before deleting.");
+    if (!contributionValidation.isValid) {
+      actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before deleting.");
+    }
   }
 
   await prisma.objectiveAssignment.delete({

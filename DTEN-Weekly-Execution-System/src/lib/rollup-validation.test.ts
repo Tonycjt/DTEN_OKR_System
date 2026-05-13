@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getRollupValidationTarget,
   objectiveRequiresCompleteRollup,
   sumRollupPercents,
   validateObjectiveAssignmentContributions,
@@ -48,5 +49,11 @@ describe("roll-up validation", () => {
   it("recognizes approved and published objectives as complete-rollup states", () => {
     expect(objectiveRequiresCompleteRollup({ status: "DRAFT", approvalStatus: "APPROVED" })).toBe(true);
     expect(objectiveRequiresCompleteRollup({ status: "DRAFT", approvalStatus: "PUBLISHED" })).toBe(true);
+  });
+
+  it("maps progress sources to one validation target", () => {
+    expect(getRollupValidationTarget("MANUAL")).toBe("NONE");
+    expect(getRollupValidationTarget("DIRECT_KRS")).toBe("KR_WEIGHTS");
+    expect(getRollupValidationTarget("CHILD_OBJECTIVES")).toBe("OBJECTIVE_ASSIGNMENTS");
   });
 });

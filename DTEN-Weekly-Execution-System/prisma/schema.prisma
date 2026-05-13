@@ -23,9 +23,10 @@ enum ObjectiveLevel {
   INDIVIDUAL
 }
 
-enum ObjectiveProgressMode {
+enum ObjectiveProgressSource {
   MANUAL
-  AUTO
+  DIRECT_KRS
+  CHILD_OBJECTIVES
 }
 
 enum ObjectiveApprovalStatus {
@@ -206,7 +207,7 @@ model Objective {
   quarter     String
 
   progressPercent Float @default(0)
-  progressMode    ObjectiveProgressMode @default(MANUAL)
+  progressSource  ObjectiveProgressSource @default(MANUAL)
   approvalStatus  ObjectiveApprovalStatus @default(DRAFT)
   confidenceScore Int   @default(3)
 

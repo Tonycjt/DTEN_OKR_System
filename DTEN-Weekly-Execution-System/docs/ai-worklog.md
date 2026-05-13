@@ -2586,3 +2586,76 @@ New-chat resume prompt:
 ```text
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please read the latest Release 3 clarification in dten_okr_weekly_execution_system_prd.md about KR weights vs objective assignment weights. Before continuing Day 26, fix the core roll-up model so each objective uses one progress source: MANUAL, DIRECT_KRS, or CHILD_OBJECTIVES. Replace or migrate the current MANUAL/AUTO progressMode behavior, update schema/UI/actions/helpers/tests/seed data, preserve safe alert behavior for invalid user operations, run verification, and reset/reseed the demo database at the end.
 ```
+
+## Release 3 Clarification Fix - Objective Progress Source
+
+Completed before Day 26:
+
+```text
+- Replaced Objective.progressMode MANUAL/AUTO with Objective.progressSource:
+  - MANUAL
+  - DIRECT_KRS
+  - CHILD_OBJECTIVES
+- Added migration path:
+  - MANUAL progressMode -> MANUAL progressSource
+  - AUTO objectives with parent assignments -> CHILD_OBJECTIVES
+  - AUTO objectives without parent assignments -> DIRECT_KRS
+- Added generated index-name reconciliation migration after Prisma/Postgres normalized the ObjectiveAssignment unique index name.
+- Updated objective create/edit UI labels from Progress Mode to Progress Source.
+- Updated objective actions so:
+  - DIRECT_KRS validates KR weights and recalculates from direct weighted KRs only.
+  - CHILD_OBJECTIVES validates objective assignment contributions and recalculates from assigned child objectives only.
+  - MANUAL preserves manually entered objective progress and does not require KR or assignment totals.
+- Preserved alert redirects for invalid operations:
+  - invalid objective progress source
+  - adding direct KRs to CHILD_OBJECTIVES objectives
+  - adding/editing child objective assignments on DIRECT_KRS objectives
+  - invalid weight/contribution totals when the selected progress source requires them
+- Updated roll-up helper tests to prove DIRECT_KRS ignores child assignments, CHILD_OBJECTIVES ignores direct KRs, and MANUAL does not overwrite progress.
+- Updated seed data to avoid mixed roll-up:
+  - Company product objective uses CHILD_OBJECTIVES and has two child assignments.
+  - Child execution objectives use DIRECT_KRS.
+  - D7X direct KR moved under the certification child objective.
+```
+
+Verification:
+
+```powershell
+docker compose up -d
+& '.\node_modules\.bin\prisma.cmd' validate
+& '.\node_modules\.bin\prisma.cmd' generate
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run src/lib/rollup-validation.test.ts src/server/objective-rollup.test.ts
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:migrate -- --name objective_progress_source
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+& '.\node_modules\.bin\prisma.cmd' migrate status
+```
+
+Result:
+
+```text
+- Prisma schema validation passed.
+- Prisma client generated.
+- Focused roll-up tests passed: 2 files, 9 tests.
+- Full Vitest passed: 4 files, 17 tests.
+- Lint passed.
+- Migration applied and status is up to date with 9 migrations.
+- Production build passed.
+- Final database reset/seed completed.
+```
+
+Post-reset progress-source sanity:
+
+```text
+DIRECT_KRS objectives: 3
+CHILD_OBJECTIVES objectives: 1
+
+Deliver predictable revenue growth: DIRECT_KRS, progress 73, direct KRs 1, child assignments 0
+Drive product certifications and GA readiness: DIRECT_KRS, progress 50, direct KRs 2, child assignments 0
+Prepare D7X sales enablement for launch: DIRECT_KRS, progress 25, direct KRs 1, child assignments 0
+Re-establish product and solution leadership: CHILD_OBJECTIVES, progress 40, direct KRs 0, child assignments 2
+```
+
+Day 26 can now continue with objective health calculation on top of the explicit progress-source model.
