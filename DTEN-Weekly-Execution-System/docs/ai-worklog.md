@@ -1723,6 +1723,115 @@ New-chat resume prompt:
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 20 Excel / CSV organization structure import and org tree is complete, and the local database was reset with currentWeekReports = 0. Please continue with Day 21: Release 2 final hardening, seeded-user smoke test, acceptance checklist, bug fixes, and polish.
 ```
 
+## Release 2 Day 21 - Final Hardening And Acceptance Checklist
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added Release 2 acceptance checklist in `docs/release-2-acceptance-checklist.md`.
+- Added focused Vitest coverage for organization import validation in `src/lib/org-import.test.ts`.
+- Test coverage includes:
+  - valid sample CSV
+  - duplicate emails
+  - missing manager references
+  - circular primary-manager relationships
+  - tab-delimited rows copied from Excel
+- Ran seeded-user browser smoke across Release 2 features.
+- Verified CEO dashboard filters, CSV export, executive summary, search, org import validation, valid org import, org tree, and mobile org import layout.
+- Verified manager pending reviews and scoped executive summary.
+- Verified engineer dashboard and current weekly report route.
+- Verified sales search does not expose Product Engineering-only D7X results.
+- Reset/reseeded the demo database at the end.
+```
+
+Verification:
+
+```powershell
+docker compose up -d
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:generate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:migrate
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Docker PostgreSQL container was running.
+- Prisma schema validation passed.
+- Prisma Client generated successfully.
+- Prisma migration state was already in sync.
+- Vitest passed: 1 test file, 5 tests.
+- Lint passed.
+- Production build passed.
+- Browser smoke passed.
+- Final database reset/seed completed.
+```
+
+Browser smoke coverage:
+
+```text
+- CEO:
+  - `/dashboard?status=AT_RISK&pacing=BEHIND&quarter=2026-Q2` showed D7X risk data.
+  - `/dashboard/export?status=AT_RISK&pacing=BEHIND&quarter=2026-Q2` returned CSV with filtered D7X risk rows.
+  - `/executive-summary` rendered weekly executive summary and top risk content.
+  - `/search?q=D7X&type=ALL` returned D7X scoped results.
+  - `/admin/org-import` blocked a missing-manager import with validation errors.
+  - `/admin/org-import` accepted sample data and rendered Casey Chen / Riley Wong in the org tree.
+  - Mobile `/admin/org-import` rendered without body-level horizontal overflow.
+- Manager:
+  - `/reviews/pending` rendered pending review route.
+  - `/executive-summary` rendered manager-scoped summary.
+- Engineer:
+  - `/dashboard` rendered employee execution view and assigned KRs.
+  - `/weekly-report/current` rendered current weekly report route.
+- Sales:
+  - `/search?q=D7X&type=ALL` did not expose Product Engineering-only D7X results.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+users: 5
+departments: 4
+teams: 3
+keyResults: 3
+comments: 2
+followUps: 1
+```
+
+Visible Release 2 final test path:
+
+```text
+1. Start Docker database with `.\start-db.cmd` if it is not already running.
+2. Start the app with `.\start-dev.cmd`.
+3. Log in as ceo@dten.com / Password123!.
+4. Open `/dashboard`, apply AT_RISK / BEHIND / 2026-Q2 filters, and confirm D7X risk data appears.
+5. Click Export CSV and confirm the filtered CSV downloads.
+6. Open `/executive-summary` and confirm top risks, missing updates, escalations, and department snapshot appear.
+7. Open `/admin/org-import`, test a missing manager email, and confirm validation blocks the import.
+8. Click Load Sample, then Validate And Import, and confirm the org tree renders the imported reporting chain.
+9. Log in as manager@dten.com / Password123! and confirm `/reviews/pending` and `/executive-summary` are manager-scoped.
+10. Log in as sales@dten.com / Password123!, search for D7X, and confirm Product Engineering-only results are not exposed.
+```
+
+Release 2 status:
+
+```text
+Release 2 is complete from the current PRD scope.
+Next recommended target is Release 3 planning or a Tony-guided user acceptance pass for product copy, permissions nuance, and visual polish.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 21 final hardening is complete, Release 2 acceptance checklist is added, and the local database was reset with currentWeekReports = 0. Please help me plan the next chunk: Release 3 planning or a Tony-guided user acceptance / polish pass.
+```
+
 ## Standing User Instructions For Future Chats
 
 Use these instructions for all future work unless Tony explicitly says otherwise:
@@ -1758,18 +1867,19 @@ Current local commands and assumptions:
 Latest status before switching chats:
 
 ```text
-- Release 2 Day 20 is complete.
+- Release 2 Day 21 final hardening is complete.
+- Release 2 is complete from the current PRD scope.
 - Dashboard CSV export is implemented at `/dashboard/export`.
 - Weekly executive summary is implemented at `/executive-summary`.
 - R2.5 Excel / CSV organization structure import is implemented at `/admin/org-import`.
 - `/admin/org-import` also includes the internal organization tree view.
-- New next step is Day 21: Release 2 final hardening, seeded-user smoke test, checklist, bug fixes, and polish.
-- Current estimate: Release 2 needs about 1 more day-sized chunk.
-- The local database was last reset after Day 20, with `currentWeekReports = 0`.
+- Release 2 acceptance checklist is added at `docs/release-2-acceptance-checklist.md`.
+- New next step is Release 3 planning or a Tony-guided user acceptance / polish pass.
+- The local database was last reset after Day 21, with `currentWeekReports = 0`.
 ```
 
 Recommended next prompt:
 
 ```text
-Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 20 Excel / CSV organization structure import and org tree is complete, and the local database was reset with currentWeekReports = 0. Please continue with Day 21: Release 2 final hardening, seeded-user smoke test, acceptance checklist, bug fixes, and polish.
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 21 final hardening is complete, Release 2 acceptance checklist is added, and the local database was reset with currentWeekReports = 0. Please help me plan the next chunk: Release 3 planning or a Tony-guided user acceptance / polish pass.
 ```
