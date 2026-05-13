@@ -106,6 +106,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
   const canManageDirectKrs = objective.progressSource !== "CHILD_OBJECTIVES";
   const canManageChildObjectiveAssignments = objective.progressSource !== "DIRECT_KRS";
   const isOwner = objective.ownerId === currentUser.id;
+  const canEditObjective = isOwner || currentUser.role === "CEO" || currentUser.role === "ADMIN";
 
   function assignmentOwnerLabel(assignment: { assigneeType: "USER" | "TEAM" | "DEPARTMENT"; assigneeId: string }) {
     if (assignment.assigneeType === "USER") {
@@ -184,6 +185,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
           </CardContent>
         </Card>
 
+        {canEditObjective ? (
         <Card>
           <CardHeader>
             <h2>Edit Objective</h2>
@@ -292,6 +294,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
             </form>
           </CardContent>
         </Card>
+        ) : null}
       </div>
 
       {canManageDirectKrs ? (

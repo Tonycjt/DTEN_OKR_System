@@ -60,20 +60,25 @@ export async function submitManagerReviewAction(formData: FormData) {
   const comment = optionalString(formData.get("comment"));
 
   await prisma.$transaction(async (tx) => {
+    // Atomically claim the SUBMITTED→reviewed transition.
+    // updateMany with the status condition uses Postgres row-level locking:
+    // only one concurrent transaction can win; the rest see 0 rows after the
+    // winner commits and bail before creating any side-effect records.
+    const claimed = await tx.weeklyReport.updateMany({
+      where: { id: report.id, status: "SUBMITTED" },
+      data: { status: nextReportStatus, reviewedAt: new Date() },
+    });
+
+    if (claimed.count === 0) {
+      return;
+    }
+
     await tx.managerReview.create({
       data: {
         weeklyReportId: report.id,
         managerId: manager.id,
         decision,
         comment,
-      },
-    });
-
-    await tx.weeklyReport.update({
-      where: { id: report.id },
-      data: {
-        status: nextReportStatus,
-        reviewedAt: new Date(),
       },
     });
 

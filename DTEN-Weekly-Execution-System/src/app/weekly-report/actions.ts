@@ -294,9 +294,14 @@ export async function submitWeeklyReportAction(formData: FormData) {
     redirect("/weekly-report/current?error=kr-required");
   }
 
-  await prisma.weeklyReport.update({
+  // Atomically claim the DRAFT/NEEDS_FOLLOW_UP→SUBMITTED transition.
+  // updateMany with the status condition is the compare-and-swap: only one of
+  // N concurrent requests can win because Postgres row-level locking ensures
+  // subsequent requests see 0 rows after the winner commits.
+  const claimed = await prisma.weeklyReport.updateMany({
     where: {
       id: report.id,
+      status: { in: ["DRAFT", "NEEDS_FOLLOW_UP"] },
     },
     data: {
       summary: optionalString(formData.get("summary")) ?? report.summary,
@@ -304,6 +309,10 @@ export async function submitWeeklyReportAction(formData: FormData) {
       submittedAt: new Date(),
     },
   });
+
+  if (claimed.count === 0) {
+    redirect("/weekly-report/current");
+  }
 
   const reviewOwnerId = getEffectiveReviewOwnerId(report.user);
 

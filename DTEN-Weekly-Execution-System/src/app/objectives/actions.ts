@@ -155,6 +155,7 @@ export async function updateObjectiveAction(formData: FormData) {
   const existingObjective = await prisma.objective.findUnique({
     where: { id: objectiveId },
     select: {
+      ownerId: true,
       approvalStatus: true,
       parentAssignments: {
         select: {
@@ -171,6 +172,10 @@ export async function updateObjectiveAction(formData: FormData) {
 
   if (!existingObjective) {
     actionAlert("/company-okrs", "Objective not found.");
+  }
+
+  if (existingObjective.ownerId !== user.id && user.role !== "CEO" && user.role !== "ADMIN") {
+    actionAlert(alertPath, "Only the objective owner can edit this objective.");
   }
 
   const validationTarget = getRollupValidationTarget(progressSource);
@@ -1012,10 +1017,12 @@ export async function reviewAssignmentAction(formData: FormData) {
     actionAlert(alertPath, "This assignment is not awaiting review.");
   }
 
+  const newStatus: ObjectiveAssignmentStatus = decision === "APPROVED" ? "ACTIVE" : decision;
+
   await prisma.objectiveAssignment.update({
     where: { id: assignmentId },
     data: {
-      status: decision,
+      status: newStatus,
       approvedById: decision === "APPROVED" ? user.id : null,
       approvedAt: decision === "APPROVED" ? new Date() : null,
       assignmentInstruction: decision === "NEEDS_REVISION" && revisionNote ? revisionNote : undefined,
@@ -1028,7 +1035,7 @@ export async function reviewAssignmentAction(formData: FormData) {
       action: "REVIEWED",
       entityType: "ObjectiveAssignment",
       entityId: assignmentId,
-      metadata: { decision, revisionNote, parentObjectiveId },
+      metadata: { decision, newStatus, revisionNote, parentObjectiveId },
     },
   });
 
