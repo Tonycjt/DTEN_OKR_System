@@ -7,7 +7,7 @@ import { requireRole } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
 const orgManagerRoles: UserRole[] = ["ADMIN", "CEO", "DEPARTMENT_HEAD"];
-const allowedRoles: UserRole[] = ["ADMIN", "CEO", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"];
+const allowedRoles: UserRole[] = ["ADMIN", "CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"];
 
 function optionalString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();

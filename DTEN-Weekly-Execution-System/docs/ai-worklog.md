@@ -1615,6 +1615,114 @@ New-chat resume prompt:
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 Day 19 dashboard CSV export and weekly executive summary is complete. Tony added PRD requirement R2.5 Excel-Based Organization Structure Import. Please continue with Day 20: Excel / CSV organization structure import and org tree before Release 2 final hardening.
 ```
 
+## Release 2 Day 20 - Excel / CSV Organization Import And Org Tree
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added R2.5 organization import data fields to `User`:
+  - localManagerId
+  - location
+  - office
+  - employeeId
+  - startDate
+  - avatarUrl
+- Added PRD role enum values:
+  - EXECUTIVE
+  - VIEWER
+- Added migration `20260512172000_add_org_import_fields`.
+- Added CSV / TSV / Excel-paste parser and validator in `src/lib/org-import.ts`.
+- Added admin-only organization import page at `/admin/org-import`.
+- Added import form with CSV/TSV upload, Excel paste area, sample data loader, validation errors, and import summary.
+- Import validation covers required columns, valid emails, duplicate emails, valid roles, employment status, active-user department requirement, manager/review/local-manager references, self references, employee ID conflicts, and circular primary-manager/review-owner chains.
+- Import apply behavior creates missing departments and teams, creates/updates users by email, maps ACTIVE/INACTIVE to `isActive`, sets manager/local manager/review owner, stores optional metadata, and writes audit logs.
+- Added database-generated organization tree view on `/admin/org-import`.
+- Org tree displays name, title, role, email, employee ID, department, team, manager, review owner, direct-report count, active/inactive state, and missing reviewer warnings.
+- Added Org Import to admin navigation for ADMIN and CEO.
+- Kept weekly report review routing on `reviewOwnerId` with `managerId` fallback.
+- Treated EXECUTIVE as a company-scope viewer in dashboard, search, summary/export, reviews, follow-ups, and overdue-report processing where relevant.
+```
+
+Verification:
+
+```powershell
+docker compose up -d
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:generate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:migrate -- --name add_org_import_fields
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Additional smoke checks:
+
+```text
+- Parsed the sample organization import CSV with 4 rows and 0 validation errors.
+- Browser-smoked `/admin/org-import` with ceo@dten.com:
+  - logged in
+  - opened Org Import
+  - loaded sample data
+  - clicked Validate And Import
+  - confirmed the success message
+  - confirmed the org tree contained Casey Chen and Riley Wong
+- `npm run test -- --run` was attempted, but Vitest exits with "No test files found" because the repo does not currently contain test files.
+```
+
+Result:
+
+```text
+- Prisma schema validation passed.
+- Prisma Client generated successfully.
+- Org import migration applied successfully.
+- Lint passed.
+- Production build passed.
+- Browser smoke passed.
+- Final database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+currentWeekReports: 0
+users: 5
+departments: 4
+teams: 3
+organization import audit logs: 0
+```
+
+Visible Day 20 test path:
+
+```text
+1. Start Docker database with `.\start-db.cmd` if it is not already running.
+2. Start the app with `.\start-dev.cmd`.
+3. Log in as ceo@dten.com / Password123!.
+4. Open `/admin/org-import`.
+5. Click Load Sample.
+6. Click Validate And Import.
+7. Confirm the import summary shows updated users and no skipped rows.
+8. Confirm Organization Tree shows Casey Chen at the root, Morgan Lee under Casey, Avery Park under Morgan, and Riley Wong under Avery.
+9. Try changing a manager email to a missing address and click Validate And Import; confirm validation errors appear and no changes are applied.
+```
+
+Day 21 target:
+
+```text
+Release 2 final hardening:
+- Seeded-user smoke test across Release 2 features.
+- R2 acceptance checklist.
+- Org import edge-case polish.
+- Dashboard/search/export/summary regression pass.
+- Mobile/desktop visual pass for new org import page.
+- Reset/reseed the demo database at the end.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 20 Excel / CSV organization structure import and org tree is complete, and the local database was reset with currentWeekReports = 0. Please continue with Day 21: Release 2 final hardening, seeded-user smoke test, acceptance checklist, bug fixes, and polish.
+```
+
 ## Standing User Instructions For Future Chats
 
 Use these instructions for all future work unless Tony explicitly says otherwise:
@@ -1650,18 +1758,18 @@ Current local commands and assumptions:
 Latest status before switching chats:
 
 ```text
-- Release 2 Day 19 is complete.
+- Release 2 Day 20 is complete.
 - Dashboard CSV export is implemented at `/dashboard/export`.
 - Weekly executive summary is implemented at `/executive-summary`.
-- Tony added a new Release 2 PRD requirement: R2.5 Excel-Based Organization Structure Import.
-- New next step is Day 20: build Excel / CSV organization structure import and org tree.
-- Release 2 final hardening should move after that, likely Day 21.
-- Current estimate: Release 2 needs about 2 more day-sized chunks.
-- The local database was last reset after Day 19, with `currentWeekReports = 0`.
+- R2.5 Excel / CSV organization structure import is implemented at `/admin/org-import`.
+- `/admin/org-import` also includes the internal organization tree view.
+- New next step is Day 21: Release 2 final hardening, seeded-user smoke test, checklist, bug fixes, and polish.
+- Current estimate: Release 2 needs about 1 more day-sized chunk.
+- The local database was last reset after Day 20, with `currentWeekReports = 0`.
 ```
 
 Recommended next prompt:
 
 ```text
-Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 19 is complete. Tony added PRD requirement R2.5 Excel-Based Organization Structure Import, so the next target is Day 20: Excel / CSV organization structure import and org tree. Remember to include a basic test process in the final answer and reset/reseed the demo database at the end.
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 20 Excel / CSV organization structure import and org tree is complete, and the local database was reset with currentWeekReports = 0. Please continue with Day 21: Release 2 final hardening, seeded-user smoke test, acceptance checklist, bug fixes, and polish.
 ```

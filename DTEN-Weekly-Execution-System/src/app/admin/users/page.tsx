@@ -7,7 +7,7 @@ import { formatEnumLabel } from "@/lib/format";
 import { requireRole } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
-const roleOptions: UserRole[] = ["ADMIN", "CEO", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"];
+const roleOptions: UserRole[] = ["ADMIN", "CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"];
 
 export default async function UsersPage() {
   await requireRole(["ADMIN", "CEO", "DEPARTMENT_HEAD"]);
@@ -37,7 +37,7 @@ export default async function UsersPage() {
     prisma.user.findMany({
       where: {
         role: {
-          in: ["ADMIN", "CEO", "DEPARTMENT_HEAD", "MANAGER"],
+          in: ["ADMIN", "CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"],
         },
       },
       orderBy: { name: "asc" },
@@ -135,7 +135,7 @@ export default async function UsersPage() {
       <Card>
         <CardHeader>
           <h2>User Directory</h2>
-          <p>{users.length} seeded and created users are available for Release 1 workflows.</p>
+          <p>{users.length} seeded, imported, and created users are available for execution workflows.</p>
         </CardHeader>
         <CardContent>
           <div className="table-wrap">
@@ -233,6 +233,8 @@ export default async function UsersPage() {
                       {user._count.ownedObjectives} objectives, {user._count.ownedKeyResults} KRs, {user._count.reports} reports
                       <br />
                       <span className="muted">Review owner: {user.reviewOwner?.name ?? user.manager?.name ?? "None"}</span>
+                      <br />
+                      <span className="muted">Status: {user.isActive ? "Active" : "Inactive"}</span>
                     </td>
                   </tr>
                 ))}

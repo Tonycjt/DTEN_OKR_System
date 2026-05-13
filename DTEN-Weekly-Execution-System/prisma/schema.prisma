@@ -9,9 +9,11 @@ datasource db {
 enum UserRole {
   ADMIN
   CEO
+  EXECUTIVE
   DEPARTMENT_HEAD
   MANAGER
   EMPLOYEE
+  VIEWER
 }
 
 enum ObjectiveLevel {
@@ -108,12 +110,20 @@ model User {
   departmentId String?
   teamId       String?
   managerId    String?
+  localManagerId String?
   reviewOwnerId String?
+  location     String?
+  office       String?
+  employeeId   String? @unique
+  startDate    DateTime?
+  avatarUrl    String?
 
   department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   team       Team?       @relation(fields: [teamId], references: [id], onDelete: SetNull)
   manager    User?       @relation("ManagerReports", fields: [managerId], references: [id], onDelete: SetNull)
   reports    User[]      @relation("ManagerReports")
+  localManager User?      @relation("LocalManagerReports", fields: [localManagerId], references: [id], onDelete: SetNull)
+  localReports User[]     @relation("LocalManagerReports")
   reviewOwner User?       @relation("ReviewOwnerReports", fields: [reviewOwnerId], references: [id], onDelete: SetNull)
   reviewSubjects User[]   @relation("ReviewOwnerReports")
 
@@ -134,6 +144,7 @@ model User {
   @@index([departmentId])
   @@index([teamId])
   @@index([managerId])
+  @@index([localManagerId])
   @@index([reviewOwnerId])
 }
 

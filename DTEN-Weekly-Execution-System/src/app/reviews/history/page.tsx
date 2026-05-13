@@ -8,7 +8,7 @@ import { requireRole } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
 export default async function ReviewHistoryPage() {
-  const manager = await requireRole(["ADMIN", "CEO", "DEPARTMENT_HEAD", "MANAGER"]);
+  const manager = await requireRole(["ADMIN", "CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"]);
 
   const reviews = await prisma.managerReview.findMany({
     where: {

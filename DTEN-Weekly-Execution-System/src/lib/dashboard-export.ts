@@ -149,7 +149,7 @@ function noneWeeklyReportWhere(): Prisma.WeeklyReportWhereInput {
 }
 
 export async function getDashboardExportScope(user: DashboardExportUser, filters: DashboardExportFilters = {}) {
-  const isCompanyViewer = user.role === "ADMIN" || user.role === "CEO";
+  const isCompanyViewer = user.role === "ADMIN" || user.role === "CEO" || user.role === "EXECUTIVE";
   const isDepartmentViewer = user.role === "DEPARTMENT_HEAD" && Boolean(user.departmentId);
   const isManager = user.role === "MANAGER";
   const baseUserScopeWhere: Prisma.UserWhereInput = {

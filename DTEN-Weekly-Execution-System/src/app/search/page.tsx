@@ -99,7 +99,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = (await searchParams) ?? {};
   const query = firstSearchParam(params, "q") ?? "";
   const searchType = parseSearchType(firstSearchParam(params, "type"));
-  const isCompanyViewer = user.role === "ADMIN" || user.role === "CEO";
+  const isCompanyViewer = user.role === "ADMIN" || user.role === "CEO" || user.role === "EXECUTIVE";
   const isDepartmentViewer = user.role === "DEPARTMENT_HEAD" && Boolean(user.departmentId);
   const isManager = user.role === "MANAGER";
 

@@ -6,7 +6,7 @@ import { requireUser } from "@/server/auth";
 import { sendFollowUpAssignedEmail } from "@/server/email-notifications";
 import { prisma } from "@/server/prisma";
 
-const creatorRoles: UserRole[] = ["ADMIN", "CEO", "DEPARTMENT_HEAD", "MANAGER"];
+const creatorRoles: UserRole[] = ["ADMIN", "CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"];
 const sourceTypes: FollowUpSourceType[] = ["KEY_RESULT", "WEEKLY_REPORT", "MANAGER_REVIEW"];
 const followUpStatuses: FollowUpStatus[] = ["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"];
 

@@ -80,7 +80,12 @@ export default async function KeyResultDetailPage({ params }: KeyResultDetailPag
     label: formatShortDate(checkIn.weeklyReport.weekStart),
     value: checkIn.confidenceScore,
   }));
-  const canCreateFollowUp = currentUser.role === "ADMIN" || currentUser.role === "CEO" || currentUser.role === "DEPARTMENT_HEAD" || currentUser.role === "MANAGER";
+  const canCreateFollowUp =
+    currentUser.role === "ADMIN" ||
+    currentUser.role === "CEO" ||
+    currentUser.role === "EXECUTIVE" ||
+    currentUser.role === "DEPARTMENT_HEAD" ||
+    currentUser.role === "MANAGER";
 
   return (
     <div className="stack">

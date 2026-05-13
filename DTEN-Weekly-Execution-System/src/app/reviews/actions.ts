@@ -6,7 +6,7 @@ import { canReviewOwnedReport, getEffectiveReviewOwnerId } from "@/lib/review-ro
 import { requireRole } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
-const reviewerRoles = ["ADMIN", "CEO", "DEPARTMENT_HEAD", "MANAGER"] as const;
+const reviewerRoles = ["ADMIN", "CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"] as const;
 const decisions: ReviewDecision[] = ["APPROVED", "NEEDS_FOLLOW_UP", "RISK_FLAGGED"];
 
 function optionalString(value: FormDataEntryValue | null) {

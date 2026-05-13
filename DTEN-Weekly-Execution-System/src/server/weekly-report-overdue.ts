@@ -92,7 +92,7 @@ export async function processWeeklyReportOverdueEmails(date = new Date()) {
     where: {
       isActive: true,
       role: {
-        in: ["DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"],
+          in: ["EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"],
       },
     },
     select: {

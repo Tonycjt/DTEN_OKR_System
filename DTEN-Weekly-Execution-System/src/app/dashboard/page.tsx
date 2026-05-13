@@ -198,7 +198,7 @@ function followUpStatusTone(status: FollowUpStatus) {
 }
 
 function roleDashboardLabel(role: UserRole) {
-  if (role === "CEO" || role === "ADMIN") {
+  if (role === "CEO" || role === "ADMIN" || role === "EXECUTIVE") {
     return "Company command view";
   }
 
@@ -220,7 +220,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const filterSearch = dashboardFilterSearch(filters);
   const weekStart = getMondayWeekStart();
   const weekEnd = getSundayWeekEnd(weekStart);
-  const isCompanyViewer = user.role === "ADMIN" || user.role === "CEO";
+  const isCompanyViewer = user.role === "ADMIN" || user.role === "CEO" || user.role === "EXECUTIVE";
   const isDepartmentViewer = user.role === "DEPARTMENT_HEAD" && Boolean(user.departmentId);
   const isManager = user.role === "MANAGER";
 

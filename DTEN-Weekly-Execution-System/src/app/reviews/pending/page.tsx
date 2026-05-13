@@ -17,7 +17,7 @@ import { prisma } from "@/server/prisma";
 const decisions: ReviewDecision[] = ["APPROVED", "NEEDS_FOLLOW_UP", "RISK_FLAGGED"];
 
 export default async function PendingReviewsPage() {
-  const manager = await requireRole(["ADMIN", "CEO", "DEPARTMENT_HEAD", "MANAGER"]);
+  const manager = await requireRole(["ADMIN", "CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"]);
 
   const reports = await prisma.weeklyReport.findMany({
     where: {
