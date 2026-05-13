@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash('C:\\\\Program Files\\\\nodejs\\\\npm.cmd' run lint)"
+      "Bash('C:\\\\Program Files\\\\nodejs\\\\npm.cmd' run lint)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git push *)"
     ]
   }
 }
