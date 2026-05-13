@@ -1883,3 +1883,284 @@ Recommended next prompt:
 ```text
 Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please follow the standing user instructions in the worklog. Release 2 Day 21 final hardening is complete, Release 2 acceptance checklist is added, and the local database was reset with currentWeekReports = 0. Please help me plan the next chunk: Release 3 planning or a Tony-guided user acceptance / polish pass.
 ```
+
+## Release 3 Planning - Alignment, Roll-up, And Automation
+
+Planning completed on 2026-05-13 after reviewing:
+
+```text
+- `dten_okr_weekly_execution_system_prd.md`
+- `docs/database-setup.md`
+- `docs/release-1-acceptance-checklist.md`
+- `docs/release-2-acceptance-checklist.md`
+- `docs/ai-worklog.md`
+- current Prisma schema and app/lib route structure
+```
+
+Release 3 PRD scope:
+
+```text
+- Auto roll-up from child objectives/KRs.
+- Weighted KR progress.
+- Objective progress auto-calculation.
+- Multi-owner objective contribution assignment.
+- Top-down objective assignment with contribution percentage.
+- Objective health calculation.
+- Advanced permission model.
+- Approval workflow for company-level OKRs.
+- Slack/Teams integration.
+- SSO integration.
+```
+
+Recommended Release 3 split:
+
+```text
+Day 22 - Roll-up data model foundation
+- Add `KeyResult.weightPercent`.
+- Add objective auto-calculation fields, likely `Objective.progressMode` or `Objective.rollupMode`.
+- Add objective assignment model for parent/child contribution percentages.
+- Add status values or fields needed for draft/published/approval workflow if missing.
+- Update seed data with weighted KRs and at least one parent objective with child-objective contributions.
+- Add focused tests for weight/contribution validation.
+
+Day 23 - Weighted KR progress inside one objective
+- Build shared roll-up calculation helpers.
+- Validate KR weights total 100 for active/published objectives.
+- Allow incomplete weights while objective is still draft.
+- Add weight inputs to objective detail KR create/edit surfaces.
+- Show total KR weight and warnings on objective detail.
+- Recalculate objective progress from weighted child KRs.
+
+Day 24 - Parent/child objective contribution assignments
+- Add UI for assigning a parent objective to users, teams, or departments with contribution percentages.
+- Support linking existing child objectives first; create-child-from-assignment can follow if needed.
+- Validate assignment contributions total 100 before activation/publish.
+- Show assignment table and roll-up math on parent objective detail.
+- Add audit logs for assignment create/update/delete.
+
+Day 25 - Roll-up propagation and dashboard integration
+- Recalculate parent objectives from child objective contribution progress.
+- Update objective progress after KR edits, check-ins, and assignment changes.
+- Make dashboards, company OKRs, my OKRs, search, export, and executive summary use calculated objective progress where enabled.
+- Add clear UI labels for manual vs calculated progress.
+- Add regression tests for calculation paths.
+
+Day 26 - Objective health calculation
+- Add shared objective health/status helper based on child KR and child objective status.
+- Implement PRD rules:
+  - any blocked child drives objective at-risk/blocked behavior,
+  - majority behind/off-track drives objective behind/off-track behavior,
+  - all completed drives objective completed.
+- Decide and document mapping from PRD status words to current enum values:
+  - BLOCKED likely maps to ON_HOLD,
+  - BEHIND likely maps to OFF_TRACK unless a schema enum migration adds exact values.
+- Surface calculated health on objective detail and dashboards.
+
+Day 27 - Company objective approval workflow
+- Add approval status for company-level OKRs, such as DRAFT / PENDING_APPROVAL / APPROVED / REJECTED / PUBLISHED.
+- Add approval actions for CEO/admin or the approved company-level role.
+- Block activation/publishing when KR weights or assignment contributions do not total 100.
+- Add approval audit logs and notifications.
+- Add company OKR approval queue or section.
+
+Day 28 - Advanced permission model pass
+- Centralize OKR/objective/KR permission helpers instead of repeating route-specific checks.
+- Define create/edit/approve/comment/view rules for CEO, executive, department head, manager, employee, and viewer.
+- Apply backend permission checks to objective, KR, assignment, approval, comment, follow-up, dashboard/export/search surfaces.
+- Add tests for the riskiest scopes: employee cannot edit others' KRs, manager cannot edit outside review scope, department head is department-bound, viewer is read-only.
+
+Day 29 - Slack/Teams notification foundation
+- Add provider abstraction for collaboration notifications, similar to the existing dev email provider.
+- Add event hooks for review requested, follow-up assigned, KR blocked/off-track, approval requested, and approval completed.
+- Keep real Slack/Teams credentials behind environment variables.
+- Use a dev-log provider until Tony provides the preferred workspace/app configuration.
+- Add admin-visible delivery/audit notes where practical.
+
+Day 30 - SSO integration foundation
+- Confirm DTEN's preferred identity provider before implementing real SSO.
+- Prepare NextAuth provider configuration and environment variables.
+- Preserve local email/password login as a development fallback unless Tony says to remove it.
+- Map IdP email to existing imported users.
+- Enforce inactive-user blocking and role/department/team data from the database.
+- Add a short SSO setup doc once provider details are known.
+
+Day 31 - Release 3 hardening and acceptance checklist
+- Add `docs/release-3-acceptance-checklist.md`.
+- Run schema validation, generate, migrate, tests, lint, build, and seeded-user browser smoke.
+- Smoke CEO/company roll-up, weighted KRs, assignment contributions, approval workflow, dashboard roll-up, permission boundaries, and notification dev logs.
+- Reset/reseed the demo database at the end and verify `currentWeekReports = 0` when practical.
+```
+
+Recommended first implementation target:
+
+```text
+Start with Day 22 and Day 23 together as the first Release 3 milestone.
+Reason: weighted KR progress is the smallest useful vertical slice and unlocks later parent-objective assignment, dashboard roll-up, and approval validation.
+```
+
+Important Release 3 dependency notes:
+
+```text
+- Slack/Teams and SSO require Tony/DTEN decisions or credentials, so implement provider abstractions and dev-mode logging first.
+- The current schema uses `WorkStatus` values DRAFT, ON_TRACK, AT_RISK, OFF_TRACK, COMPLETED, ON_HOLD. The PRD uses BEHIND and BLOCKED language, so Release 3 should either map those terms carefully in code/UI or migrate the enum intentionally.
+- Approval workflow should come after weight/contribution validation exists; otherwise approval cannot enforce the Release 3 business rules.
+- Dashboard/export/search/summary all read objective progress today, so roll-up changes must update shared helper usage and not only the objective detail page.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 2 is complete. Release 3 planning has been added to the worklog. Please start Release 3 Day 22: roll-up data model foundation, with the goal of preparing weighted KR progress and objective assignment support.
+```
+
+## Release 3 Day 22 - Roll-up Data Model Foundation
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added Release 3 roll-up enums to Prisma:
+  - ObjectiveProgressMode: MANUAL / AUTO
+  - ObjectiveApprovalStatus: DRAFT / PENDING_APPROVAL / APPROVED / REJECTED / PUBLISHED
+  - ObjectiveAssignmentAssigneeType: USER / TEAM / DEPARTMENT
+- Added objective roll-up foundation fields:
+  - Objective.progressMode
+  - Objective.approvalStatus
+- Added KR weighting field:
+  - KeyResult.weightPercent
+- Added ObjectiveAssignment model for parent objective contribution assignments:
+  - parentObjectiveId
+  - assignedObjectiveId
+  - assigneeId
+  - assigneeType
+  - contributionPercent
+- Added manual migration file:
+  - prisma/migrations/20260513095200_release_3_rollup_foundation/migration.sql
+- Added shared roll-up validation helpers:
+  - src/lib/rollup-validation.ts
+- Added focused Vitest coverage:
+  - src/lib/rollup-validation.test.ts
+- Updated seed data with Release 3 examples:
+  - published/auto objectives
+  - KR weights
+  - a D7X sales enablement child objective
+  - company product objective assignments of 60% Product Engineering and 40% Sales
+```
+
+Verification completed:
+
+```powershell
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run src/lib/rollup-validation.test.ts
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:generate
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- Prisma schema validation passed.
+- Prisma Client generated successfully.
+- Focused roll-up validation test passed: 5 tests.
+- Full Vitest suite passed: 2 test files, 10 tests.
+- Lint passed.
+- Production build passed.
+```
+
+Blocked local database steps:
+
+```text
+- `npm run prisma:migrate -- --name release_3_rollup_foundation` could not complete because Docker Desktop / the expected Docker API was not running.
+- `docker compose up -d` also failed with: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine.
+- The migration file was added manually and is ready to apply once Docker Desktop is running.
+- The demo database was not reseeded in this session because the local PostgreSQL container could not be started.
+```
+
+Before starting Day 23, run:
+
+```powershell
+docker compose up -d
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:migrate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Day 23 target:
+
+```text
+Build weighted KR progress inside one objective:
+- Add weight inputs to KR create/edit forms.
+- Show total KR weight and warnings on objective detail.
+- Use roll-up validation helpers in server actions.
+- Recalculate objective progress from weighted child KRs when progressMode = AUTO.
+- Revalidate affected dashboard/list/detail routes after KR changes.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Release 3 Day 22 roll-up data model foundation is complete, but Docker Desktop was not running so the migration and reseed still need to be applied locally. Please start by running docker compose up -d, npm run prisma:migrate, and npm run prisma:seed, then continue with Day 23: weighted KR progress inside one objective.
+```
+
+## Release 3 Day 22 Follow-up - Applied Migration And Fixed Missing Column Error
+
+Issue reported:
+
+```text
+Dashboard crashed with PrismaClientKnownRequestError:
+The column `KeyResult.weightPercent` does not exist in the current database.
+```
+
+Cause:
+
+```text
+The Day 22 Prisma schema and generated client included `KeyResult.weightPercent`, but the local Postgres database still had one pending migration:
+20260513095200_release_3_rollup_foundation
+```
+
+Fix completed:
+
+```text
+- Confirmed Docker/Postgres container was running.
+- Confirmed Prisma migration status showed the Day 22 migration pending.
+- Ran `npm run prisma:migrate`; the migration applied successfully.
+- The migrate command later timed out only because Prisma entered an interactive prompt for an additional migration name, but `prisma migrate status` confirmed the database schema is now up to date.
+- Ran `npm run prisma:seed`.
+- Verified live DB has:
+  - KeyResult.weightPercent
+  - ObjectiveAssignment rows for 60% Product Engineering and 40% Sales under "Re-establish product and solution leadership"
+  - currentWeekReports = 0
+```
+
+Verification:
+
+```powershell
+docker ps
+& '.\node_modules\.bin\prisma.cmd' migrate status
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run src/lib/rollup-validation.test.ts
+& 'C:\Program Files\nodejs\npm.cmd' run build
+```
+
+Result:
+
+```text
+- Docker Postgres is running.
+- Prisma reports database schema is up to date.
+- Prisma schema validation passed.
+- Seed completed successfully.
+- Focused roll-up validation test passed: 5 tests.
+- Production build passed.
+```
+
+Test process after this fix:
+
+```text
+1. Start the app with `.\start-dev.cmd`.
+2. Log in as `ceo@dten.com` / `Password123!`.
+3. Open `/dashboard`.
+4. Confirm the dashboard renders without the `KeyResult.weightPercent` missing-column error.
+5. Open `/company-okrs`.
+6. Confirm the seeded objective "Prepare D7X sales enablement for launch" is visible.
+```

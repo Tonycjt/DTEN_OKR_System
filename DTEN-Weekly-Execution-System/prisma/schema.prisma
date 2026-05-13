@@ -23,6 +23,25 @@ enum ObjectiveLevel {
   INDIVIDUAL
 }
 
+enum ObjectiveProgressMode {
+  MANUAL
+  AUTO
+}
+
+enum ObjectiveApprovalStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
+
+enum ObjectiveAssignmentAssigneeType {
+  USER
+  TEAM
+  DEPARTMENT
+}
+
 enum WorkStatus {
   DRAFT
   ON_TRACK
@@ -187,6 +206,8 @@ model Objective {
   quarter     String
 
   progressPercent Float @default(0)
+  progressMode    ObjectiveProgressMode @default(MANUAL)
+  approvalStatus  ObjectiveApprovalStatus @default(DRAFT)
   confidenceScore Int   @default(3)
 
   ownerId            String
@@ -200,6 +221,8 @@ model Objective {
   parentObjective Objective?  @relation("ObjectiveHierarchy", fields: [parentObjectiveId], references: [id], onDelete: SetNull)
   childObjectives Objective[] @relation("ObjectiveHierarchy")
   keyResults      KeyResult[]
+  parentAssignments ObjectiveAssignment[] @relation("ParentObjectiveAssignments")
+  assignedContributions ObjectiveAssignment[] @relation("AssignedObjectiveContributions")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -223,6 +246,7 @@ model KeyResult {
   currentValue    Float        @default(0)
   targetValue     Float        @default(100)
   progressPercent Float        @default(0)
+  weightPercent   Float        @default(100)
   confidenceScore Int          @default(3)
   status          WorkStatus   @default(ON_TRACK)
   pacingStatus    PacingStatus @default(NO_TARGET)
@@ -241,6 +265,27 @@ model KeyResult {
   @@index([ownerId])
   @@index([status])
   @@index([pacingStatus])
+}
+
+model ObjectiveAssignment {
+  id                  String @id @default(cuid())
+  parentObjectiveId   String
+  assignedObjectiveId String?
+  assigneeId          String
+  assigneeType        ObjectiveAssignmentAssigneeType
+  contributionPercent Float
+
+  parentObjective   Objective  @relation("ParentObjectiveAssignments", fields: [parentObjectiveId], references: [id], onDelete: Cascade)
+  assignedObjective Objective? @relation("AssignedObjectiveContributions", fields: [assignedObjectiveId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([parentObjectiveId, assignedObjectiveId])
+  @@unique([parentObjectiveId, assigneeType, assigneeId])
+  @@index([parentObjectiveId])
+  @@index([assignedObjectiveId])
+  @@index([assigneeType, assigneeId])
 }
 
 model MonthlyTarget {

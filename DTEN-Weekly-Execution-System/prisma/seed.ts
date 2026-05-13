@@ -26,6 +26,7 @@ async function resetDatabase() {
   await prisma.weeklyReport.deleteMany();
   await prisma.monthlyTarget.deleteMany();
   await prisma.keyResult.deleteMany();
+  await prisma.objectiveAssignment.deleteMany();
   await prisma.objective.deleteMany();
   await prisma.user.deleteMany();
   await prisma.team.deleteMany();
@@ -163,6 +164,8 @@ async function main() {
       status: "ON_TRACK",
       quarter: "2026-Q2",
       progressPercent: 42,
+      progressMode: "AUTO",
+      approvalStatus: "PUBLISHED",
       confidenceScore: 4,
       ownerId: ceo.id,
       departmentId: executive.id,
@@ -177,6 +180,8 @@ async function main() {
       status: "AT_RISK",
       quarter: "2026-Q2",
       progressPercent: 33,
+      progressMode: "AUTO",
+      approvalStatus: "PUBLISHED",
       confidenceScore: 3,
       ownerId: ceo.id,
       departmentId: executive.id,
@@ -191,12 +196,51 @@ async function main() {
       status: "AT_RISK",
       quarter: "2026-Q2",
       progressPercent: 38,
+      progressMode: "AUTO",
+      approvalStatus: "PUBLISHED",
       confidenceScore: 3,
       ownerId: departmentHead.id,
       departmentId: productEngineering.id,
       teamId: certificationTeam.id,
       parentObjectiveId: companyProduct.id,
     },
+  });
+
+  const salesEnablementObjective = await prisma.objective.create({
+    data: {
+      title: "Prepare D7X sales enablement for launch",
+      description: "Create buyer-facing launch readiness assets tied to the product leadership objective.",
+      level: "DEPARTMENT",
+      status: "ON_TRACK",
+      quarter: "2026-Q2",
+      progressPercent: 25,
+      progressMode: "AUTO",
+      approvalStatus: "PUBLISHED",
+      confidenceScore: 4,
+      ownerId: salesUser.id,
+      departmentId: sales.id,
+      teamId: salesTeam.id,
+      parentObjectiveId: companyProduct.id,
+    },
+  });
+
+  await prisma.objectiveAssignment.createMany({
+    data: [
+      {
+        parentObjectiveId: companyProduct.id,
+        assignedObjectiveId: certificationObjective.id,
+        assigneeId: productEngineering.id,
+        assigneeType: "DEPARTMENT",
+        contributionPercent: 60,
+      },
+      {
+        parentObjectiveId: companyProduct.id,
+        assignedObjectiveId: salesEnablementObjective.id,
+        assigneeId: sales.id,
+        assigneeType: "DEPARTMENT",
+        contributionPercent: 40,
+      },
+    ],
   });
 
   const shipD7x = await prisma.keyResult.create({
@@ -209,6 +253,7 @@ async function main() {
       currentValue: 48,
       targetValue: 100,
       progressPercent: 48,
+      weightPercent: 100,
       confidenceScore: 3,
       status: "AT_RISK",
       pacingStatus: "BEHIND",
@@ -225,6 +270,7 @@ async function main() {
       currentValue: 55,
       targetValue: 100,
       progressPercent: 55,
+      weightPercent: 100,
       confidenceScore: 3,
       status: "AT_RISK",
       pacingStatus: "BEHIND",
@@ -241,9 +287,27 @@ async function main() {
       currentValue: 11,
       targetValue: 15,
       progressPercent: 73,
+      weightPercent: 100,
       confidenceScore: 4,
       status: "ON_TRACK",
       pacingStatus: "ON_PACE",
+    },
+  });
+
+  const salesEnablementKit = await prisma.keyResult.create({
+    data: {
+      title: "Publish D7X launch enablement kit",
+      metricName: "Enablement completion percent",
+      objectiveId: salesEnablementObjective.id,
+      ownerId: salesUser.id,
+      startValue: 0,
+      currentValue: 25,
+      targetValue: 100,
+      progressPercent: 25,
+      weightPercent: 100,
+      confidenceScore: 4,
+      status: "ON_TRACK",
+      pacingStatus: "BEHIND",
     },
   });
 
@@ -258,6 +322,9 @@ async function main() {
       { keyResultId: demosPerWeek.id, monthIndex: 1, targetValue: 10, targetPercent: 67 },
       { keyResultId: demosPerWeek.id, monthIndex: 2, targetValue: 13, targetPercent: 87 },
       { keyResultId: demosPerWeek.id, monthIndex: 3, targetValue: 15, targetPercent: 100 },
+      { keyResultId: salesEnablementKit.id, monthIndex: 1, targetValue: 35, targetPercent: 35 },
+      { keyResultId: salesEnablementKit.id, monthIndex: 2, targetValue: 70, targetPercent: 70 },
+      { keyResultId: salesEnablementKit.id, monthIndex: 3, targetValue: 100, targetPercent: 100 },
     ],
   });
 
@@ -486,6 +553,19 @@ async function main() {
         entityType: "Objective",
         entityId: companyProduct.id,
         metadata: { title: companyProduct.title },
+      },
+      {
+        actorId: ceo.id,
+        action: "CREATED",
+        entityType: "ObjectiveAssignment",
+        entityId: companyProduct.id,
+        metadata: {
+          parentObjectiveId: companyProduct.id,
+          assignments: [
+            { assignedObjectiveId: certificationObjective.id, contributionPercent: 60 },
+            { assignedObjectiveId: salesEnablementObjective.id, contributionPercent: 40 },
+          ],
+        },
       },
       {
         actorId: engineer.id,
