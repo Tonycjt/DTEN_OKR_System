@@ -6,6 +6,7 @@ import {
   createKeyResultAction,
   createObjectiveAssignmentAction,
   deleteObjectiveAssignmentAction,
+  reviewAssignmentAction,
   updateObjectiveAction,
 } from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,7 @@ function firstParam(value: string | string[] | undefined) {
 }
 
 export default async function ObjectiveDetailPage({ params, searchParams }: ObjectiveDetailPageProps) {
-  await requireUser();
+  const currentUser = await requireUser();
   const { id } = await params;
   const error = firstParam((await searchParams)?.error);
 
@@ -54,12 +55,9 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
           orderBy: { contributionPercent: "desc" },
           include: {
             assignedObjective: {
-              include: {
-                owner: true,
-                department: true,
-                team: true,
-              },
+              include: { owner: true, department: true, team: true },
             },
+            approvedBy: { select: { name: true } },
           },
         },
         keyResults: {
@@ -107,6 +105,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
   const teamNameById = new Map(teams.map((team) => [team.id, `${team.department.name} / ${team.name}`]));
   const canManageDirectKrs = objective.progressSource !== "CHILD_OBJECTIVES";
   const canManageChildObjectiveAssignments = objective.progressSource !== "DIRECT_KRS";
+  const isOwner = objective.ownerId === currentUser.id;
 
   function assignmentOwnerLabel(assignment: { assigneeType: "USER" | "TEAM" | "DEPARTMENT"; assigneeId: string }) {
     if (assignment.assigneeType === "USER") {
@@ -477,6 +476,17 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
               <form action={createObjectiveAssignmentAction} className="form-grid">
                 <input name="parentObjectiveId" type="hidden" value={objective.id} />
                 <label className="field">
+                  <span>Assignment Mode</span>
+                  <select defaultValue="CONTRIBUTION_ONLY" name="assignmentMode">
+                    <option value="CONTRIBUTION_ONLY">Contribution Only — assignee proposes child objective</option>
+                    <option value="PREDEFINED_CHILD_OBJECTIVE">Predefined — parent defines child objective now</option>
+                  </select>
+                </label>
+                <label className="field wide">
+                  <span>Instruction / Strategic Context</span>
+                  <input name="assignmentInstruction" placeholder="e.g. Focus on enterprise certification readiness" />
+                </label>
+                <label className="field">
                   <span>Assignment Owner</span>
                   <select name="assigneeRef" required>
                     <option value="">Choose owner</option>
@@ -539,6 +549,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                 <tr>
                   <th>Owner</th>
                   <th>Child Objective</th>
+                  <th>Status</th>
                   <th>Contribution</th>
                   <th>Child Progress</th>
                   <th>Weighted Impact</th>
@@ -549,6 +560,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                 {objective.parentAssignments.map((assignment) => {
                   const childProgress = assignment.assignedObjective?.progressPercent ?? 0;
                   const weightedImpact = childProgress * (assignment.contributionPercent / 100);
+                  const isPendingReview = assignment.status === "PENDING_REVIEW";
 
                   return (
                     <tr key={assignment.id}>
@@ -556,13 +568,34 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                         <strong>{assignmentOwnerLabel(assignment)}</strong>
                         <br />
                         <span className="muted">{formatEnumLabel(assignment.assigneeType)}</span>
+                        {assignment.assignmentInstruction ? (
+                          <div className="muted" style={{ fontSize: "0.8em", marginTop: "2px" }}>{assignment.assignmentInstruction}</div>
+                        ) : null}
                       </td>
                       <td>
                         {assignment.assignedObjective ? (
                           <Link href={`/objectives/${assignment.assignedObjective.id}`}>{assignment.assignedObjective.title}</Link>
                         ) : (
-                          <span className="muted">No child objective linked</span>
+                          <span className="muted">Awaiting proposal</span>
                         )}
+                      </td>
+                      <td>
+                        <Badge
+                          tone={
+                            assignment.status === "ACTIVE" || assignment.status === "APPROVED"
+                              ? "success"
+                              : assignment.status === "REJECTED"
+                              ? "danger"
+                              : assignment.status === "NEEDS_REVISION"
+                              ? "warning"
+                              : "neutral"
+                          }
+                        >
+                          {formatEnumLabel(assignment.status)}
+                        </Badge>
+                        {assignment.approvedBy ? (
+                          <div className="muted" style={{ fontSize: "0.8em" }}>by {assignment.approvedBy.name}</div>
+                        ) : null}
                       </td>
                       <td>{assignment.contributionPercent}%</td>
                       <td>{Math.round(childProgress)}%</td>
@@ -570,12 +603,27 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                       <td>
                         {canManageChildObjectiveAssignments ? (
                           <div className="stack">
+                            {isPendingReview && isOwner ? (
+                              <form action={reviewAssignmentAction} className="form-grid">
+                                <input name="assignmentId" type="hidden" value={assignment.id} />
+                                <input name="parentObjectiveId" type="hidden" value={objective.id} />
+                                <label className="field wide">
+                                  <span>Revision note (optional)</span>
+                                  <input name="revisionNote" placeholder="Explain what needs to change" />
+                                </label>
+                                <div className="table-actions">
+                                  <Button name="decision" type="submit" value="APPROVED">Approve</Button>
+                                  <Button name="decision" tone="secondary" type="submit" value="NEEDS_REVISION">Request Revision</Button>
+                                  <Button name="decision" tone="secondary" type="submit" value="REJECTED">Reject</Button>
+                                </div>
+                              </form>
+                            ) : null}
                             <input form="assignment-batch-form" name="assignmentId" type="hidden" value={assignment.id} />
                             <select className="inline-select" defaultValue={assignment.assignedObjectiveId ?? ""} form="assignment-batch-form" name="assignedObjectiveId">
                               <option value="">No linked child objective</option>
-                              {parentObjectives.map((parentObjective) => (
-                                <option key={parentObjective.id} value={parentObjective.id}>
-                                  {parentObjective.title}
+                              {parentObjectives.map((po) => (
+                                <option key={po.id} value={po.id}>
+                                  {po.title}
                                 </option>
                               ))}
                             </select>
@@ -594,9 +642,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                             <form action={deleteObjectiveAssignmentAction}>
                               <input name="assignmentId" type="hidden" value={assignment.id} />
                               <input name="parentObjectiveId" type="hidden" value={objective.id} />
-                              <Button tone="secondary" type="submit">
-                                Delete
-                              </Button>
+                              <Button tone="secondary" type="submit">Delete</Button>
                             </form>
                           </div>
                         ) : (

@@ -2058,7 +2058,102 @@ KR weights and objective assignment weights should operate at different levels o
 - Dashboards use calculated objective progress instead of manual progress when auto-calculation is enabled.
 ```
 
-### R3.2 Objective Health Calculation
+### R3.2 Child Objective Proposal Workflow
+
+When a parent objective is assigned to multiple leaders, departments, teams, or users, the parent objective owner does not always need to define the exact child objectives.
+
+The recommended workflow is:
+
+1. Parent objective owner creates the parent objective.
+2. Parent objective owner assigns contribution percentages to assignees.
+3. Assignees propose their own child objectives and KRs.
+4. Parent objective owner reviews the proposed child objectives.
+5. Parent objective owner approves, rejects, or requests revision.
+6. Approved child objectives become active and roll up to the parent objective.
+
+#### Product Rule
+
+The parent objective owner decides:
+
+- who contributes to the parent objective
+- how much each assignee contributes
+- the strategic instruction or expectation
+
+The assignee decides:
+
+- the proposed child objective
+- the KRs that measure their execution plan
+- the owners of those KRs
+
+The parent objective owner approves:
+
+- whether the child objective is aligned
+- whether the proposed KRs are strong enough
+- whether the contribution percentage still makes sense
+
+#### Assignment Modes
+
+The system should support two assignment modes:
+
+CONTRIBUTION_ONLY:
+The parent owner assigns an assignee and contribution percentage. The assignee drafts the child objective and KRs.
+
+PREDEFINED_CHILD_OBJECTIVE:
+The parent owner also defines the child objective. The assignee accepts it and defines or refines the KRs.
+
+#### Objective Assignment Fields
+
+Add the following fields to objective_assignments:
+
+- assignment_mode
+- assignment_instruction
+- status
+- created_by
+- approved_by
+- approved_at
+
+Allowed assignment_mode values:
+
+- CONTRIBUTION_ONLY
+- PREDEFINED_CHILD_OBJECTIVE
+
+Allowed status values:
+
+- PENDING_PROPOSAL
+- PENDING_REVIEW
+- NEEDS_REVISION
+- APPROVED
+- REJECTED
+- ACTIVE
+
+#### Workflow
+
+Parent owner creates assignment:
+PENDING_PROPOSAL
+
+Assignee drafts child objective:
+PENDING_REVIEW
+
+Parent owner approves:
+APPROVED / ACTIVE
+
+Parent owner requests changes:
+NEEDS_REVISION
+
+Parent owner rejects:
+REJECTED
+
+#### Acceptance Criteria
+
+- Parent objective owner can assign contribution percentage without defining exact child objective.
+- Assignee can propose a child objective aligned to the parent objective.
+- Assignee can create KRs under the proposed child objective.
+- Parent objective owner can approve, reject, or request revision.
+- Approved child objective becomes active.
+- Parent objective progress rolls up from approved child objectives only.
+- Pending or rejected child objectives should not affect parent progress.
+
+### R3.3 Objective Health Calculation
 
 Objective status can be calculated from child KR statuses:
 
@@ -2073,7 +2168,7 @@ If all KRs completed:
     objective_status = COMPLETED
 ```
 
-### R3.3 SSO
+### R3.4 SSO
 
 Add company SSO using DTEN's preferred identity provider.
 

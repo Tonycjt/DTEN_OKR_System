@@ -232,6 +232,11 @@ async function main() {
         assigneeId: productEngineering.id,
         assigneeType: "DEPARTMENT",
         contributionPercent: 60,
+        assignmentMode: "PREDEFINED_CHILD_OBJECTIVE",
+        status: "ACTIVE",
+        createdById: ceo.id,
+        approvedById: ceo.id,
+        approvedAt: new Date(),
       },
       {
         parentObjectiveId: companyProduct.id,
@@ -239,6 +244,11 @@ async function main() {
         assigneeId: sales.id,
         assigneeType: "DEPARTMENT",
         contributionPercent: 40,
+        assignmentMode: "PREDEFINED_CHILD_OBJECTIVE",
+        status: "ACTIVE",
+        createdById: ceo.id,
+        approvedById: ceo.id,
+        approvedAt: new Date(),
       },
     ],
   });

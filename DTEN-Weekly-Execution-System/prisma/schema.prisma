@@ -95,6 +95,22 @@ enum NotificationType {
   KR_COMMENT
   REPORT_COMMENT
   KR_BLOCKED
+  ASSIGNMENT_PROPOSAL_SUBMITTED
+  ASSIGNMENT_PROPOSAL_REVIEWED
+}
+
+enum ObjectiveAssignmentMode {
+  CONTRIBUTION_ONLY
+  PREDEFINED_CHILD_OBJECTIVE
+}
+
+enum ObjectiveAssignmentStatus {
+  PENDING_PROPOSAL
+  PENDING_REVIEW
+  NEEDS_REVISION
+  APPROVED
+  REJECTED
+  ACTIVE
 }
 
 enum AuditAction {
@@ -157,6 +173,8 @@ model User {
   auditLogs        AuditLog[]
   assignedFollowUps FollowUp[] @relation("FollowUpOwner")
   createdFollowUps  FollowUp[] @relation("FollowUpAssigner")
+  createdAssignments  ObjectiveAssignment[] @relation("AssignmentCreator")
+  approvedAssignments ObjectiveAssignment[] @relation("AssignmentApprover")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -276,8 +294,17 @@ model ObjectiveAssignment {
   assigneeType        ObjectiveAssignmentAssigneeType
   contributionPercent Float
 
+  assignmentMode        ObjectiveAssignmentMode   @default(CONTRIBUTION_ONLY)
+  assignmentInstruction String?
+  status                ObjectiveAssignmentStatus @default(PENDING_PROPOSAL)
+  createdById           String?
+  approvedById          String?
+  approvedAt            DateTime?
+
   parentObjective   Objective  @relation("ParentObjectiveAssignments", fields: [parentObjectiveId], references: [id], onDelete: Cascade)
   assignedObjective Objective? @relation("AssignedObjectiveContributions", fields: [assignedObjectiveId], references: [id], onDelete: SetNull)
+  createdBy         User?      @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy        User?      @relation("AssignmentApprover", fields: [approvedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -287,6 +314,9 @@ model ObjectiveAssignment {
   @@index([parentObjectiveId])
   @@index([assignedObjectiveId])
   @@index([assigneeType, assigneeId])
+  @@index([status])
+  @@index([createdById])
+  @@index([approvedById])
 }
 
 model MonthlyTarget {

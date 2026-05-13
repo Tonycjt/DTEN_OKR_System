@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash('C:\\\\Program Files\\\\nodejs\\\\npm.cmd' run lint)"
+    ]
+  }
+}

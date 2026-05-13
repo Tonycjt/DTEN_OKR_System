@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ObjectiveAssignmentAssigneeType, ObjectiveLevel, ObjectiveProgressSource, WorkStatus } from "@prisma/client";
+import type { ObjectiveAssignmentAssigneeType, ObjectiveAssignmentMode, ObjectiveAssignmentStatus, ObjectiveLevel, ObjectiveProgressSource, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
 import { getRollupValidationTarget, validateObjectiveAssignmentContributions, validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
@@ -13,7 +13,9 @@ import { prisma } from "@/server/prisma";
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
 const objectiveProgressSources: ObjectiveProgressSource[] = ["MANUAL", "DIRECT_KRS", "CHILD_OBJECTIVES"];
 const objectiveAssignmentAssigneeTypes: ObjectiveAssignmentAssigneeType[] = ["USER", "TEAM", "DEPARTMENT"];
+const objectiveAssignmentModes: ObjectiveAssignmentMode[] = ["CONTRIBUTION_ONLY", "PREDEFINED_CHILD_OBJECTIVE"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
+const reviewableAssignmentStatuses: ObjectiveAssignmentStatus[] = ["APPROVED", "REJECTED", "NEEDS_REVISION"];
 
 function optionalString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
@@ -538,6 +540,13 @@ export async function createObjectiveAssignmentAction(formData: FormData) {
   const assignee = parseAssigneeRef(formData.get("assigneeRef"));
   const assignedObjectiveId = optionalString(formData.get("assignedObjectiveId"));
   const contributionPercent = clamp(numberValue(formData.get("contributionPercent"), 0), 0, 100);
+  const rawMode = optionalString(formData.get("assignmentMode")) ?? "CONTRIBUTION_ONLY";
+  const assignmentMode: ObjectiveAssignmentMode = objectiveAssignmentModes.includes(rawMode as ObjectiveAssignmentMode)
+    ? (rawMode as ObjectiveAssignmentMode)
+    : "CONTRIBUTION_ONLY";
+  const assignmentInstruction = optionalString(formData.get("assignmentInstruction"));
+  // PREDEFINED_CHILD_OBJECTIVE bypasses the proposal workflow — parent already defined it.
+  const initialStatus: ObjectiveAssignmentStatus = assignmentMode === "PREDEFINED_CHILD_OBJECTIVE" ? "ACTIVE" : "PENDING_PROPOSAL";
 
   if (!assignee) {
     actionAlert(alertPath, "Choose a valid assignment owner.");
@@ -607,6 +616,10 @@ export async function createObjectiveAssignmentAction(formData: FormData) {
       assigneeId: assignee.assigneeId,
       assigneeType: assignee.assigneeType,
       contributionPercent,
+      assignmentMode,
+      assignmentInstruction,
+      status: initialStatus,
+      createdById: user.id,
     },
   });
 
@@ -622,6 +635,8 @@ export async function createObjectiveAssignmentAction(formData: FormData) {
         assigneeId: assignee.assigneeId,
         assigneeType: assignee.assigneeType,
         contributionPercent,
+        assignmentMode,
+        status: initialStatus,
       },
     },
   });
@@ -897,4 +912,147 @@ export async function deleteObjectiveAssignmentAction(formData: FormData) {
   revalidatePath(alertPath);
   revalidatePath("/company-okrs");
   revalidatePath("/dashboard");
+}
+
+export async function proposeChildObjectiveAction(formData: FormData) {
+  const user = await requireUser();
+  const assignmentId = requiredStringOrAlert(formData.get("assignmentId"), "Assignment", "/my-okrs");
+  const proposedObjectiveId = requiredStringOrAlert(formData.get("proposedObjectiveId"), "Proposed child objective", "/my-okrs");
+
+  const assignment = await prisma.objectiveAssignment.findUnique({
+    where: { id: assignmentId },
+    include: {
+      parentObjective: { select: { id: true, title: true, ownerId: true } },
+    },
+  });
+
+  if (!assignment) {
+    actionAlert("/my-okrs", "Assignment not found.");
+  }
+
+  if (assignment.assigneeType !== "USER" || assignment.assigneeId !== user.id) {
+    actionAlert("/my-okrs", "You are not the assignee for this assignment.");
+  }
+
+  if (!["PENDING_PROPOSAL", "NEEDS_REVISION"].includes(assignment.status)) {
+    actionAlert("/my-okrs", "This assignment is not awaiting a proposal.");
+  }
+
+  if (proposedObjectiveId === assignment.parentObjectiveId) {
+    actionAlert("/my-okrs", "The proposed child objective cannot be the parent objective itself.");
+  }
+
+  await prisma.objectiveAssignment.update({
+    where: { id: assignmentId },
+    data: { assignedObjectiveId: proposedObjectiveId, status: "PENDING_REVIEW" },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: user.id,
+      action: "UPDATED",
+      entityType: "ObjectiveAssignment",
+      entityId: assignmentId,
+      metadata: { proposedObjectiveId, status: "PENDING_REVIEW" },
+    },
+  });
+
+  await prisma.notification.create({
+    data: {
+      userId: assignment.parentObjective.ownerId,
+      type: "ASSIGNMENT_PROPOSAL_SUBMITTED",
+      title: "Child objective proposed",
+      body: `${user.name} proposed a child objective for "${assignment.parentObjective.title}". Please review.`,
+      relatedUrl: `/objectives/${assignment.parentObjective.id}`,
+    },
+  });
+
+  revalidatePath("/my-okrs");
+  revalidatePath(`/objectives/${assignment.parentObjective.id}`);
+  revalidatePath("/notifications");
+}
+
+export async function reviewAssignmentAction(formData: FormData) {
+  const user = await requireUser();
+  const assignmentId = requiredStringOrAlert(formData.get("assignmentId"), "Assignment", "/company-okrs");
+  const parentObjectiveId = requiredStringOrAlert(formData.get("parentObjectiveId"), "Parent objective", "/company-okrs");
+  const alertPath = `/objectives/${parentObjectiveId}`;
+  const rawDecision = requiredStringOrAlert(formData.get("decision"), "Decision", alertPath);
+  const revisionNote = optionalString(formData.get("revisionNote"));
+
+  if (!reviewableAssignmentStatuses.includes(rawDecision as ObjectiveAssignmentStatus)) {
+    actionAlert(alertPath, "Invalid review decision.");
+  }
+
+  const decision = rawDecision as ObjectiveAssignmentStatus;
+
+  const parentObjective = await prisma.objective.findUnique({
+    where: { id: parentObjectiveId },
+    select: { ownerId: true, title: true },
+  });
+
+  if (!parentObjective) {
+    actionAlert("/company-okrs", "Parent objective not found.");
+  }
+
+  if (parentObjective.ownerId !== user.id) {
+    actionAlert(alertPath, "Only the parent objective owner can review assignment proposals.");
+  }
+
+  const assignment = await prisma.objectiveAssignment.findUnique({
+    where: { id: assignmentId },
+    select: { id: true, assigneeId: true, assigneeType: true, status: true },
+  });
+
+  if (!assignment) {
+    actionAlert(alertPath, "Assignment not found.");
+  }
+
+  if (assignment.status !== "PENDING_REVIEW") {
+    actionAlert(alertPath, "This assignment is not awaiting review.");
+  }
+
+  await prisma.objectiveAssignment.update({
+    where: { id: assignmentId },
+    data: {
+      status: decision,
+      approvedById: decision === "APPROVED" ? user.id : null,
+      approvedAt: decision === "APPROVED" ? new Date() : null,
+      assignmentInstruction: decision === "NEEDS_REVISION" && revisionNote ? revisionNote : undefined,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: user.id,
+      action: "REVIEWED",
+      entityType: "ObjectiveAssignment",
+      entityId: assignmentId,
+      metadata: { decision, revisionNote, parentObjectiveId },
+    },
+  });
+
+  if (assignment.assigneeType === "USER") {
+    const decisionLabel = decision === "APPROVED" ? "approved" : decision === "REJECTED" ? "rejected" : "sent back for revision";
+    await prisma.notification.create({
+      data: {
+        userId: assignment.assigneeId,
+        type: "ASSIGNMENT_PROPOSAL_REVIEWED",
+        title: `Child objective proposal ${decisionLabel}`,
+        body: `Your proposed child objective for "${parentObjective.title}" was ${decisionLabel}.${revisionNote ? ` Note: ${revisionNote}` : ""}`,
+        relatedUrl: `/my-okrs`,
+      },
+    });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await recalculateObjectiveProgress(tx, parentObjectiveId);
+    await recalculateParentObjectiveProgress(tx, parentObjectiveId);
+  });
+
+  revalidatePath(alertPath);
+  revalidatePath("/my-okrs");
+  revalidatePath("/company-okrs");
+  revalidatePath("/dashboard");
+  revalidatePath("/notifications");
 }

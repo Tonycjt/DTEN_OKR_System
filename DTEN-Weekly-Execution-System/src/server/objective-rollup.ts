@@ -16,6 +16,7 @@ export async function recalculateObjectiveProgress(prisma: PrismaExecutor, objec
         },
       },
       parentAssignments: {
+        where: { status: { in: ["APPROVED", "ACTIVE"] } },
         select: {
           contributionPercent: true,
           assignedObjective: {
@@ -60,6 +61,7 @@ export async function recalculateParentObjectiveProgress(prisma: PrismaExecutor,
   const parentLinks = await prisma.objectiveAssignment.findMany({
     where: {
       assignedObjectiveId: childObjectiveId,
+      status: { in: ["APPROVED", "ACTIVE"] },
     },
     select: {
       parentObjectiveId: true,
