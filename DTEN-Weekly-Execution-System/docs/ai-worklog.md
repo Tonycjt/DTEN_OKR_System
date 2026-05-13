@@ -2362,3 +2362,227 @@ Build roll-up propagation and dashboard integration:
 - Use calculated objective progress consistently in company OKRs, my OKRs, dashboard, search, export, and executive summary.
 - Keep safe alert behavior for invalid user operations.
 ```
+
+## Release 3 Day 25 - Roll-up Propagation, Batch Assignments, And KR Create Flow
+
+Completed in `DTEN-Weekly-Execution-System`:
+
+```text
+- Added parent objective roll-up propagation in `src/server/objective-rollup.ts`.
+- AUTO objective progress now recalculates from:
+  - weighted child KRs when there are no contribution assignments
+  - weighted child objective contribution assignments when assignments exist
+- Parent objectives now recalculate when a child objective changes.
+- Parent roll-up propagation is triggered after:
+  - KR creation
+  - KR update
+  - weekly-report KR check-in save
+  - objective save
+  - objective assignment create/update/delete
+  - batch objective assignment save
+- Because company OKRs, my OKRs, dashboard, search, export, and executive summary read stored objective progress, they now receive the propagated calculated value after updates.
+```
+
+Batch assignment save:
+
+```text
+- Added `batchUpdateObjectiveAssignmentsAction`.
+- Objective Contributions now supports editing multiple contribution percentages at once and clicking "Save All Contributions".
+- This fixes the published-objective workflow where changing 60/40 to 70/30 could not be done one row at a time because each intermediate single-row save would violate the 100% rule.
+- Batch save validates:
+  - every assignment belongs to the current parent objective
+  - child objective is not the parent itself
+  - no duplicate linked child objectives
+  - contribution totals are valid for draft vs active/published rules
+- Invalid batch operations redirect back with an alert instead of crashing.
+```
+
+KR creation flow improvement:
+
+```text
+- Creating a KR from objective detail now redirects back to the objective page instead of the KR detail page.
+- This lets users add multiple KRs in sequence without navigating back manually.
+```
+
+Safe alert behavior:
+
+```text
+- Release 3 objective/KR action required-field validation was tightened to redirect with alerts in the touched paths.
+- This further supports Tony's deployment preference: block illegal user operations with visible alerts rather than allowing avoidable website crashes.
+```
+
+Verification:
+
+```powershell
+& '.\node_modules\.bin\prisma.cmd' migrate status
+& '.\node_modules\.bin\prisma.cmd' validate
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Prisma migration status is up to date.
+- Prisma schema validation passed.
+- Vitest passed: 3 test files, 13 tests.
+- Lint passed.
+- Production build passed.
+- Final database reset/seed completed.
+```
+
+Post-reset database sanity check:
+
+```text
+objectives: 4
+keyResults: 4
+objectiveAssignments: 2
+currentWeekReports: 0
+parentProgress: 33
+calculatedParentProgress: 33
+contributionTotal: 100
+```
+
+Visible Day 25 test path:
+
+```text
+1. Start the app with `.\start-dev.cmd`.
+2. Log in as `ceo@dten.com` / `Password123!`.
+3. Open `/company-okrs`.
+4. Open "Re-establish product and solution leadership".
+5. In Objective Contributions, change Product Engineering from 60 to 70 and Sales from 40 to 30.
+6. Click "Save All Contributions".
+7. Confirm there is no alert and the table now totals 100%.
+8. Change only one row so the total is not 100 and click "Save All Contributions".
+9. Confirm the operation is blocked with an alert instead of a crash.
+10. Open a draft objective or create one as DRAFT.
+11. Add a KR and confirm the app returns to the objective detail page so another KR can be added immediately.
+```
+
+Day 26 target:
+
+```text
+Build objective health calculation:
+- Add shared objective health/status helper based on child KR and child objective status.
+- Map PRD BLOCKED/BEHIND language to current WorkStatus values or introduce a deliberate enum migration.
+- Surface calculated health on objective detail and dashboards.
+- Preserve safe alert behavior for invalid user operations.
+```
+
+## Post-Day 25 UX Fix - Weekly Report KR Picker Scope
+
+Issue reported:
+
+```text
+When users create weekly reports and choose a KR-linked priority, the Linked KR dropdown showed all KRs in the system.
+That will not scale when the number of KRs becomes large and it also increases the chance of linking work to the wrong KR.
+```
+
+Fix completed:
+
+```text
+- Scoped the weekly report Linked KR dropdown to KRs assigned to the current report owner.
+- Existing already-linked KRs are preserved in edit forms so older report data does not disappear.
+- Add Priority now shows only the current user's assigned KRs.
+- Update Priority allows:
+  - KRs assigned to the current user
+  - the already-linked KR on that priority, for backward compatibility
+- Added server-side validation so manually posted KR ids that are not assigned to the current user are rejected.
+- Rejection redirects back to `/weekly-report/current?error=kr-not-assigned` and displays an alert instead of crashing.
+```
+
+Verification:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' run test -- --run
+& 'C:\Program Files\nodejs\npm.cmd' run lint
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
+```
+
+Result:
+
+```text
+- Vitest passed: 3 test files, 13 tests.
+- Lint passed.
+- Production build passed.
+- Final database reset/seed completed.
+```
+
+Post-reset KR assignment sanity:
+
+```text
+ceo@dten.com: 0 assigned KRs
+engineer@dten.com: 1 assigned KR
+head@dten.com: 0 assigned KRs
+manager@dten.com: 1 assigned KR
+sales@dten.com: 2 assigned KRs
+currentWeekReports: 0
+```
+
+Visible test path:
+
+```text
+1. Start the app with `.\start-dev.cmd`.
+2. Log in as `engineer@dten.com` / `Password123!`.
+3. Open `/weekly-report/current`.
+4. In Add Priority, open Linked KR.
+5. Confirm only Riley's assigned KR appears, not all company KRs.
+6. Log in as `sales@dten.com` / `Password123!`.
+7. Open `/weekly-report/current`.
+8. Confirm Jordan sees only Sales-owned assigned KRs.
+```
+
+## Release 3 Clarification Handoff - KR Weights vs Objective Assignment Weights
+
+Tony added a new PRD clarification under Release 3:
+
+```text
+An objective should calculate progress from one primary source:
+- DIRECT_KRS
+- CHILD_OBJECTIVES
+- MANUAL
+
+The system should avoid calculating one objective from both direct KRs and child objectives at the same time unless a future advanced mixed-mode roll-up is explicitly supported.
+```
+
+Important correction before continuing Release 3:
+
+```text
+- The current Day 22-25 implementation uses `Objective.progressMode` with MANUAL/AUTO.
+- The new PRD clarification recommends `objectives.progress_source` with MANUAL/DIRECT_KRS/CHILD_OBJECTIVES.
+- Before Day 26 objective health work, update the core roll-up model to match the clarification.
+- DIRECT_KRS should calculate objective progress from weighted direct KRs.
+- CHILD_OBJECTIVES should calculate objective progress from ObjectiveAssignment contribution percentages and linked child objective progress.
+- MANUAL should use the owner's manually entered Objective.progressPercent.
+- Avoid mixed roll-up behavior where one objective uses both direct KRs and child objective assignments.
+```
+
+Recommended next work:
+
+```text
+1. Add/replace schema field with an ObjectiveProgressSource enum:
+   - MANUAL
+   - DIRECT_KRS
+   - CHILD_OBJECTIVES
+2. Migrate existing data:
+   - current MANUAL stays MANUAL
+   - current AUTO objectives with parent assignments become CHILD_OBJECTIVES
+   - current AUTO objectives without assignments become DIRECT_KRS
+3. Update objective create/edit UI labels from Progress Mode to Progress Source.
+4. Update roll-up helper logic so it only uses the selected progress source.
+5. Update validation:
+   - DIRECT_KRS validates KR weights
+   - CHILD_OBJECTIVES validates objective assignment contributions
+   - MANUAL does not require either total
+6. Update seeded data and tests.
+7. Keep safe alert behavior for invalid operations.
+```
+
+New-chat resume prompt:
+
+```text
+Continue from DTEN-Weekly-Execution-System/docs/ai-worklog.md. The active folder is DTEN-Weekly-Execution-System. Please read the latest Release 3 clarification in dten_okr_weekly_execution_system_prd.md about KR weights vs objective assignment weights. Before continuing Day 26, fix the core roll-up model so each objective uses one progress source: MANUAL, DIRECT_KRS, or CHILD_OBJECTIVES. Replace or migrate the current MANUAL/AUTO progressMode behavior, update schema/UI/actions/helpers/tests/seed data, preserve safe alert behavior for invalid user operations, run verification, and reset/reseed the demo database at the end.
+```

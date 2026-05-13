@@ -7,7 +7,7 @@ import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonth
 import { validateObjectiveAssignmentContributions, validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { sendKrBlockedEmail } from "@/server/email-notifications";
-import { recalculateObjectiveProgressFromKrs } from "@/server/objective-rollup";
+import { recalculateObjectiveAndParents, recalculateObjectiveProgress, recalculateParentObjectiveProgress } from "@/server/objective-rollup";
 import { prisma } from "@/server/prisma";
 
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
@@ -18,16 +18,6 @@ const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK",
 function optionalString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
   return text.length > 0 ? text : null;
-}
-
-function requiredString(value: FormDataEntryValue | null, fieldName: string) {
-  const text = optionalString(value);
-
-  if (!text) {
-    throw new Error(`${fieldName} is required.`);
-  }
-
-  return text;
 }
 
 function numberValue(value: FormDataEntryValue | null, fallback: number) {
@@ -53,6 +43,16 @@ function actionAlert(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
 }
 
+function requiredStringOrAlert(value: FormDataEntryValue | null, fieldName: string, path: string) {
+  const text = optionalString(value);
+
+  if (!text) {
+    actionAlert(path, `${fieldName} is required.`);
+  }
+
+  return text;
+}
+
 function parseAssigneeRef(value: FormDataEntryValue | null): { assigneeType: ObjectiveAssignmentAssigneeType; assigneeId: string } | null {
   const text = optionalString(value);
 
@@ -75,8 +75,8 @@ function parseAssigneeRef(value: FormDataEntryValue | null): { assigneeType: Obj
 export async function createObjectiveAction(formData: FormData) {
   const user = await requireUser();
   const alertPath = "/objectives/new";
-  const level = requiredString(formData.get("level"), "Level") as ObjectiveLevel;
-  const status = requiredString(formData.get("status"), "Status") as WorkStatus;
+  const level = requiredStringOrAlert(formData.get("level"), "Level", alertPath) as ObjectiveLevel;
+  const status = requiredStringOrAlert(formData.get("status"), "Status", alertPath) as WorkStatus;
   const progressMode = (optionalString(formData.get("progressMode")) ?? "MANUAL") as ObjectiveProgressMode;
 
   if (!objectiveLevels.includes(level)) {
@@ -93,15 +93,15 @@ export async function createObjectiveAction(formData: FormData) {
 
   const objective = await prisma.objective.create({
     data: {
-      title: requiredString(formData.get("title"), "Title"),
+      title: requiredStringOrAlert(formData.get("title"), "Title", alertPath),
       description: optionalString(formData.get("description")),
       level,
       status,
-      quarter: requiredString(formData.get("quarter"), "Quarter"),
+      quarter: requiredStringOrAlert(formData.get("quarter"), "Quarter", alertPath),
       progressMode,
       progressPercent: clamp(numberValue(formData.get("progressPercent"), 0), 0, 100),
       confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
-      ownerId: requiredString(formData.get("ownerId"), "Owner"),
+      ownerId: requiredStringOrAlert(formData.get("ownerId"), "Owner", alertPath),
       departmentId: optionalString(formData.get("departmentId")),
       teamId: optionalString(formData.get("teamId")),
       parentObjectiveId: optionalString(formData.get("parentObjectiveId")),
@@ -125,10 +125,10 @@ export async function createObjectiveAction(formData: FormData) {
 
 export async function updateObjectiveAction(formData: FormData) {
   const user = await requireUser();
-  const objectiveId = requiredString(formData.get("objectiveId"), "Objective");
+  const objectiveId = requiredStringOrAlert(formData.get("objectiveId"), "Objective", "/company-okrs");
   const alertPath = `/objectives/${objectiveId}`;
-  const level = requiredString(formData.get("level"), "Level") as ObjectiveLevel;
-  const status = requiredString(formData.get("status"), "Status") as WorkStatus;
+  const level = requiredStringOrAlert(formData.get("level"), "Level", alertPath) as ObjectiveLevel;
+  const status = requiredStringOrAlert(formData.get("status"), "Status", alertPath) as WorkStatus;
   const progressMode = (optionalString(formData.get("progressMode")) ?? "MANUAL") as ObjectiveProgressMode;
   const parentObjectiveId = optionalString(formData.get("parentObjectiveId"));
 
@@ -179,26 +179,28 @@ export async function updateObjectiveAction(formData: FormData) {
   const objective = await prisma.objective.update({
     where: { id: objectiveId },
     data: {
-      title: requiredString(formData.get("title"), "Title"),
+      title: requiredStringOrAlert(formData.get("title"), "Title", alertPath),
       description: optionalString(formData.get("description")),
       level,
       status,
-      quarter: requiredString(formData.get("quarter"), "Quarter"),
+      quarter: requiredStringOrAlert(formData.get("quarter"), "Quarter", alertPath),
       progressMode,
       progressPercent: progressMode === "AUTO" ? undefined : clamp(numberValue(formData.get("progressPercent"), 0), 0, 100),
       confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
-      ownerId: requiredString(formData.get("ownerId"), "Owner"),
+      ownerId: requiredStringOrAlert(formData.get("ownerId"), "Owner", alertPath),
       departmentId: optionalString(formData.get("departmentId")),
       teamId: optionalString(formData.get("teamId")),
       parentObjectiveId,
     },
   });
 
-  if (progressMode === "AUTO") {
-    await prisma.$transaction(async (tx) => {
-      await recalculateObjectiveProgressFromKrs(tx, objectiveId);
-    });
-  }
+  await prisma.$transaction(async (tx) => {
+    if (progressMode === "AUTO") {
+      await recalculateObjectiveProgress(tx, objectiveId);
+    }
+
+    await recalculateParentObjectiveProgress(tx, objectiveId);
+  });
 
   await prisma.auditLog.create({
     data: {
@@ -217,15 +219,15 @@ export async function updateObjectiveAction(formData: FormData) {
 
 export async function createKeyResultAction(formData: FormData) {
   const user = await requireUser();
-  const objectiveId = requiredString(formData.get("objectiveId"), "Objective");
+  const objectiveId = requiredStringOrAlert(formData.get("objectiveId"), "Objective", "/company-okrs");
   const alertPath = `/objectives/${objectiveId}`;
   const startValue = numberValue(formData.get("startValue"), 0);
   const currentValue = numberValue(formData.get("currentValue"), startValue);
   const targetValue = numberValue(formData.get("targetValue"), 100);
   const progressPercent = calculateProgressPercent(startValue, currentValue, targetValue);
   const confidenceScore = clamp(intValue(formData.get("confidenceScore"), 3), 1, 5);
-  const status = requiredString(formData.get("status"), "Status") as WorkStatus;
-  const ownerId = requiredString(formData.get("ownerId"), "Owner");
+  const status = requiredStringOrAlert(formData.get("status"), "Status", alertPath) as WorkStatus;
+  const ownerId = requiredStringOrAlert(formData.get("ownerId"), "Owner", alertPath);
   const weightPercent = clamp(numberValue(formData.get("weightPercent"), 0), 0, 100);
 
   if (!workStatuses.includes(status)) {
@@ -271,7 +273,7 @@ export async function createKeyResultAction(formData: FormData) {
       data: {
         objectiveId,
         ownerId,
-        title: requiredString(formData.get("title"), "Title"),
+        title: requiredStringOrAlert(formData.get("title"), "Title", alertPath),
         metricName: optionalString(formData.get("metricName")),
         startValue,
         currentValue,
@@ -301,7 +303,7 @@ export async function createKeyResultAction(formData: FormData) {
       },
     });
 
-    await recalculateObjectiveProgressFromKrs(tx, objectiveId);
+    await recalculateObjectiveAndParents(tx, objectiveId);
 
     return createdKeyResult;
   });
@@ -340,13 +342,13 @@ export async function createKeyResultAction(formData: FormData) {
   revalidatePath("/my-okrs");
   revalidatePath("/notifications");
   revalidatePath("/dashboard");
-  redirect(`/key-results/${keyResult.id}`);
+  redirect(`/objectives/${objectiveId}`);
 }
 
 export async function updateKeyResultAction(formData: FormData) {
   const user = await requireUser();
-  const keyResultId = requiredString(formData.get("keyResultId"), "Key Result");
-  const objectiveId = requiredString(formData.get("objectiveId"), "Objective");
+  const keyResultId = requiredStringOrAlert(formData.get("keyResultId"), "Key Result", "/company-okrs");
+  const objectiveId = requiredStringOrAlert(formData.get("objectiveId"), "Objective", `/key-results/${keyResultId}`);
   const alertPath = `/key-results/${keyResultId}`;
   const startValue = numberValue(formData.get("startValue"), 0);
   const currentValue = numberValue(formData.get("currentValue"), startValue);
@@ -354,8 +356,8 @@ export async function updateKeyResultAction(formData: FormData) {
   const progressPercent = calculateProgressPercent(startValue, currentValue, targetValue);
   const currentMonthIndex = getCurrentQuarterMonthIndex();
   const currentMonthTargetPercent = numberValue(formData.get(`targetPercent${currentMonthIndex}`), Number.NaN);
-  const status = requiredString(formData.get("status"), "Status") as WorkStatus;
-  const ownerId = requiredString(formData.get("ownerId"), "Owner");
+  const status = requiredStringOrAlert(formData.get("status"), "Status", alertPath) as WorkStatus;
+  const ownerId = requiredStringOrAlert(formData.get("ownerId"), "Owner", alertPath);
   const weightPercent = clamp(numberValue(formData.get("weightPercent"), 100), 0, 100);
 
   if (!workStatuses.includes(status)) {
@@ -411,7 +413,7 @@ export async function updateKeyResultAction(formData: FormData) {
     const result = await tx.keyResult.update({
       where: { id: keyResultId },
       data: {
-        title: requiredString(formData.get("title"), "Title"),
+        title: requiredStringOrAlert(formData.get("title"), "Title", alertPath),
         metricName: optionalString(formData.get("metricName")),
         ownerId,
         startValue,
@@ -470,7 +472,7 @@ export async function updateKeyResultAction(formData: FormData) {
       },
     });
 
-    await recalculateObjectiveProgressFromKrs(tx, objectiveId);
+    await recalculateObjectiveAndParents(tx, objectiveId);
 
     return result;
   });
@@ -503,7 +505,7 @@ export async function updateKeyResultAction(formData: FormData) {
 
 export async function createObjectiveAssignmentAction(formData: FormData) {
   const user = await requireUser();
-  const parentObjectiveId = requiredString(formData.get("parentObjectiveId"), "Parent objective");
+  const parentObjectiveId = requiredStringOrAlert(formData.get("parentObjectiveId"), "Parent objective", "/company-okrs");
   const alertPath = `/objectives/${parentObjectiveId}`;
   const assignee = parseAssigneeRef(formData.get("assigneeRef"));
   const assignedObjectiveId = optionalString(formData.get("assignedObjectiveId"));
@@ -589,16 +591,123 @@ export async function createObjectiveAssignmentAction(formData: FormData) {
     },
   });
 
+  await prisma.$transaction(async (tx) => {
+    await recalculateObjectiveProgress(tx, parentObjectiveId);
+    await recalculateParentObjectiveProgress(tx, parentObjectiveId);
+  });
+
   revalidatePath(alertPath);
   revalidatePath("/company-okrs");
   revalidatePath("/dashboard");
 }
 
+export async function batchUpdateObjectiveAssignmentsAction(formData: FormData) {
+  const user = await requireUser();
+  const parentObjectiveId = requiredStringOrAlert(formData.get("parentObjectiveId"), "Parent objective", "/company-okrs");
+  const alertPath = `/objectives/${parentObjectiveId}`;
+  const assignmentIds = formData.getAll("assignmentId").map((value) => String(value));
+  const assignedObjectiveIds = formData.getAll("assignedObjectiveId").map((value) => optionalString(value));
+  const contributionPercents = formData.getAll("contributionPercent").map((value) => clamp(numberValue(value, 0), 0, 100));
+
+  if (assignmentIds.length === 0) {
+    actionAlert(alertPath, "There are no assignments to save.");
+  }
+
+  if (assignmentIds.length !== assignedObjectiveIds.length || assignmentIds.length !== contributionPercents.length) {
+    actionAlert(alertPath, "Assignment update fields are incomplete.");
+  }
+
+  if (assignedObjectiveIds.some((assignedObjectiveId) => assignedObjectiveId === parentObjectiveId)) {
+    actionAlert(alertPath, "A parent objective cannot be assigned to itself.");
+  }
+
+  const parentObjective = await prisma.objective.findUnique({
+    where: { id: parentObjectiveId },
+    select: {
+      status: true,
+      approvalStatus: true,
+      parentAssignments: {
+        select: {
+          id: true,
+          assignedObjectiveId: true,
+          contributionPercent: true,
+        },
+      },
+    },
+  });
+
+  if (!parentObjective) {
+    actionAlert("/company-okrs", "Parent objective not found.");
+  }
+
+  const existingIds = new Set(parentObjective.parentAssignments.map((assignment) => assignment.id));
+
+  if (assignmentIds.some((assignmentId) => !existingIds.has(assignmentId))) {
+    actionAlert(alertPath, "One or more assignments no longer exist.");
+  }
+
+  const linkedChildObjectiveIds = assignedObjectiveIds.filter((assignedObjectiveId): assignedObjectiveId is string => Boolean(assignedObjectiveId));
+  const duplicateChildObjective = linkedChildObjectiveIds.some((assignedObjectiveId, index) => linkedChildObjectiveIds.indexOf(assignedObjectiveId) !== index);
+
+  if (duplicateChildObjective) {
+    actionAlert(alertPath, "Each child objective can only be assigned once under the same parent objective.");
+  }
+
+  const contributionValidation = validateObjectiveAssignmentContributions({
+    contributions: contributionPercents.map((percent) => ({ percent })),
+    status: parentObjective.status,
+    approvalStatus: parentObjective.approvalStatus,
+  });
+
+  if (!contributionValidation.isValid) {
+    actionAlert(alertPath, contributionValidation.message ?? "Objective assignment contributions must be valid before saving.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await Promise.all(
+      assignmentIds.map((assignmentId, index) =>
+        tx.objectiveAssignment.update({
+          where: { id: assignmentId },
+          data: {
+            assignedObjectiveId: assignedObjectiveIds[index],
+            contributionPercent: contributionPercents[index],
+          },
+        })
+      )
+    );
+
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "UPDATED",
+        entityType: "ObjectiveAssignmentBatch",
+        entityId: parentObjectiveId,
+        metadata: {
+          parentObjectiveId,
+          assignments: assignmentIds.map((assignmentId, index) => ({
+            assignmentId,
+            assignedObjectiveId: assignedObjectiveIds[index],
+            contributionPercent: contributionPercents[index],
+          })),
+        },
+      },
+    });
+
+    await recalculateObjectiveProgress(tx, parentObjectiveId);
+    await recalculateParentObjectiveProgress(tx, parentObjectiveId);
+  });
+
+  revalidatePath(alertPath);
+  revalidatePath("/company-okrs");
+  revalidatePath("/my-okrs");
+  revalidatePath("/dashboard");
+}
+
 export async function updateObjectiveAssignmentAction(formData: FormData) {
   const user = await requireUser();
-  const assignmentId = requiredString(formData.get("assignmentId"), "Objective assignment");
-  const parentObjectiveId = requiredString(formData.get("parentObjectiveId"), "Parent objective");
+  const parentObjectiveId = requiredStringOrAlert(formData.get("parentObjectiveId"), "Parent objective", "/company-okrs");
   const alertPath = `/objectives/${parentObjectiveId}`;
+  const assignmentId = requiredStringOrAlert(formData.get("assignmentId"), "Objective assignment", alertPath);
   const assignedObjectiveId = optionalString(formData.get("assignedObjectiveId"));
   const contributionPercent = clamp(numberValue(formData.get("contributionPercent"), 0), 0, 100);
 
@@ -667,6 +776,11 @@ export async function updateObjectiveAssignmentAction(formData: FormData) {
     },
   });
 
+  await prisma.$transaction(async (tx) => {
+    await recalculateObjectiveProgress(tx, parentObjectiveId);
+    await recalculateParentObjectiveProgress(tx, parentObjectiveId);
+  });
+
   revalidatePath(alertPath);
   revalidatePath("/company-okrs");
   revalidatePath("/dashboard");
@@ -674,9 +788,9 @@ export async function updateObjectiveAssignmentAction(formData: FormData) {
 
 export async function deleteObjectiveAssignmentAction(formData: FormData) {
   const user = await requireUser();
-  const assignmentId = requiredString(formData.get("assignmentId"), "Objective assignment");
-  const parentObjectiveId = requiredString(formData.get("parentObjectiveId"), "Parent objective");
+  const parentObjectiveId = requiredStringOrAlert(formData.get("parentObjectiveId"), "Parent objective", "/company-okrs");
   const alertPath = `/objectives/${parentObjectiveId}`;
+  const assignmentId = requiredStringOrAlert(formData.get("assignmentId"), "Objective assignment", alertPath);
 
   const parentObjective = await prisma.objective.findUnique({
     where: { id: parentObjectiveId },
@@ -721,6 +835,11 @@ export async function deleteObjectiveAssignmentAction(formData: FormData) {
         parentObjectiveId,
       },
     },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await recalculateObjectiveProgress(tx, parentObjectiveId);
+    await recalculateParentObjectiveProgress(tx, parentObjectiveId);
   });
 
   revalidatePath(alertPath);

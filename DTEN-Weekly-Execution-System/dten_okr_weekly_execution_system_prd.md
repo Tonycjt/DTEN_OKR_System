@@ -1957,6 +1957,87 @@ When the CEO creates a company objective and assigns it to multiple owners:
 5. Child objective progress rolls up to the CEO objective based on contribution_percent.
 ```
 
+### Clarification: KR Weights vs Objective Assignment Weights
+
+The system supports two different weighting concepts. They should not be treated as duplicates.
+
+#### KR Weight
+
+KR weight is used when an objective calculates progress from its direct key results.
+
+Example:
+
+Objective: Complete D7X Certification
+
+- KR 1: Complete Teams certification — 50%
+- KR 2: Complete Zoom certification — 30%
+- KR 3: Resolve GA stability issues — 20%
+
+Objective progress = weighted average of direct KR progress.
+
+Use KR weights when the objective is executed directly through measurable KRs assigned to people.
+
+#### Objective Assignment Weight
+
+Objective assignment weight is used when a parent objective is cascaded to multiple child objectives, departments, teams, or leaders.
+
+Example:
+
+Company Objective: Improve enterprise readiness
+
+- Engineering Child Objective — 50%
+- Product Child Objective — 25%
+- Customer Success Child Objective — 15%
+- Sales Enablement Child Objective — 10%
+
+Parent objective progress = weighted average of child objective progress.
+
+Use objective assignment weights when the parent objective is too broad to be executed directly through one set of KRs and must be decomposed into multiple child objectives.
+
+#### Rule
+
+An objective should calculate progress from one primary source:
+
+- DIRECT_KRS
+- CHILD_OBJECTIVES
+- MANUAL
+
+The system should avoid calculating one objective from both direct KRs and child objectives at the same time unless a future advanced mixed-mode roll-up is explicitly supported.
+
+#### Recommended Field
+
+Add the following field to objectives:
+
+objectives.progress_source
+
+Allowed values:
+
+- DIRECT_KRS
+- CHILD_OBJECTIVES
+- MANUAL
+
+#### Progress Calculation Rules
+
+If progress_source = DIRECT_KRS:
+
+Objective progress = weighted average of direct KRs.
+
+If progress_source = CHILD_OBJECTIVES:
+
+Objective progress = weighted average of assigned child objectives using objective assignment contribution percentages.
+
+If progress_source = MANUAL:
+
+Objective progress is manually updated by the objective owner.
+
+#### Product Guidance
+
+If the CEO wants to assign measurable work directly to people, use KRs.
+
+If the CEO wants to assign strategic responsibility to departments, teams, or leaders, use child objectives with objective assignment weights.
+
+KR weights and objective assignment weights should operate at different levels of the OKR hierarchy.
+
 ### Validation Rules
 
 ```text

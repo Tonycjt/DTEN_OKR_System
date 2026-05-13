@@ -2,11 +2,11 @@ import Link from "next/link";
 import type { ObjectiveLevel, ObjectiveProgressMode, WorkStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
 import {
+  batchUpdateObjectiveAssignmentsAction,
   createKeyResultAction,
   createObjectiveAssignmentAction,
   deleteObjectiveAssignmentAction,
   updateObjectiveAction,
-  updateObjectiveAssignmentAction,
 } from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -456,6 +456,10 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
             <div className="notice">Objective assignment contributions are balanced at 100%.</div>
           )}
 
+          <form action={batchUpdateObjectiveAssignmentsAction} id="assignment-batch-form">
+            <input name="parentObjectiveId" type="hidden" value={objective.id} />
+          </form>
+
           <form action={createObjectiveAssignmentAction} className="form-grid">
             <input name="parentObjectiveId" type="hidden" value={objective.id} />
             <label className="field">
@@ -505,6 +509,14 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
             </div>
           </form>
 
+          {objective.parentAssignments.length > 0 ? (
+            <div className="table-actions">
+              <Button form="assignment-batch-form" type="submit">
+                Save All Contributions
+              </Button>
+            </div>
+          ) : null}
+
           <div className="table-wrap">
             <table>
               <thead>
@@ -541,29 +553,27 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                       <td>{Math.round(weightedImpact)} pts</td>
                       <td>
                         <div className="stack">
-                          <form action={updateObjectiveAssignmentAction} className="table-actions">
-                            <input name="assignmentId" type="hidden" value={assignment.id} />
-                            <input name="parentObjectiveId" type="hidden" value={objective.id} />
-                            <select className="inline-select" defaultValue={assignment.assignedObjectiveId ?? ""} name="assignedObjectiveId">
-                              <option value="">No linked child objective</option>
-                              {parentObjectives.map((parentObjective) => (
-                                <option key={parentObjective.id} value={parentObjective.id}>
-                                  {parentObjective.title}
-                                </option>
-                              ))}
-                            </select>
+                          <input form="assignment-batch-form" name="assignmentId" type="hidden" value={assignment.id} />
+                          <select className="inline-select" defaultValue={assignment.assignedObjectiveId ?? ""} form="assignment-batch-form" name="assignedObjectiveId">
+                            <option value="">No linked child objective</option>
+                            {parentObjectives.map((parentObjective) => (
+                              <option key={parentObjective.id} value={parentObjective.id}>
+                                {parentObjective.title}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="table-actions">
                             <input
                               className="inline-number"
                               defaultValue={assignment.contributionPercent}
+                              form="assignment-batch-form"
                               max="100"
                               min="0"
                               name="contributionPercent"
                               type="number"
                             />
-                            <Button tone="secondary" type="submit">
-                              Save
-                            </Button>
-                          </form>
+                            <span className="muted">Save with all rows</span>
+                          </div>
                           <form action={deleteObjectiveAssignmentAction}>
                             <input name="assignmentId" type="hidden" value={assignment.id} />
                             <input name="parentObjectiveId" type="hidden" value={objective.id} />

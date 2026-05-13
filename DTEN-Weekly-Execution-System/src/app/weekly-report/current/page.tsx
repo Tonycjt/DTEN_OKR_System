@@ -31,6 +31,7 @@ const workStatuses: WorkStatus[] = ["ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLET
 
 const errorMessages: Record<string, string> = {
   "kr-required": "KR-linked priorities must select a linked KR before saving or submitting.",
+  "kr-not-assigned": "That KR is not assigned to you, so it cannot be linked to your weekly report.",
   "no-priorities": "Add at least one weekly priority before submitting.",
   submitted: "This report has already been submitted and cannot accept new priorities.",
 };
@@ -41,13 +42,21 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
   const params = searchParams ? await searchParams : {};
   const error = params.error ? errorMessages[params.error] : null;
 
+  const existingLinkedKrIds = Array.from(
+    new Set(report.priorities.map((priority) => priority.linkedKeyResultId).filter((linkedKeyResultId): linkedKeyResultId is string => Boolean(linkedKeyResultId)))
+  );
+
   const keyResults = await prisma.keyResult.findMany({
+    where: {
+      OR: [{ ownerId: user.id }, { id: { in: existingLinkedKrIds } }],
+    },
     orderBy: [{ objective: { title: "asc" } }, { title: "asc" }],
     include: {
       objective: true,
       owner: true,
     },
   });
+  const assignedKeyResults = keyResults.filter((keyResult) => keyResult.ownerId === user.id);
 
   const isSubmitted = report.status === "SUBMITTED" || report.status === "REVIEWED";
 
@@ -90,7 +99,7 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
         <Card>
           <CardHeader>
             <h2>Add Priority</h2>
-            <p>Use KR-linked for OKR work and ad-hoc for work that should not affect OKR progress.</p>
+            <p>KR-linked priorities show KRs assigned to you. Use ad-hoc for work that should not affect OKR progress.</p>
           </CardHeader>
           <CardContent>
             <form action={addWeeklyPriorityAction} className="form-grid">
@@ -113,12 +122,13 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
                 <span>Linked KR</span>
                 <select disabled={isSubmitted} name="linkedKeyResultId">
                   <option value="">None</option>
-                  {keyResults.map((keyResult) => (
+                  {assignedKeyResults.map((keyResult) => (
                     <option key={keyResult.id} value={keyResult.id}>
                       {keyResult.objective.title} / {keyResult.title}
                     </option>
                   ))}
                 </select>
+                {assignedKeyResults.length === 0 ? <small>No assigned KRs are available for your weekly report.</small> : null}
               </label>
               <label className="field wide">
                 <span>Result Summary</span>
@@ -151,6 +161,10 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
           <div className="stack">
             {report.priorities.map((priority) => {
               const latestCheckIn = priority.checkIns[0];
+              const prioritySelectableKeyResults =
+                priority.linkedKeyResult && !assignedKeyResults.some((keyResult) => keyResult.id === priority.linkedKeyResultId)
+                  ? [...assignedKeyResults, priority.linkedKeyResult]
+                  : assignedKeyResults;
 
               return (
               <div className="card" key={priority.id}>
@@ -186,7 +200,7 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
                         <span>Linked KR</span>
                         <select defaultValue={priority.linkedKeyResultId ?? ""} disabled={isSubmitted} name="linkedKeyResultId">
                           <option value="">None</option>
-                          {keyResults.map((keyResult) => (
+                          {prioritySelectableKeyResults.map((keyResult) => (
                             <option key={keyResult.id} value={keyResult.id}>
                               {keyResult.objective.title} / {keyResult.title}
                             </option>

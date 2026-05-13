@@ -8,7 +8,7 @@ import { getEffectiveReviewOwnerId } from "@/lib/review-routing";
 import { getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { sendKrBlockedEmail, sendReviewRequestedEmail } from "@/server/email-notifications";
-import { recalculateObjectiveProgressFromKrs } from "@/server/objective-rollup";
+import { recalculateObjectiveAndParents } from "@/server/objective-rollup";
 import { prisma } from "@/server/prisma";
 
 const priorityTypes: PriorityType[] = ["KR_LINKED", "AD_HOC"];
@@ -47,6 +47,20 @@ function intValue(value: FormDataEntryValue | null, fallback: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+async function isAssignedKeyResultForUser(keyResultId: string, userId: string) {
+  const keyResult = await prisma.keyResult.findFirst({
+    where: {
+      id: keyResultId,
+      ownerId: userId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return Boolean(keyResult);
 }
 
 export async function ensureCurrentWeeklyReport(userId: string) {
@@ -127,6 +141,10 @@ export async function addWeeklyPriorityAction(formData: FormData) {
     redirect("/weekly-report/current?error=kr-required");
   }
 
+  if (linkedKeyResultId && !(await isAssignedKeyResultForUser(linkedKeyResultId, user.id))) {
+    redirect("/weekly-report/current?error=kr-not-assigned");
+  }
+
   const report = await prisma.weeklyReport.findFirst({
     where: {
       id: weeklyReportId,
@@ -177,8 +195,28 @@ export async function updateWeeklyPriorityAction(formData: FormData) {
     throw new Error("Invalid priority status.");
   }
 
+  const existingPriority = await prisma.weeklyPriority.findFirst({
+    where: {
+      id: priorityId,
+      weeklyReport: {
+        userId: user.id,
+      },
+    },
+    select: {
+      linkedKeyResultId: true,
+    },
+  });
+
+  if (!existingPriority) {
+    redirect("/weekly-report/current?error=submitted");
+  }
+
   if (type === "KR_LINKED" && !linkedKeyResultId) {
     redirect("/weekly-report/current?error=kr-required");
+  }
+
+  if (linkedKeyResultId && linkedKeyResultId !== existingPriority.linkedKeyResultId && !(await isAssignedKeyResultForUser(linkedKeyResultId, user.id))) {
+    redirect("/weekly-report/current?error=kr-not-assigned");
   }
 
   await prisma.weeklyPriority.update({
@@ -424,7 +462,7 @@ export async function savePriorityCheckInAction(formData: FormData) {
       },
     });
 
-    await recalculateObjectiveProgressFromKrs(tx, linkedKeyResult.objectiveId);
+    await recalculateObjectiveAndParents(tx, linkedKeyResult.objectiveId);
 
     if (becameBlocked) {
       await tx.notification.create({
