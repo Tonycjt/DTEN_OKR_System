@@ -166,6 +166,7 @@ model User {
   ownedObjectives Objective[]    @relation("ObjectiveOwner")
   ownedKeyResults  KeyResult[]   @relation("KeyResultOwner")
   weeklyReports    WeeklyReport[]
+  weeklyPriorities WeeklyPriority[] @relation("UserWeeklyPriorities")
   checkIns         CheckIn[]
   managerReviews   ManagerReview[] @relation("ReviewManager")
   notifications    Notification[]
@@ -362,26 +363,33 @@ model WeeklyReport {
 }
 
 model WeeklyPriority {
-  id             String         @id @default(cuid())
-  weeklyReportId String
-  type           PriorityType
-  content        String
-  status         PriorityStatus @default(NOT_STARTED)
-  resultSummary  String?
-  blocker        String?
-  nextStep       String?
+  id              String         @id @default(cuid())
+  userId          String
+  weekStartDate   DateTime
+  weeklyReportId  String?
+  type            PriorityType
+  content         String
+  status          PriorityStatus @default(NOT_STARTED)
+  resultSummary   String?
+  blocker         String?
+  nextStep        String?
+  linkedKeyResultId  String?
+  carriedOverFromId  String?
 
-  linkedKeyResultId String?
-
-  weeklyReport    WeeklyReport @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
-  linkedKeyResult KeyResult?   @relation(fields: [linkedKeyResultId], references: [id], onDelete: SetNull)
+  user            User           @relation("UserWeeklyPriorities", fields: [userId], references: [id], onDelete: Cascade)
+  weeklyReport    WeeklyReport?  @relation(fields: [weeklyReportId], references: [id], onDelete: SetNull)
+  linkedKeyResult KeyResult?     @relation(fields: [linkedKeyResultId], references: [id], onDelete: SetNull)
   checkIns        CheckIn[]
+  carriedOverFrom WeeklyPriority?  @relation("PriorityCarryOver", fields: [carriedOverFromId], references: [id], onDelete: SetNull)
+  carriedOverTo   WeeklyPriority[] @relation("PriorityCarryOver")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId, weekStartDate])
   @@index([weeklyReportId])
   @@index([linkedKeyResultId])
+  @@index([carriedOverFromId])
 }
 
 model CheckIn {

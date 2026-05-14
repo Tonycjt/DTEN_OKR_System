@@ -58,9 +58,8 @@ Local commands:
   Lint      : npm run lint
   Build     : npm run build
 
-Next planned work: Day 26 — Objective Health Calculation (see "Release 3 Remaining Work" below).
-The QA regression run for the four bug fixes may still be pending from Tony's side — check with
-Tony before starting Day 26 in case further QA issues surface.
+Next planned work: Day 27 — Objective Health Calculation (now R3.4 per updated PRD).
+R3.3 complete and DB reseeded. Ready to proceed.
 ```
 
 ---
@@ -90,6 +89,40 @@ Tony before starting Day 26 in case further QA issues surface.
 - R2.5: Excel/CSV org import (`/admin/org-import`) with validation, apply, and org tree view.
 - Role-based sidebar navigation; admin items hidden from non-admin/CEO roles.
 - Release 2 acceptance checklist at `docs/release-2-acceptance-checklist.md`.
+
+### R3.3 — Weekly Planning vs Weekly Reporting (2026-05-14)
+
+**Schema changes:**
+- `WeeklyPriority` gains `userId`, `weekStartDate`, `carriedOverFromId` (self-referential).
+- `weeklyReportId` made nullable (`SetNull` on report delete); was `Cascade`.
+- New indexes: `(userId, weekStartDate)`, `carriedOverFromId`.
+- Migration: `20260514000000_r3_3_weekly_planning` (includes SQL backfill from WeeklyReport).
+
+**New `/weekly-plan` page:**
+- Standalone priority planning UI (before the report exists).
+- Shows last week's incomplete priorities with "Carry Over to This Week" button.
+- Add/edit/delete priorities; linked KR picker scoped to owner's assigned KRs.
+- Actions: `createPlanPriorityAction`, `updatePlanPriorityAction`, `deletePlanPriorityAction`, `carryOverPriorityAction`.
+- Carry-over deduplication: checks for existing `carriedOverFromId` match for same week.
+
+**Modified `/weekly-report/current` page (three clear sections):**
+- **Plan** — read-only summary of planned priorities; link to `/weekly-plan` to edit.
+- **Report** — status, result summary, blocker, next step per priority (actual vs planned).
+- **KR Check-ins** — explicit KR value/confidence/status updates (only KR-linked priorities).
+- Summary + Submit unchanged (bottom of page).
+
+**Auto-linking in `ensureCurrentWeeklyReport`:**
+- After upsert, runs `updateMany({ weeklyReportId: null, userId, weekStartDate })` to link any
+  standalone planned priorities to the report when user first opens the report page.
+
+**New action `saveReportPriorityAction`:**
+- Updates the reporting fields (status, resultSummary, blocker, nextStep, linkedKeyResultId).
+- Replaces the old `updateWeeklyPriorityAction` on the report page.
+
+**Standing rules preserved:**
+- Alert-not-crash, concurrency safety, KR picker scoped to owner, no direct progress update without check-in.
+
+**Routes:** Added "Weekly Plan" (`/weekly-plan`, CalendarDays icon) before "Weekly Report" in sidebar.
 
 ### Release 3 Days 22–25 + Clarifications + R3.2
 
@@ -202,18 +235,17 @@ Verification baseline when schema changes:
 & 'C:\Program Files\nodejs\npm.cmd' run prisma:seed
 ```
 
-Latest verified state (2026-05-13, testing branch):
+Latest verified state (2026-05-14, testing branch):
 
 ```text
-Migrations       : 9 applied, schema up to date
+Migrations       : 10 applied, schema up to date
 Vitest           : 4 files, 17 tests — all passing
-Lint             : clean (qa-simulation/** excluded)
-Build            : production build passes
-currentWeekReports: 0 (DB NOT reset this session — Tony is live testing)
+Lint             : clean
+Build            : production build passes (25 routes including /weekly-plan)
+currentWeekReports: 0 (DB reseeded)
 Objectives       : 4 (3 DIRECT_KRS, 1 CHILD_OBJECTIVES)
 ObjectiveAssignments: 2 (both PREDEFINED_CHILD_OBJECTIVE / ACTIVE)
-QA regression    : all 4 bugs fixed and verified clean by lint + build
-                   (full regression re-run by Tony's test suite still pending)
+WeeklyPriority   : userId + weekStartDate + carriedOverFromId added; weeklyReportId nullable
 Active branch    : testing
 ```
 
@@ -239,7 +271,7 @@ Active branch    : testing
 
 ## Release 3 Remaining Work
 
-Next target: **Day 26 — Objective Health Calculation**
+Next target: **Day 27 — Objective Health Calculation (R3.4)**
 
 ```text
 Build objective health calculation:

@@ -359,6 +359,8 @@ async function main() {
 
   const earlyPriority = await prisma.weeklyPriority.create({
     data: {
+      userId: engineer.id,
+      weekStartDate: earlyWeekStart,
       weeklyReportId: earlyReport.id,
       type: "KR_LINKED",
       content: "Establish D7X AI production readiness baseline.",
@@ -401,6 +403,8 @@ async function main() {
 
   const middlePriority = await prisma.weeklyPriority.create({
     data: {
+      userId: engineer.id,
+      weekStartDate: middleWeekStart,
       weeklyReportId: middleReport.id,
       type: "KR_LINKED",
       content: "Complete first pass of partner validation readiness items.",
@@ -443,6 +447,8 @@ async function main() {
 
   const priority = await prisma.weeklyPriority.create({
     data: {
+      userId: engineer.id,
+      weekStartDate: weekStart,
       weeklyReportId: weeklyReport.id,
       type: "KR_LINKED",
       content: "Close remaining production readiness gaps for D7X AI 55 inch.",

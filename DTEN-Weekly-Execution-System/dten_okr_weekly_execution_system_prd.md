@@ -2153,7 +2153,55 @@ REJECTED
 - Parent objective progress rolls up from approved child objectives only.
 - Pending or rejected child objectives should not affect parent progress.
 
-### R3.3 Objective Health Calculation
+## R3.3 Weekly Planning vs Weekly Reporting Workflow
+
+### Goal
+
+Improve the weekly execution workflow by separating weekly planning from weekly reporting.
+
+Weekly priorities should represent the employee’s planned focus for the week, while the weekly report should reflect what actually happened against those planned priorities.
+
+This prevents the weekly report from feeling like users are creating “priorities” after the week is already finished.
+
+### Problem
+
+The current weekly report workflow allows users to create priorities inside the weekly report.
+
+This creates confusion because priorities are usually understood as planned work or to-dos for the week, while a weekly report should summarize actual execution, completion, blockers, and KR progress.
+
+The system should distinguish between:
+
+```text
+Weekly Plan:
+What I intend to do this week.
+
+Weekly Report:
+What I actually completed this week.
+
+KR Check-in:
+How this week’s work changed measurable KR progress.
+
+#### Acceptance Criteria
+
+- Employee can create weekly priorities at the start of the week.
+- Weekly priorities can link to KRs or be marked as ad-hoc.
+- Weekly report loads existing planned priorities.
+- Employee can report actual results against planned priorities.
+- Employee can update final status, blocker, and next step.
+- KR progress is updated through explicit KR check-ins.
+- Completing a priority does not automatically update KR progress without a check-in.
+- Manager can compare planned priorities with actual results.
+- Incomplete priorities can be carried over to the next week.
+- Carried-over priorities preserve reference to the original priority.
+- Weekly execution UI clearly separates Plan, Report, and KR Check-ins.
+
+### Non-Goals
+
+- This feature should not turn the system into a full Jira-style task manager.
+- Weekly priorities should remain lightweight.
+- The system should focus on OKR execution alignment, not detailed task dependency management.
+
+### R3.4 Objective Health Calculation
 
 Objective status can be calculated from child KR statuses:
 
@@ -2168,7 +2216,7 @@ If all KRs completed:
     objective_status = COMPLETED
 ```
 
-### R3.4 SSO
+### R3.5 SSO
 
 Add company SSO using DTEN's preferred identity provider.
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { PriorityStatus, PriorityType, WorkStatus } from "@prisma/client";
+import type { PriorityStatus, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
 import { getEffectiveReviewOwnerId } from "@/lib/review-routing";
 import { getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
@@ -11,7 +11,6 @@ import { sendKrBlockedEmail, sendReviewRequestedEmail } from "@/server/email-not
 import { recalculateObjectiveAndParents } from "@/server/objective-rollup";
 import { prisma } from "@/server/prisma";
 
-const priorityTypes: PriorityType[] = ["KR_LINKED", "AD_HOC"];
 const priorityStatuses: PriorityStatus[] = ["NOT_STARTED", "IN_PROGRESS", "BLOCKED", "DONE"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
@@ -22,21 +21,13 @@ function optionalString(value: FormDataEntryValue | null) {
 
 function requiredString(value: FormDataEntryValue | null, fieldName: string) {
   const text = optionalString(value);
-
-  if (!text) {
-    throw new Error(`${fieldName} is required.`);
-  }
-
+  if (!text) throw new Error(`${fieldName} is required.`);
   return text;
 }
 
 function numberValue(value: FormDataEntryValue | null, fallback: number) {
   const text = optionalString(value);
-
-  if (!text) {
-    return fallback;
-  }
-
+  if (!text) return fallback;
   const parsed = Number(text);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
@@ -49,38 +40,27 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-async function isAssignedKeyResultForUser(keyResultId: string, userId: string) {
-  const keyResult = await prisma.keyResult.findFirst({
-    where: {
-      id: keyResultId,
-      ownerId: userId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  return Boolean(keyResult);
-}
-
+// Ensures the weekly report for the current week exists, then auto-links any
+// standalone planned priorities (weeklyReportId = null) for this user/week.
 export async function ensureCurrentWeeklyReport(userId: string) {
   const weekStart = getMondayWeekStart();
   const weekEnd = getSundayWeekEnd(weekStart);
 
-  return prisma.weeklyReport.upsert({
-    where: {
-      userId_weekStart: {
-        userId,
-        weekStart,
-      },
-    },
-    create: {
-      userId,
-      weekStart,
-      weekEnd,
-      status: "DRAFT",
-    },
+  const report = await prisma.weeklyReport.upsert({
+    where: { userId_weekStart: { userId, weekStart } },
+    create: { userId, weekStart, weekEnd, status: "DRAFT" },
     update: {},
+    select: { id: true },
+  });
+
+  // Auto-link planned priorities that were created before the report existed.
+  await prisma.weeklyPriority.updateMany({
+    where: { userId, weekStartDate: weekStart, weeklyReportId: null },
+    data: { weeklyReportId: report.id },
+  });
+
+  return prisma.weeklyReport.findUniqueOrThrow({
+    where: { id: report.id },
     include: {
       priorities: {
         orderBy: { createdAt: "asc" },
@@ -88,21 +68,11 @@ export async function ensureCurrentWeeklyReport(userId: string) {
           linkedKeyResult: {
             include: {
               objective: true,
-              monthlyTargets: {
-                orderBy: { monthIndex: "asc" },
-              },
-              checkIns: {
-                where: { userId },
-                orderBy: { createdAt: "desc" },
-                take: 1,
-              },
+              monthlyTargets: { orderBy: { monthIndex: "asc" } },
+              checkIns: { where: { userId }, orderBy: { createdAt: "desc" }, take: 1 },
             },
           },
-          checkIns: {
-            where: { userId },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-          },
+          checkIns: { where: { userId }, orderBy: { createdAt: "desc" }, take: 1 },
         },
       },
     },
@@ -114,126 +84,46 @@ export async function updateWeeklyReportSummaryAction(formData: FormData) {
   const weeklyReportId = requiredString(formData.get("weeklyReportId"), "Weekly report");
 
   await prisma.weeklyReport.update({
-    where: {
-      id: weeklyReportId,
-      userId: user.id,
-    },
-    data: {
-      summary: optionalString(formData.get("summary")),
-      status: "DRAFT",
-    },
+    where: { id: weeklyReportId, userId: user.id },
+    data: { summary: optionalString(formData.get("summary")), status: "DRAFT" },
   });
 
   revalidatePath("/weekly-report/current");
 }
 
-export async function addWeeklyPriorityAction(formData: FormData) {
-  const user = await requireUser();
-  const weeklyReportId = requiredString(formData.get("weeklyReportId"), "Weekly report");
-  const type = requiredString(formData.get("type"), "Priority type") as PriorityType;
-  const linkedKeyResultId = optionalString(formData.get("linkedKeyResultId"));
-
-  if (!priorityTypes.includes(type)) {
-    throw new Error("Invalid priority type.");
-  }
-
-  if (type === "KR_LINKED" && !linkedKeyResultId) {
-    redirect("/weekly-report/current?error=kr-required");
-  }
-
-  if (linkedKeyResultId && !(await isAssignedKeyResultForUser(linkedKeyResultId, user.id))) {
-    redirect("/weekly-report/current?error=kr-not-assigned");
-  }
-
-  const report = await prisma.weeklyReport.findFirst({
-    where: {
-      id: weeklyReportId,
-      userId: user.id,
-    },
-    select: {
-      id: true,
-      status: true,
-    },
-  });
-
-  if (!report) {
-    throw new Error("Weekly report not found.");
-  }
-
-  if (report.status !== "DRAFT" && report.status !== "NEEDS_FOLLOW_UP") {
-    redirect("/weekly-report/current?error=submitted");
-  }
-
-  await prisma.weeklyPriority.create({
-    data: {
-      weeklyReportId,
-      type,
-      content: requiredString(formData.get("content"), "Priority"),
-      status: "NOT_STARTED",
-      resultSummary: optionalString(formData.get("resultSummary")),
-      blocker: optionalString(formData.get("blocker")),
-      nextStep: optionalString(formData.get("nextStep")),
-      linkedKeyResultId: type === "KR_LINKED" ? linkedKeyResultId : null,
-    },
-  });
-
-  revalidatePath("/weekly-report/current");
-}
-
-export async function updateWeeklyPriorityAction(formData: FormData) {
+// saveReportPriorityAction — updates the reporting fields (status, result,
+// blocker, nextStep, linkedKeyResultId) on an existing planned priority.
+export async function saveReportPriorityAction(formData: FormData) {
   const user = await requireUser();
   const priorityId = requiredString(formData.get("priorityId"), "Priority");
-  const type = requiredString(formData.get("type"), "Priority type") as PriorityType;
   const status = requiredString(formData.get("status"), "Priority status") as PriorityStatus;
   const linkedKeyResultId = optionalString(formData.get("linkedKeyResultId"));
 
-  if (!priorityTypes.includes(type)) {
-    throw new Error("Invalid priority type.");
-  }
+  if (!priorityStatuses.includes(status)) redirect("/weekly-report/current?error=submitted");
 
-  if (!priorityStatuses.includes(status)) {
-    throw new Error("Invalid priority status.");
-  }
-
-  const existingPriority = await prisma.weeklyPriority.findFirst({
-    where: {
-      id: priorityId,
-      weeklyReport: {
-        userId: user.id,
-      },
-    },
-    select: {
-      linkedKeyResultId: true,
-    },
+  const existing = await prisma.weeklyPriority.findFirst({
+    where: { id: priorityId, userId: user.id },
+    include: { weeklyReport: { select: { status: true } } },
   });
 
-  if (!existingPriority) {
+  if (!existing) redirect("/weekly-report/current?error=submitted");
+  if (existing.weeklyReport && existing.weeklyReport.status !== "DRAFT" && existing.weeklyReport.status !== "NEEDS_FOLLOW_UP") {
     redirect("/weekly-report/current?error=submitted");
   }
 
-  if (type === "KR_LINKED" && !linkedKeyResultId) {
-    redirect("/weekly-report/current?error=kr-required");
-  }
-
-  if (linkedKeyResultId && linkedKeyResultId !== existingPriority.linkedKeyResultId && !(await isAssignedKeyResultForUser(linkedKeyResultId, user.id))) {
-    redirect("/weekly-report/current?error=kr-not-assigned");
+  if (linkedKeyResultId && linkedKeyResultId !== existing.linkedKeyResultId) {
+    const owned = await prisma.keyResult.findFirst({ where: { id: linkedKeyResultId, ownerId: user.id }, select: { id: true } });
+    if (!owned) redirect("/weekly-report/current?error=kr-not-assigned");
   }
 
   await prisma.weeklyPriority.update({
-    where: {
-      id: priorityId,
-      weeklyReport: {
-        userId: user.id,
-      },
-    },
+    where: { id: priorityId },
     data: {
-      type,
-      content: requiredString(formData.get("content"), "Priority"),
       status,
       resultSummary: optionalString(formData.get("resultSummary")),
       blocker: optionalString(formData.get("blocker")),
       nextStep: optionalString(formData.get("nextStep")),
-      linkedKeyResultId: type === "KR_LINKED" ? linkedKeyResultId : null,
+      linkedKeyResultId: existing.type === "KR_LINKED" ? linkedKeyResultId : null,
     },
   });
 
@@ -241,17 +131,14 @@ export async function updateWeeklyPriorityAction(formData: FormData) {
   revalidatePath("/weekly-report/history");
 }
 
+// deleteWeeklyPriorityAction kept for backwards compat (no longer shown in
+// the report page; carried-over/plan deletions go through /weekly-plan/actions).
 export async function deleteWeeklyPriorityAction(formData: FormData) {
   const user = await requireUser();
   const priorityId = requiredString(formData.get("priorityId"), "Priority");
 
   await prisma.weeklyPriority.delete({
-    where: {
-      id: priorityId,
-      weeklyReport: {
-        userId: user.id,
-      },
-    },
+    where: { id: priorityId, userId: user.id },
   });
 
   revalidatePath("/weekly-report/current");
@@ -262,47 +149,21 @@ export async function submitWeeklyReportAction(formData: FormData) {
   const weeklyReportId = requiredString(formData.get("weeklyReportId"), "Weekly report");
 
   const report = await prisma.weeklyReport.findFirst({
-    where: {
-      id: weeklyReportId,
-      userId: user.id,
-    },
+    where: { id: weeklyReportId, userId: user.id },
     include: {
       priorities: true,
-      user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          managerId: true,
-          reviewOwnerId: true,
-        },
-      },
+      user: { select: { id: true, email: true, name: true, managerId: true, reviewOwnerId: true } },
     },
   });
 
-  if (!report) {
-    throw new Error("Weekly report not found.");
-  }
+  if (!report) throw new Error("Weekly report not found.");
+  if (report.priorities.length === 0) redirect("/weekly-report/current?error=no-priorities");
 
-  if (report.priorities.length === 0) {
-    redirect("/weekly-report/current?error=no-priorities");
-  }
+  const missingKrLink = report.priorities.some((p) => p.type === "KR_LINKED" && !p.linkedKeyResultId);
+  if (missingKrLink) redirect("/weekly-report/current?error=kr-required");
 
-  const missingKrLink = report.priorities.some((priority) => priority.type === "KR_LINKED" && !priority.linkedKeyResultId);
-
-  if (missingKrLink) {
-    redirect("/weekly-report/current?error=kr-required");
-  }
-
-  // Atomically claim the DRAFT/NEEDS_FOLLOW_UP→SUBMITTED transition.
-  // updateMany with the status condition is the compare-and-swap: only one of
-  // N concurrent requests can win because Postgres row-level locking ensures
-  // subsequent requests see 0 rows after the winner commits.
   const claimed = await prisma.weeklyReport.updateMany({
-    where: {
-      id: report.id,
-      status: { in: ["DRAFT", "NEEDS_FOLLOW_UP"] },
-    },
+    where: { id: report.id, status: { in: ["DRAFT", "NEEDS_FOLLOW_UP"] } },
     data: {
       summary: optionalString(formData.get("summary")) ?? report.summary,
       status: "SUBMITTED",
@@ -310,21 +171,11 @@ export async function submitWeeklyReportAction(formData: FormData) {
     },
   });
 
-  if (claimed.count === 0) {
-    redirect("/weekly-report/current");
-  }
+  if (claimed.count === 0) redirect("/weekly-report/current");
 
   const reviewOwnerId = getEffectiveReviewOwnerId(report.user);
-
   const reviewOwner = reviewOwnerId
-    ? await prisma.user.findUnique({
-        where: { id: reviewOwnerId },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-        },
-      })
+    ? await prisma.user.findUnique({ where: { id: reviewOwnerId }, select: { id: true, email: true, name: true } })
     : null;
 
   if (reviewOwner) {
@@ -352,11 +203,7 @@ export async function submitWeeklyReportAction(formData: FormData) {
       action: "SUBMITTED",
       entityType: "WeeklyReport",
       entityId: report.id,
-      metadata: {
-        weekStart: report.weekStart.toISOString(),
-        priorityCount: report.priorities.length,
-        reviewOwnerId,
-      },
+      metadata: { weekStart: report.weekStart.toISOString(), priorityCount: report.priorities.length, reviewOwnerId },
     },
   });
 
@@ -373,39 +220,24 @@ export async function savePriorityCheckInAction(formData: FormData) {
   const priorityId = requiredString(formData.get("priorityId"), "Priority");
   const status = requiredString(formData.get("status"), "Status") as WorkStatus;
 
-  if (!workStatuses.includes(status)) {
-    throw new Error("Invalid KR status.");
-  }
+  if (!workStatuses.includes(status)) throw new Error("Invalid KR status.");
 
   const priority = await prisma.weeklyPriority.findFirst({
-    where: {
-      id: priorityId,
-      weeklyReport: {
-        userId: user.id,
-      },
-    },
+    where: { id: priorityId, userId: user.id },
     include: {
       weeklyReport: true,
       linkedKeyResult: {
         include: {
           monthlyTargets: true,
-          owner: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-            },
-          },
+          owner: { select: { id: true, email: true, name: true } },
         },
       },
     },
   });
 
-  if (!priority || !priority.linkedKeyResult) {
-    redirect("/weekly-report/current?error=kr-required");
-  }
-
-  if (priority.weeklyReport.status !== "DRAFT" && priority.weeklyReport.status !== "NEEDS_FOLLOW_UP") {
+  if (!priority || !priority.linkedKeyResult) redirect("/weekly-report/current?error=kr-required");
+  if (!priority.weeklyReportId) redirect("/weekly-report/current?error=no-report");
+  if (priority.weeklyReport!.status !== "DRAFT" && priority.weeklyReport!.status !== "NEEDS_FOLLOW_UP") {
     redirect("/weekly-report/current?error=submitted");
   }
 
@@ -415,18 +247,12 @@ export async function savePriorityCheckInAction(formData: FormData) {
   const progressPercent = calculateProgressPercent(linkedKeyResult.startValue, newValue, linkedKeyResult.targetValue);
   const confidenceScore = clamp(intValue(formData.get("confidenceScore"), linkedKeyResult.confidenceScore), 1, 5);
   const currentMonthIndex = getCurrentQuarterMonthIndex();
-  const currentTarget = linkedKeyResult.monthlyTargets.find((target) => target.monthIndex === currentMonthIndex);
-  const pacingStatus = calculatePacingStatus({
-    progressPercent,
-    currentMonthTargetPercent: currentTarget?.targetPercent,
-  });
+  const currentTarget = linkedKeyResult.monthlyTargets.find((t) => t.monthIndex === currentMonthIndex);
+  const pacingStatus = calculatePacingStatus({ progressPercent, currentMonthTargetPercent: currentTarget?.targetPercent });
   const becameBlocked = linkedKeyResult.status !== "ON_HOLD" && status === "ON_HOLD";
 
   const existingCheckIn = await prisma.checkIn.findFirst({
-    where: {
-      weeklyPriorityId: priority.id,
-      userId: user.id,
-    },
+    where: { weeklyPriorityId: priority.id, userId: user.id },
   });
 
   await prisma.$transaction(async (tx) => {
@@ -446,7 +272,7 @@ export async function savePriorityCheckInAction(formData: FormData) {
       await tx.checkIn.create({
         data: {
           keyResultId,
-          weeklyReportId: priority.weeklyReportId,
+          weeklyReportId: priority.weeklyReportId!,
           weeklyPriorityId: priority.id,
           userId: user.id,
           previousValue: linkedKeyResult.currentValue,
@@ -462,13 +288,7 @@ export async function savePriorityCheckInAction(formData: FormData) {
 
     await tx.keyResult.update({
       where: { id: keyResultId },
-      data: {
-        currentValue: newValue,
-        progressPercent,
-        confidenceScore,
-        status,
-        pacingStatus,
-      },
+      data: { currentValue: newValue, progressPercent, confidenceScore, status, pacingStatus },
     });
 
     await recalculateObjectiveAndParents(tx, linkedKeyResult.objectiveId);
@@ -491,13 +311,7 @@ export async function savePriorityCheckInAction(formData: FormData) {
         action: existingCheckIn ? "UPDATED" : "CREATED",
         entityType: "CheckIn",
         entityId: existingCheckIn?.id ?? priority.id,
-        metadata: {
-          keyResultId,
-          weeklyReportId: priority.weeklyReportId,
-          newValue,
-          progressPercent,
-          pacingStatus,
-        },
+        metadata: { keyResultId, weeklyReportId: priority.weeklyReportId, newValue, progressPercent, pacingStatus },
       },
     });
   });

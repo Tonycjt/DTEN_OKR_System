@@ -4,7 +4,12 @@
       "Bash('C:\\\\Program Files\\\\nodejs\\\\npm.cmd' run lint)",
       "Bash(git checkout *)",
       "Bash(git merge *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\tony_\\\\Desktop\\\\DTEN_OKR_System\\\\DTEN-Weekly-Execution-System\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\tony_\\\\Desktop\\\\DTEN_OKR_System\\\\DTEN-Weekly-Execution-System\\\\prisma\\\\migrations\\\\20260514000000_r3_3_weekly_planning\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"dir created\")"
     ]
   }
 }
