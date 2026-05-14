@@ -36,6 +36,7 @@ export const primaryNav: NavItem[] = [
     roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"],
     children: [
       { href: "/company-okrs", label: "Company OKRs", icon: Network, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "VIEWER"] },
+      { href: "/company-tree", label: "Company Tree", icon: Building2, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "VIEWER"] },
       { href: "/my-okrs", label: "My OKRs", icon: Target, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
       { href: "/objectives/new", label: "Create Objective", icon: PlusCircle, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
     ],

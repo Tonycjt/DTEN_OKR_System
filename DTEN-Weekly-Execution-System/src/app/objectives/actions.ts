@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ObjectiveAssignmentAssigneeType, ObjectiveAssignmentMode, ObjectiveAssignmentStatus, ObjectiveLevel, ObjectiveProgressSource, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
+import { isInAssignableScope } from "@/lib/org-scope";
 import { getRollupValidationTarget, validateObjectiveAssignmentContributions, validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { sendKrBlockedEmail } from "@/server/email-notifications";
@@ -259,6 +260,10 @@ export async function createKeyResultAction(formData: FormData) {
     actionAlert(alertPath, "Invalid KR status.");
   }
 
+  if (!(await isInAssignableScope(user.id, user.role, ownerId))) {
+    actionAlert(alertPath, "You cannot assign a KR to that user.");
+  }
+
   const currentMonthIndex = getCurrentQuarterMonthIndex();
   const currentMonthTargetPercent = numberValue(formData.get(`targetPercent${currentMonthIndex}`), Number.NaN);
   const pacingStatus = calculatePacingStatus({
@@ -394,6 +399,10 @@ export async function updateKeyResultAction(formData: FormData) {
 
   if (!workStatuses.includes(status)) {
     actionAlert(alertPath, "Invalid KR status.");
+  }
+
+  if (!(await isInAssignableScope(user.id, user.role, ownerId))) {
+    actionAlert(alertPath, "You cannot assign a KR to that user.");
   }
 
   const existingKeyResult = await prisma.keyResult.findUnique({

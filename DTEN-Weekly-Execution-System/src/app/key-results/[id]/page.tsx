@@ -12,6 +12,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { TrendChart } from "@/components/ui/trend-chart";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { getAssignableUsers } from "@/lib/org-scope";
 import { formatShortDate } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
@@ -60,7 +61,7 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
         },
       },
     }),
-    prisma.user.findMany({ orderBy: { name: "asc" } }),
+    getAssignableUsers(currentUser.id, currentUser.role),
     prisma.followUp.findMany({
       where: {
         sourceObjectType: "KEY_RESULT",

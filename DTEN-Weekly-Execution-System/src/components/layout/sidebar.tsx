@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { NavItem } from "@/lib/routes";
 import { adminNav, canSeeNavItem, primaryNav } from "@/lib/routes";
 import type { getCurrentUser } from "@/server/auth";
 

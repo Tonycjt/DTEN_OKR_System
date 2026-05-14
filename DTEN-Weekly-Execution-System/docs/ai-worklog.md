@@ -58,8 +58,8 @@ Local commands:
   Lint      : npm run lint
   Build     : npm run build
 
-Next planned work: R3.4 Chunk B — KR Assignment Org Scope + Scoped Company Tree View.
-R3.4 Chunk A complete. DB should be reseeded before testing UI changes.
+Next planned work: R3.4 Chunk C — WeeklyTask schema + simplified weekly report.
+R3.4 Chunks A and B complete. DB should be reseeded before testing UI changes.
 ```
 
 ---
@@ -183,6 +183,43 @@ R3.4 Chunk A complete. DB should be reseeded before testing UI changes.
 **No schema changes.** No migration required.
 
 **Verification:** 32 tests passing, lint clean, production build passing (25 routes).
+
+### R3.4 Chunk B — KR Assignment Org Scope + Company Tree View (2026-05-14)
+
+**New `src/lib/org-scope.ts`:**
+- `getAssignableUsers(actorId, role)` — returns users within the actor's org scope:
+  - CEO/ADMIN/EXECUTIVE → all active users.
+  - DEPARTMENT_HEAD → all active users in same department.
+  - MANAGER → actor + transitive direct reports (iterative BFS via `managerId`).
+  - EMPLOYEE/VIEWER → self only.
+- `buildSubtree(rootId, users)` — returns Set of user IDs in reporting subtree (root included).
+- `isInAssignableScope(actorId, role, targetUserId)` — fast-path check; CEO/ADMIN/EXECUTIVE always true.
+
+**Updated `src/app/objectives/[id]/page.tsx`:**
+- `users` query replaced with `getAssignableUsers(currentUser.id, currentUser.role)`.
+- KR owner picker and edit-objective owner picker now show only within-scope users.
+
+**Updated `src/app/key-results/[id]/page.tsx`:**
+- `users` query replaced with `getAssignableUsers(currentUser.id, currentUser.role)`.
+- KR update owner picker and follow-up owner picker now show only within-scope users.
+
+**Updated `src/app/objectives/actions.ts`:**
+- Added `isInAssignableScope` import.
+- `createKeyResultAction`: validates `ownerId` is within actor scope before KR creation.
+- `updateKeyResultAction`: validates `ownerId` is within actor scope before KR update.
+
+**New `src/app/company-tree/page.tsx`:**
+- Org tree view: Company objectives → Department cards (with team subsections) → Individual objectives.
+- Uses `route-grid` / `route-item` layout; shows owner, KR count, status badge, progress bar per objective.
+- Accessible to CEO, EXECUTIVE, DEPARTMENT_HEAD, MANAGER, VIEWER.
+
+**Updated `src/lib/routes.ts`:**
+- Added "Company Tree" (`/company-tree`, `Building2` icon) to OKR group between Company OKRs and My OKRs.
+
+**Updated `src/components/layout/sidebar.tsx`:**
+- Removed unused `NavItem` type import (lint fix).
+
+**Verification:** 32 tests passing, lint clean, production build passing (26 routes).
 
 ### Release 3 Days 22–25 + Clarifications + R3.2
 
