@@ -58,8 +58,8 @@ Local commands:
   Lint      : npm run lint
   Build     : npm run build
 
-Next planned work: R3.4 Chunk C — WeeklyTask schema + simplified weekly report.
-R3.4 Chunks A and B complete. DB should be reseeded before testing UI changes.
+Next planned work: R3.4 Chunk E — monthly target polish, dashboard simplification, full reseed verification.
+R3.4 Chunks A–D complete. DB must be migrated (prisma migrate deploy or prisma db push) before testing.
 ```
 
 ---
@@ -220,6 +220,37 @@ R3.4 Chunks A and B complete. DB should be reseeded before testing UI changes.
 - Removed unused `NavItem` type import (lint fix).
 
 **Verification:** 32 tests passing, lint clean, production build passing (26 routes).
+
+### R3.4 Chunks C+D — WeeklyTask Schema + Simplified Weekly Report (2026-05-14)
+
+**Schema changes (`prisma/schema.prisma`):**
+- New enums: `WeeklyTaskStatus` (NOT_STARTED, IN_PROGRESS, COMPLETED, BLOCKED, CANCELLED) and `WeeklyTaskSectionType` (THIS_WEEK, NEXT_WEEK).
+- New model `WeeklyTask`: `weeklyReportId`, `sectionType`, `content`, `progressPercent` (default 0), `status` (default NOT_STARTED), `blocker?`. Cascade delete on report.
+- `WeeklyReport` gains `weeklyTasks WeeklyTask[]` relation.
+- Migration: `20260514100000_r3_4_weekly_tasks`.
+- `prisma generate` run to update client.
+
+**Updated `src/app/weekly-report/actions.ts`:**
+- Added `WeeklyTaskSectionType`, `WeeklyTaskStatus` type imports.
+- `weeklyTaskStatuses` and `weeklyTaskSectionTypes` validation arrays.
+- `ensureCurrentWeeklyReport`: now includes `weeklyTasks` and `comments` (with author) in the returned report.
+- `submitWeeklyReportAction`: removed priority-count check and KR-link check (no longer required in R3.4). Removed `priorityCount` from audit metadata.
+- New `createWeeklyTaskAction`: creates a task in a section, validates max 3 per section.
+- New `updateWeeklyTaskAction`: updates content, progress (0–100), status, blocker; validates report is DRAFT/NEEDS_FOLLOW_UP.
+- New `deleteWeeklyTaskAction`: deletes task owned by current user's report.
+- New `saveKrUpdateAction`: direct KR check-in from the weekly report (no priority required); upserts CheckIn with `weeklyPriorityId=null`, updates KR, triggers roll-up and KR_BLOCKED notification if applicable.
+
+**Rewritten `src/app/weekly-report/current/page.tsx`:**
+- Section 1: This Week's Tasks — up to 3 THIS_WEEK tasks with update/delete forms; add-task form shown when < 3.
+- Section 2: Next Week's Tasks — same layout for NEXT_WEEK tasks.
+- Section 3: KR Updates — all user-owned KRs shown with objective context, current month target %, progress bar, and `saveKrUpdateAction` form. "Updated this week" / "No update yet" badge.
+- Section 4: Comments — uses existing `addWeeklyReportCommentAction`; shows all report comments chronologically.
+- Section 5: Weekly Summary + Submit — unchanged behaviour.
+- No dependency on WeeklyPriority for the new sections; old sections (Plan/Report) removed.
+
+**Verification:** 32 tests passing, lint clean, production build passing (26 routes, TypeScript clean).
+
+**Test path:** Log in as `engineer@dten.com` → `/weekly-report/current` → add 1 "This Week" task, set it to In Progress 75% → add 1 "Next Week" task → update a KR value/confidence → Save Update shows "Updated this week" badge → Submit sends to manager. Log in as `manager@dten.com` → `/reviews/pending` → comment on report → comment appears in employee's view.
 
 ### Release 3 Days 22–25 + Clarifications + R3.2
 

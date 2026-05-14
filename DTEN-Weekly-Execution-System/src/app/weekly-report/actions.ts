@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { PriorityStatus, WorkStatus } from "@prisma/client";
+import type { PriorityStatus, WeeklyTaskSectionType, WeeklyTaskStatus, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
 import { getEffectiveReviewOwnerId } from "@/lib/review-routing";
 import { getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
@@ -13,6 +13,8 @@ import { prisma } from "@/server/prisma";
 
 const priorityStatuses: PriorityStatus[] = ["NOT_STARTED", "IN_PROGRESS", "BLOCKED", "DONE"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
+const weeklyTaskStatuses: WeeklyTaskStatus[] = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "BLOCKED", "CANCELLED"];
+const weeklyTaskSectionTypes: WeeklyTaskSectionType[] = ["THIS_WEEK", "NEXT_WEEK"];
 
 function optionalString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
@@ -75,6 +77,8 @@ export async function ensureCurrentWeeklyReport(userId: string) {
           checkIns: { where: { userId }, orderBy: { createdAt: "desc" }, take: 1 },
         },
       },
+      weeklyTasks: { orderBy: { createdAt: "asc" } },
+      comments: { orderBy: { createdAt: "asc" }, include: { author: { select: { id: true, name: true } } } },
     },
   });
 }
@@ -151,16 +155,11 @@ export async function submitWeeklyReportAction(formData: FormData) {
   const report = await prisma.weeklyReport.findFirst({
     where: { id: weeklyReportId, userId: user.id },
     include: {
-      priorities: true,
       user: { select: { id: true, email: true, name: true, managerId: true, reviewOwnerId: true } },
     },
   });
 
   if (!report) throw new Error("Weekly report not found.");
-  if (report.priorities.length === 0) redirect("/weekly-report/current?error=no-priorities");
-
-  const missingKrLink = report.priorities.some((p) => p.type === "KR_LINKED" && !p.linkedKeyResultId);
-  if (missingKrLink) redirect("/weekly-report/current?error=kr-required");
 
   const claimed = await prisma.weeklyReport.updateMany({
     where: { id: report.id, status: { in: ["DRAFT", "NEEDS_FOLLOW_UP"] } },
@@ -203,7 +202,7 @@ export async function submitWeeklyReportAction(formData: FormData) {
       action: "SUBMITTED",
       entityType: "WeeklyReport",
       entityId: report.id,
-      metadata: { weekStart: report.weekStart.toISOString(), priorityCount: report.priorities.length, reviewOwnerId },
+      metadata: { weekStart: report.weekStart.toISOString(), reviewOwnerId },
     },
   });
 
@@ -329,6 +328,202 @@ export async function savePriorityCheckInAction(formData: FormData) {
   revalidatePath("/weekly-report/history");
   revalidatePath(`/key-results/${keyResultId}`);
   revalidatePath(`/objectives/${linkedKeyResult.objectiveId}`);
+  revalidatePath("/my-okrs");
+  revalidatePath("/company-okrs");
+  revalidatePath("/notifications");
+  revalidatePath("/dashboard");
+}
+
+// ── WeeklyTask CRUD ──────────────────────────────────────────────────────────
+
+export async function createWeeklyTaskAction(formData: FormData) {
+  const user = await requireUser();
+  const weeklyReportId = requiredString(formData.get("weeklyReportId"), "Weekly report");
+  const rawSection = optionalString(formData.get("sectionType")) ?? "";
+  const content = requiredString(formData.get("content"), "Task content");
+
+  if (!weeklyTaskSectionTypes.includes(rawSection as WeeklyTaskSectionType)) {
+    redirect("/weekly-report/current");
+  }
+  const sectionType = rawSection as WeeklyTaskSectionType;
+
+  const report = await prisma.weeklyReport.findFirst({
+    where: { id: weeklyReportId, userId: user.id },
+    select: { status: true },
+  });
+
+  if (!report) redirect("/weekly-report/current");
+  if (report.status !== "DRAFT" && report.status !== "NEEDS_FOLLOW_UP") {
+    redirect("/weekly-report/current?error=submitted");
+  }
+
+  const existingCount = await prisma.weeklyTask.count({ where: { weeklyReportId, sectionType } });
+  if (existingCount >= 3) redirect("/weekly-report/current?error=task-limit");
+
+  await prisma.weeklyTask.create({
+    data: { weeklyReportId, sectionType, content },
+  });
+
+  revalidatePath("/weekly-report/current");
+}
+
+export async function updateWeeklyTaskAction(formData: FormData) {
+  const user = await requireUser();
+  const taskId = requiredString(formData.get("taskId"), "Task");
+
+  const task = await prisma.weeklyTask.findFirst({
+    where: { id: taskId, weeklyReport: { userId: user.id } },
+    include: { weeklyReport: { select: { status: true } } },
+  });
+
+  if (!task) redirect("/weekly-report/current");
+  if (task.weeklyReport.status !== "DRAFT" && task.weeklyReport.status !== "NEEDS_FOLLOW_UP") {
+    redirect("/weekly-report/current?error=submitted");
+  }
+
+  const rawStatus = optionalString(formData.get("status")) ?? task.status;
+  const status = weeklyTaskStatuses.includes(rawStatus as WeeklyTaskStatus) ? (rawStatus as WeeklyTaskStatus) : task.status;
+  const progressPercent = clamp(numberValue(formData.get("progressPercent"), task.progressPercent), 0, 100);
+
+  await prisma.weeklyTask.update({
+    where: { id: taskId },
+    data: {
+      content: optionalString(formData.get("content")) ?? task.content,
+      progressPercent,
+      status,
+      blocker: optionalString(formData.get("blocker")),
+    },
+  });
+
+  revalidatePath("/weekly-report/current");
+}
+
+export async function deleteWeeklyTaskAction(formData: FormData) {
+  const user = await requireUser();
+  const taskId = requiredString(formData.get("taskId"), "Task");
+
+  await prisma.weeklyTask.deleteMany({
+    where: { id: taskId, weeklyReport: { userId: user.id } },
+  });
+
+  revalidatePath("/weekly-report/current");
+}
+
+// ── KR Update (direct check-in from weekly report, no priority required) ────
+
+export async function saveKrUpdateAction(formData: FormData) {
+  const user = await requireUser();
+  const weeklyReportId = requiredString(formData.get("weeklyReportId"), "Weekly report");
+  const keyResultId = requiredString(formData.get("keyResultId"), "Key result");
+  const status = requiredString(formData.get("status"), "Status") as WorkStatus;
+
+  if (!workStatuses.includes(status)) redirect("/weekly-report/current");
+
+  const [report, keyResult] = await Promise.all([
+    prisma.weeklyReport.findFirst({
+      where: { id: weeklyReportId, userId: user.id },
+      select: { status: true },
+    }),
+    prisma.keyResult.findFirst({
+      where: { id: keyResultId, ownerId: user.id },
+      include: {
+        monthlyTargets: { orderBy: { monthIndex: "asc" } },
+        owner: { select: { id: true, email: true, name: true } },
+      },
+    }),
+  ]);
+
+  if (!report || !keyResult) redirect("/weekly-report/current");
+  if (report.status !== "DRAFT" && report.status !== "NEEDS_FOLLOW_UP") {
+    redirect("/weekly-report/current?error=submitted");
+  }
+
+  const newValue = numberValue(formData.get("newValue"), keyResult.currentValue);
+  const progressPercent = calculateProgressPercent(keyResult.startValue, newValue, keyResult.targetValue);
+  const confidenceScore = clamp(intValue(formData.get("confidenceScore"), keyResult.confidenceScore), 1, 5);
+  const currentMonthIndex = getCurrentQuarterMonthIndex();
+  const currentTarget = keyResult.monthlyTargets.find((t) => t.monthIndex === currentMonthIndex);
+  const pacingStatus = calculatePacingStatus({ progressPercent, currentMonthTargetPercent: currentTarget?.targetPercent ?? null });
+  const becameBlocked = keyResult.status !== "ON_HOLD" && status === "ON_HOLD";
+
+  const existingCheckIn = await prisma.checkIn.findFirst({
+    where: { keyResultId, weeklyReportId, userId: user.id, weeklyPriorityId: null },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    if (existingCheckIn) {
+      await tx.checkIn.update({
+        where: { id: existingCheckIn.id },
+        data: {
+          newValue,
+          progressPercent,
+          confidenceScore,
+          status,
+          blocker: optionalString(formData.get("blocker")),
+          note: optionalString(formData.get("note")),
+        },
+      });
+    } else {
+      await tx.checkIn.create({
+        data: {
+          keyResultId,
+          weeklyReportId,
+          weeklyPriorityId: null,
+          userId: user.id,
+          previousValue: keyResult.currentValue,
+          newValue,
+          progressPercent,
+          confidenceScore,
+          status,
+          blocker: optionalString(formData.get("blocker")),
+          note: optionalString(formData.get("note")),
+        },
+      });
+    }
+
+    await tx.keyResult.update({
+      where: { id: keyResultId },
+      data: { currentValue: newValue, progressPercent, confidenceScore, status, pacingStatus },
+    });
+
+    await recalculateObjectiveAndParents(tx, keyResult.objectiveId);
+
+    if (becameBlocked) {
+      await tx.notification.create({
+        data: {
+          userId: keyResult.ownerId,
+          type: "KR_BLOCKED",
+          title: "KR blocked",
+          body: `${keyResult.title} was marked blocked/on hold.`,
+          relatedUrl: `/key-results/${keyResultId}`,
+        },
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: existingCheckIn ? "UPDATED" : "CREATED",
+        entityType: "CheckIn",
+        entityId: existingCheckIn?.id ?? keyResultId,
+        metadata: { keyResultId, weeklyReportId, newValue, progressPercent, pacingStatus },
+      },
+    });
+  });
+
+  if (becameBlocked) {
+    await sendKrBlockedEmail({
+      owner: keyResult.owner,
+      keyResultTitle: keyResult.title,
+      blocker: optionalString(formData.get("blocker")),
+      relatedPath: `/key-results/${keyResultId}`,
+    });
+  }
+
+  revalidatePath("/weekly-report/current");
+  revalidatePath("/weekly-report/history");
+  revalidatePath(`/key-results/${keyResultId}`);
+  revalidatePath(`/objectives/${keyResult.objectiveId}`);
   revalidatePath("/my-okrs");
   revalidatePath("/company-okrs");
   revalidatePath("/notifications");

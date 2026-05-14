@@ -128,6 +128,19 @@ enum FollowUpStatus {
   CANCELLED
 }
 
+enum WeeklyTaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  CANCELLED
+}
+
+enum WeeklyTaskSectionType {
+  THIS_WEEK
+  NEXT_WEEK
+}
+
 enum FollowUpSourceType {
   KEY_RESULT
   WEEKLY_REPORT
@@ -348,11 +361,12 @@ model WeeklyReport {
   reviewedAt  DateTime?
   summary     String?
 
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  priorities WeeklyPriority[]
-  checkIns   CheckIn[]
-  reviews    ManagerReview[]
-  comments   Comment[]
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  priorities  WeeklyPriority[]
+  weeklyTasks WeeklyTask[]
+  checkIns    CheckIn[]
+  reviews     ManagerReview[]
+  comments    Comment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -513,4 +527,22 @@ model AuditLog {
   @@index([actorId])
   @@index([entityType, entityId])
   @@index([action])
+}
+
+model WeeklyTask {
+  id              String                @id @default(cuid())
+  weeklyReportId  String
+  sectionType     WeeklyTaskSectionType
+  content         String
+  progressPercent Float                 @default(0)
+  status          WeeklyTaskStatus      @default(NOT_STARTED)
+  blocker         String?
+
+  weeklyReport WeeklyReport @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([weeklyReportId])
+  @@index([sectionType])
 }

@@ -1,57 +1,65 @@
-import type { PriorityStatus } from "@prisma/client";
+import type { WeeklyTaskStatus, WorkStatus } from "@prisma/client";
 import Link from "next/link";
 import {
+  createWeeklyTaskAction,
+  deleteWeeklyTaskAction,
   ensureCurrentWeeklyReport,
-  saveReportPriorityAction,
-  savePriorityCheckInAction,
+  saveKrUpdateAction,
   submitWeeklyReportAction,
   updateWeeklyReportSummaryAction,
+  updateWeeklyTaskAction,
 } from "@/app/weekly-report/actions";
+import { addWeeklyReportCommentAction } from "@/app/comments/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { priorityStatusTone, weeklyReportStatusTone } from "@/lib/badge-tone";
+import { ProgressBar } from "@/components/ui/progress-bar";
+import { weeklyReportStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
 import { formatWeekRange } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
-import type { WorkStatus } from "@prisma/client";
 
 type CurrentWeeklyReportPageProps = {
   searchParams?: Promise<{ error?: string }>;
 };
 
-const priorityStatuses: PriorityStatus[] = ["NOT_STARTED", "IN_PROGRESS", "BLOCKED", "DONE"];
 const workStatuses: WorkStatus[] = ["ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
+const weeklyTaskStatuses: WeeklyTaskStatus[] = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "BLOCKED", "CANCELLED"];
 
 const errorMessages: Record<string, string> = {
-  "kr-required": "KR-linked priorities must select a linked KR before saving or submitting.",
-  "kr-not-assigned": "That KR is not assigned to you.",
-  "no-priorities": "Add at least one weekly priority before submitting.",
-  "submitted": "This report has already been submitted and cannot be modified.",
-  "no-report": "Priority is not linked to this report yet. Please reload the page.",
+  submitted: "This report has already been submitted and cannot be modified.",
+  "task-limit": "Each section can hold at most 3 tasks.",
 };
 
 export default async function CurrentWeeklyReportPage({ searchParams }: CurrentWeeklyReportPageProps) {
   const user = await requireUser();
   const report = await ensureCurrentWeeklyReport(user.id);
   const params = searchParams ? await searchParams : {};
-  const error = params.error ? errorMessages[params.error] : null;
+  const error = params.error ? (errorMessages[params.error] ?? params.error) : null;
 
-  const existingLinkedKrIds = Array.from(
-    new Set(report.priorities.map((p) => p.linkedKeyResultId).filter((id): id is string => Boolean(id)))
-  );
+  const currentMonthIndex = getCurrentQuarterMonthIndex();
 
-  const keyResults = await prisma.keyResult.findMany({
-    where: { OR: [{ ownerId: user.id }, { id: { in: existingLinkedKrIds } }] },
+  const userKeyResults = await prisma.keyResult.findMany({
+    where: { ownerId: user.id },
     orderBy: [{ objective: { title: "asc" } }, { title: "asc" }],
-    include: { objective: true, owner: true },
+    include: {
+      objective: { select: { id: true, title: true } },
+      monthlyTargets: { orderBy: { monthIndex: "asc" } },
+      checkIns: {
+        where: { weeklyReportId: report.id, userId: user.id, weeklyPriorityId: null },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
   });
-  const assignedKeyResults = keyResults.filter((kr) => kr.ownerId === user.id);
 
   const isSubmitted = report.status === "SUBMITTED" || report.status === "REVIEWED";
-  const krLinkedPriorities = report.priorities.filter((p) => p.type === "KR_LINKED" && p.linkedKeyResult);
+
+  const thisWeekTasks = report.weeklyTasks.filter((t) => t.sectionType === "THIS_WEEK");
+  const nextWeekTasks = report.weeklyTasks.filter((t) => t.sectionType === "NEXT_WEEK");
 
   return (
     <div className="stack">
@@ -62,159 +70,202 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
 
       {error ? <div className="alert">{error}</div> : null}
 
-      {/* ── SECTION 1: PLAN ──────────────────────────────────────────────── */}
+      {/* ── SECTION 1: THIS WEEK'S TASKS ──────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <h2>Plan</h2>
-          <p>
-            Your planned priorities for this week.{" "}
-            {!isSubmitted ? (
-              <Link href="/weekly-plan" style={{ color: "var(--color-primary)" }}>
-                Edit in Weekly Plan →
-              </Link>
-            ) : null}
-          </p>
-        </CardHeader>
-        <CardContent>
-          {report.priorities.length === 0 ? (
-            <div className="route-item">
-              No priorities planned yet.{" "}
-              {!isSubmitted ? (
-                <Link href="/weekly-plan">Go to Weekly Plan to add priorities.</Link>
-              ) : null}
-            </div>
-          ) : (
-            <div className="stack">
-              {report.priorities.map((priority) => (
-                <div className="card" key={priority.id} style={{ background: "var(--color-surface-subtle, #f8f9fa)" }}>
-                  <div className="card-content">
-                    <div className="table-actions">
-                      <Badge tone={priority.type === "KR_LINKED" ? "info" : "neutral"}>{formatEnumLabel(priority.type)}</Badge>
-                      {priority.carriedOverFromId ? <Badge tone="neutral">Carried over</Badge> : null}
-                      {priority.linkedKeyResult ? (
-                        <Badge tone="info">{priority.linkedKeyResult.title}</Badge>
-                      ) : null}
-                    </div>
-                    <p style={{ marginTop: "0.25rem" }}>{priority.content}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── SECTION 2: REPORT ────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <h2>Report</h2>
-          <p>Update the status, result, and blockers for each planned priority.</p>
+          <h2>This Week&apos;s Tasks</h2>
+          <p>{thisWeekTasks.length}/3 tasks · Record what you worked on this week.</p>
         </CardHeader>
         <CardContent>
           <div className="stack">
-            {report.priorities.length === 0 ? (
-              <div className="route-item">No priorities to report on. Add priorities in Weekly Plan first.</div>
-            ) : null}
-            {report.priorities.map((priority) => {
-              const selectableKrs =
-                priority.linkedKeyResult && !assignedKeyResults.some((kr) => kr.id === priority.linkedKeyResultId)
-                  ? [...assignedKeyResults, priority.linkedKeyResult]
-                  : assignedKeyResults;
-
-              return (
-                <div className="card" key={priority.id}>
-                  <div className="card-content">
-                    <div className="table-actions" style={{ marginBottom: "0.5rem" }}>
-                      <Badge tone={priorityStatusTone(priority.status)}>{formatEnumLabel(priority.status)}</Badge>
-                      <strong>{priority.content}</strong>
+            {thisWeekTasks.map((task) => (
+              <div className="card" key={task.id}>
+                <div className="card-content">
+                  <form action={updateWeeklyTaskAction} className="form-grid">
+                    <input name="taskId" type="hidden" value={task.id} />
+                    <label className="field wide">
+                      <span>Task</span>
+                      <input defaultValue={task.content} disabled={isSubmitted} name="content" required />
+                    </label>
+                    <label className="field">
+                      <span>Status</span>
+                      <select defaultValue={task.status} disabled={isSubmitted} name="status">
+                        {weeklyTaskStatuses.map((s) => (
+                          <option key={s} value={s}>{formatEnumLabel(s)}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Progress</span>
+                      <select
+                        defaultValue={String(Math.round(task.progressPercent / 25) * 25)}
+                        disabled={isSubmitted}
+                        name="progressPercent"
+                      >
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <option key={v} value={v}>{v}%</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field wide">
+                      <span>Blocker</span>
+                      <input defaultValue={task.blocker ?? ""} disabled={isSubmitted} name="blocker" placeholder="Any blocker?" />
+                    </label>
+                    <div className="wide table-actions">
+                      <Button disabled={isSubmitted} type="submit">Save</Button>
+                      <ProgressBar value={task.progressPercent} />
                     </div>
-                    <form action={saveReportPriorityAction} className="form-grid">
-                      <input name="priorityId" type="hidden" value={priority.id} />
-                      <label className="field">
-                        <span>Status</span>
-                        <select defaultValue={priority.status} disabled={isSubmitted} name="status" required>
-                          {priorityStatuses.map((s) => (
-                            <option key={s} value={s}>{formatEnumLabel(s)}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="field wide">
-                        <span>Result Summary</span>
-                        <input
-                          defaultValue={priority.resultSummary ?? ""}
-                          disabled={isSubmitted}
-                          name="resultSummary"
-                          placeholder="What actually happened this week?"
-                        />
-                      </label>
-                      <label className="field">
-                        <span>Blocker</span>
-                        <input defaultValue={priority.blocker ?? ""} disabled={isSubmitted} name="blocker" placeholder="Any blockers?" />
-                      </label>
-                      <label className="field">
-                        <span>Next Step</span>
-                        <input defaultValue={priority.nextStep ?? ""} disabled={isSubmitted} name="nextStep" placeholder="Next action" />
-                      </label>
-                      {priority.type === "KR_LINKED" ? (
-                        <label className="field wide">
-                          <span>Linked KR</span>
-                          <select defaultValue={priority.linkedKeyResultId ?? ""} disabled={isSubmitted} name="linkedKeyResultId">
-                            <option value="">None</option>
-                            {selectableKrs.map((kr) => (
-                              <option key={kr.id} value={kr.id}>{kr.objective.title} / {kr.title}</option>
-                            ))}
-                          </select>
-                        </label>
-                      ) : null}
-                      <div className="wide">
-                        <Button disabled={isSubmitted} type="submit">Save</Button>
-                      </div>
+                  </form>
+                  {!isSubmitted ? (
+                    <form action={deleteWeeklyTaskAction} style={{ marginTop: "0.5rem" }}>
+                      <input name="taskId" type="hidden" value={task.id} />
+                      <Button tone="secondary" type="submit">Delete</Button>
                     </form>
-                  </div>
+                  ) : null}
                 </div>
-              );
-            })}
+              </div>
+            ))}
+
+            {!isSubmitted && thisWeekTasks.length < 3 ? (
+              <form action={createWeeklyTaskAction} className="form-shell">
+                <input name="weeklyReportId" type="hidden" value={report.id} />
+                <input name="sectionType" type="hidden" value="THIS_WEEK" />
+                <label className="field">
+                  <span>Add Task</span>
+                  <input name="content" placeholder="What did you work on this week?" required />
+                </label>
+                <Button type="submit">Add Task</Button>
+              </form>
+            ) : null}
+
+            {thisWeekTasks.length === 0 && isSubmitted ? (
+              <p className="muted">No tasks were recorded for this week.</p>
+            ) : null}
           </div>
         </CardContent>
       </Card>
 
-      {/* ── SECTION 3: KR CHECK-INS ──────────────────────────────────────── */}
-      {krLinkedPriorities.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <h2>KR Check-ins</h2>
-            <p>Update measurable KR progress for each KR-linked priority. Check-ins are required to move KR progress.</p>
-          </CardHeader>
-          <CardContent>
+      {/* ── SECTION 2: NEXT WEEK'S TASKS ──────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <h2>Next Week&apos;s Tasks</h2>
+          <p>{nextWeekTasks.length}/3 tasks · Plan what you intend to work on next week.</p>
+        </CardHeader>
+        <CardContent>
+          <div className="stack">
+            {nextWeekTasks.map((task) => (
+              <div className="card" key={task.id}>
+                <div className="card-content">
+                  <form action={updateWeeklyTaskAction} className="form-grid">
+                    <input name="taskId" type="hidden" value={task.id} />
+                    <label className="field wide">
+                      <span>Task</span>
+                      <input defaultValue={task.content} disabled={isSubmitted} name="content" required />
+                    </label>
+                    <label className="field">
+                      <span>Status</span>
+                      <select defaultValue={task.status} disabled={isSubmitted} name="status">
+                        {weeklyTaskStatuses.map((s) => (
+                          <option key={s} value={s}>{formatEnumLabel(s)}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Progress</span>
+                      <select
+                        defaultValue={String(Math.round(task.progressPercent / 25) * 25)}
+                        disabled={isSubmitted}
+                        name="progressPercent"
+                      >
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <option key={v} value={v}>{v}%</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="wide">
+                      <Button disabled={isSubmitted} type="submit">Save</Button>
+                    </div>
+                  </form>
+                  {!isSubmitted ? (
+                    <form action={deleteWeeklyTaskAction} style={{ marginTop: "0.5rem" }}>
+                      <input name="taskId" type="hidden" value={task.id} />
+                      <Button tone="secondary" type="submit">Delete</Button>
+                    </form>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+
+            {!isSubmitted && nextWeekTasks.length < 3 ? (
+              <form action={createWeeklyTaskAction} className="form-shell">
+                <input name="weeklyReportId" type="hidden" value={report.id} />
+                <input name="sectionType" type="hidden" value="NEXT_WEEK" />
+                <label className="field">
+                  <span>Add Task</span>
+                  <input name="content" placeholder="What do you plan to work on next week?" required />
+                </label>
+                <Button type="submit">Add Task</Button>
+              </form>
+            ) : null}
+
+            {nextWeekTasks.length === 0 && isSubmitted ? (
+              <p className="muted">No next-week tasks were planned.</p>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── SECTION 3: KR UPDATES ─────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <h2>KR Updates</h2>
+          <p>Update measurable progress on your key results for this week. Month {currentMonthIndex} targets shown.</p>
+        </CardHeader>
+        <CardContent>
+          {userKeyResults.length === 0 ? (
+            <div className="route-item">
+              You have no KRs assigned. KRs are created under objectives — visit{" "}
+              <Link href="/my-okrs">My OKRs</Link> to see your objectives.
+            </div>
+          ) : (
             <div className="stack">
-              {krLinkedPriorities.map((priority) => {
-                const kr = priority.linkedKeyResult!;
-                const latestCheckIn = priority.checkIns[0];
+              {userKeyResults.map((kr) => {
+                const checkIn = kr.checkIns[0];
+                const currentTarget = kr.monthlyTargets.find((t) => t.monthIndex === currentMonthIndex);
 
                 return (
-                  <div className="card" key={priority.id}>
+                  <div className="card" key={kr.id}>
                     <div className="card-content">
                       <div className="table-actions" style={{ marginBottom: "0.5rem" }}>
-                        <strong>{kr.title}</strong>
-                        <span className="muted">via: {priority.content}</span>
+                        <span>
+                          <Link href={`/key-results/${kr.id}`}>
+                            <strong>{kr.title}</strong>
+                          </Link>
+                          <br />
+                          <span className="muted">
+                            {kr.objective.title} · {kr.currentValue} / {kr.targetValue} ({Math.round(kr.progressPercent)}%)
+                            {currentTarget ? ` · M${currentMonthIndex} target: ${currentTarget.targetPercent ?? 0}%` : ""}
+                          </span>
+                        </span>
+                        <Badge tone={workStatusTone(kr.status)}>{formatEnumLabel(kr.status)}</Badge>
                       </div>
-                      <p className="muted" style={{ marginBottom: "0.75rem" }}>
-                        Current value: {kr.currentValue} / {kr.targetValue} ({Math.round(kr.progressPercent)}%)
-                      </p>
-                      <form action={savePriorityCheckInAction} className="form-grid check-in-panel">
-                        <input name="priorityId" type="hidden" value={priority.id} />
+                      <ProgressBar value={kr.progressPercent} />
+
+                      <form action={saveKrUpdateAction} className="form-grid" style={{ marginTop: "0.75rem" }}>
+                        <input name="weeklyReportId" type="hidden" value={report.id} />
+                        <input name="keyResultId" type="hidden" value={kr.id} />
                         <label className="field">
                           <span>New Value</span>
                           <input
-                            defaultValue={latestCheckIn?.newValue ?? kr.currentValue}
+                            defaultValue={checkIn?.newValue ?? kr.currentValue}
                             disabled={isSubmitted}
                             name="newValue"
                             type="number"
                           />
                         </label>
                         <label className="field">
-                          <span>KR Status</span>
-                          <select defaultValue={latestCheckIn?.status ?? kr.status} disabled={isSubmitted} name="status">
+                          <span>Status</span>
+                          <select defaultValue={checkIn?.status ?? kr.status} disabled={isSubmitted} name="status">
                             {workStatuses.map((s) => (
                               <option key={s} value={s}>{formatEnumLabel(s)}</option>
                             ))}
@@ -223,7 +274,7 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
                         <label className="field">
                           <span>Confidence (1–5)</span>
                           <input
-                            defaultValue={latestCheckIn?.confidenceScore ?? kr.confidenceScore}
+                            defaultValue={checkIn?.confidenceScore ?? kr.confidenceScore}
                             disabled={isSubmitted}
                             max="5"
                             min="1"
@@ -233,15 +284,15 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
                         </label>
                         <label className="field">
                           <span>Blocker</span>
-                          <input defaultValue={latestCheckIn?.blocker ?? priority.blocker ?? ""} disabled={isSubmitted} name="blocker" />
+                          <input defaultValue={checkIn?.blocker ?? ""} disabled={isSubmitted} name="blocker" placeholder="Any blocker?" />
                         </label>
                         <label className="field wide">
-                          <span>Check-in Note</span>
-                          <textarea defaultValue={latestCheckIn?.note ?? ""} disabled={isSubmitted} name="note" />
+                          <span>Note</span>
+                          <textarea defaultValue={checkIn?.note ?? ""} disabled={isSubmitted} name="note" placeholder="Context for this week's progress." />
                         </label>
                         <div className="wide table-actions">
-                          <Button disabled={isSubmitted} type="submit">Save Check-in</Button>
-                          {latestCheckIn ? <Badge tone="success">Check-in saved</Badge> : <Badge tone="neutral">No check-in yet</Badge>}
+                          <Button disabled={isSubmitted} type="submit">Save Update</Button>
+                          {checkIn ? <Badge tone="success">Updated this week</Badge> : <Badge tone="neutral">No update yet</Badge>}
                         </div>
                       </form>
                     </div>
@@ -249,11 +300,45 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
-      ) : null}
+          )}
+        </CardContent>
+      </Card>
 
-      {/* ── SECTION 4: SUMMARY & SUBMIT ──────────────────────────────────── */}
+      {/* ── SECTION 4: COMMENTS ───────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <h2>Comments</h2>
+          <p>{report.comments.length} comment{report.comments.length !== 1 ? "s" : ""} — employee and manager communication.</p>
+        </CardHeader>
+        <CardContent>
+          <div className="stack">
+            <div className="route-grid">
+              {report.comments.map((comment) => (
+                <div className="route-item" key={comment.id}>
+                  <span>
+                    <strong>{comment.author.name}</strong>
+                    <br />
+                    <span className="muted">{comment.body}</span>
+                  </span>
+                </div>
+              ))}
+              {report.comments.length === 0 ? <div className="route-item">No comments yet.</div> : null}
+            </div>
+
+            <form action={addWeeklyReportCommentAction} className="form-shell">
+              <input name="weeklyReportId" type="hidden" value={report.id} />
+              <input name="redirectPath" type="hidden" value="/weekly-report/current" />
+              <label className="field">
+                <span>Add Comment</span>
+                <textarea name="body" placeholder="Add context, questions, or feedback for this report." required />
+              </label>
+              <Button type="submit">Add Comment</Button>
+            </form>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── SECTION 5: SUMMARY & SUBMIT ──────────────────────────────────── */}
       <div className="grid grid-2">
         <Card>
           <CardHeader>
