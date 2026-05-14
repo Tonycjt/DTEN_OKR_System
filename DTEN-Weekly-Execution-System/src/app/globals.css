@@ -106,6 +106,29 @@ textarea {
   outline: none;
 }
 
+.nav-group {
+  margin-top: 2px;
+}
+
+.nav-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+  color: #9cafc8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nav-link-child {
+  padding-left: 28px;
+  font-size: 0.88rem;
+  min-height: 36px;
+}
+
 .main-shell {
   min-width: 0;
 }

@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { proposeChildObjectiveAction } from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -13,7 +11,7 @@ import { prisma } from "@/server/prisma";
 export default async function MyOkrsPage() {
   const user = await requireUser();
 
-  const [ownedObjectives, ownedKeyResults, assignedObjectives, allObjectives] = await Promise.all([
+  const [ownedObjectives, ownedKeyResults] = await Promise.all([
     prisma.objective.findMany({
       where: { ownerId: user.id },
       orderBy: { updatedAt: "desc" },
@@ -22,41 +20,36 @@ export default async function MyOkrsPage() {
     prisma.keyResult.findMany({
       where: { ownerId: user.id },
       orderBy: { updatedAt: "desc" },
-      include: { objective: true, monthlyTargets: { orderBy: { monthIndex: "asc" } } },
-    }),
-    prisma.objectiveAssignment.findMany({
-      where: { assigneeType: "USER", assigneeId: user.id },
-      orderBy: { createdAt: "desc" },
       include: {
-        parentObjective: { include: { department: true, team: true, keyResults: true } },
-        assignedObjective: { include: { department: true, team: true, keyResults: true } },
+        objective: {
+          include: { department: true, team: true, keyResults: { select: { id: true } } },
+        },
+        monthlyTargets: { orderBy: { monthIndex: "asc" } },
       },
-    }),
-    // all objectives available to propose as child (excluding those already linked)
-    prisma.objective.findMany({
-      orderBy: [{ level: "asc" }, { title: "asc" }],
-      select: { id: true, title: true },
     }),
   ]);
 
-  const assignmentStatusTone = (status: string) => {
-    if (status === "ACTIVE" || status === "APPROVED") return "success" as const;
-    if (status === "REJECTED") return "danger" as const;
-    if (status === "NEEDS_REVISION") return "warning" as const;
-    return "neutral" as const;
-  };
+  // Objectives related via assigned KRs (not owned by user)
+  const ownedObjectiveIds = new Set(ownedObjectives.map((o) => o.id));
+  const assignedKrObjectives = ownedKeyResults
+    .map((kr) => kr.objective)
+    .filter((objective) => !ownedObjectiveIds.has(objective.id))
+    .reduce<typeof ownedKeyResults[number]["objective"][]>((unique, objective) => {
+      if (!unique.some((o) => o.id === objective.id)) unique.push(objective);
+      return unique;
+    }, []);
 
   return (
     <div className="stack">
       <PageHeader
         title="My OKRs"
-        description={`Objective and KR workspace for ${user.name}, showing status, confidence, and pacing separately.`}
+        description={`Objectives and Key Results for ${user.name}. OWNER = you own the objective. ASSIGNED KR = you own a KR under the objective.`}
       />
 
       <Card>
         <CardHeader>
           <h2>Owned Objectives</h2>
-          <p>{ownedObjectives.length} objectives are directly owned by you.</p>
+          <p>{ownedObjectives.length} objectives where you are the owner.</p>
         </CardHeader>
         <CardContent>
           <div className="table-wrap">
@@ -65,6 +58,7 @@ export default async function MyOkrsPage() {
                 <tr>
                   <th>Objective</th>
                   <th>Org</th>
+                  <th>Tag</th>
                   <th>Status</th>
                   <th>Confidence</th>
                   <th>Progress</th>
@@ -84,6 +78,9 @@ export default async function MyOkrsPage() {
                       {objective.team ? ` / ${objective.team.name}` : ""}
                     </td>
                     <td>
+                      <Badge tone="info">Owner</Badge>
+                    </td>
+                    <td>
                       <Badge tone={workStatusTone(objective.status)}>{formatEnumLabel(objective.status)}</Badge>
                     </td>
                     <td>{objective.confidenceScore}/5</td>
@@ -98,7 +95,7 @@ export default async function MyOkrsPage() {
                 ))}
                 {ownedObjectives.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>No owned objectives yet.</td>
+                    <td colSpan={7}>No owned objectives yet.</td>
                   </tr>
                 ) : null}
               </tbody>
@@ -107,114 +104,65 @@ export default async function MyOkrsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <h2>Contributing Objectives</h2>
-          <p>
-            {assignedObjectives.length} contribution assignment{assignedObjectives.length !== 1 ? "s" : ""} where you
-            are responsible for a portion of a parent objective.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Your Objective</th>
-                  <th>Contributing To</th>
-                  <th>Assignment Status</th>
-                  <th>Contribution</th>
-                  <th>Progress</th>
-                  <th>KRs</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {assignedObjectives.map((assignment) => {
-                  const displayObjective = assignment.assignedObjective ?? assignment.parentObjective;
-                  const isLinked = assignment.assignedObjective !== null;
-                  const canPropose =
-                    assignment.assignmentMode === "CONTRIBUTION_ONLY" &&
-                    (assignment.status === "PENDING_PROPOSAL" || assignment.status === "NEEDS_REVISION");
-
-                  return (
-                    <tr key={assignment.id}>
+      {assignedKrObjectives.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <h2>Objectives via Assigned KRs</h2>
+            <p>{assignedKrObjectives.length} objectives where you own at least one KR. Read-only unless you are also the objective owner.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Objective</th>
+                    <th>Org</th>
+                    <th>Tag</th>
+                    <th>Status</th>
+                    <th>Confidence</th>
+                    <th>Progress</th>
+                    <th>Total KRs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignedKrObjectives.map((objective) => (
+                    <tr key={objective.id}>
                       <td>
-                        <Link href={`/objectives/${displayObjective.id}`}>
-                          <strong>{displayObjective.title}</strong>
+                        <Link href={`/objectives/${objective.id}`}>
+                          <strong>{objective.title}</strong>
                         </Link>
-                        {!isLinked ? (
-                          <div className="muted" style={{ fontSize: "0.8em" }}>No child objective linked yet</div>
-                        ) : null}
-                        {assignment.assignmentInstruction ? (
-                          <div className="muted" style={{ fontSize: "0.8em", marginTop: "2px" }}>
-                            Instruction: {assignment.assignmentInstruction}
-                          </div>
-                        ) : null}
                       </td>
                       <td>
-                        {isLinked ? (
-                          <Link href={`/objectives/${assignment.parentObjective.id}`}>
-                            {assignment.parentObjective.title}
-                          </Link>
-                        ) : (
-                          <span className="muted">{assignment.parentObjective.title} (parent)</span>
-                        )}
+                        {objective.department?.name ?? "Company"}
+                        {objective.team ? ` / ${objective.team.name}` : ""}
                       </td>
                       <td>
-                        <Badge tone={assignmentStatusTone(assignment.status)}>
-                          {formatEnumLabel(assignment.status)}
-                        </Badge>
+                        <Badge tone="neutral">Assigned KR</Badge>
                       </td>
-                      <td>{assignment.contributionPercent}%</td>
+                      <td>
+                        <Badge tone={workStatusTone(objective.status)}>{formatEnumLabel(objective.status)}</Badge>
+                      </td>
+                      <td>{objective.confidenceScore}/5</td>
                       <td>
                         <div className="stack">
-                          <span>{Math.round(displayObjective.progressPercent)}%</span>
-                          <ProgressBar value={displayObjective.progressPercent} />
+                          <span>{Math.round(objective.progressPercent)}%</span>
+                          <ProgressBar value={objective.progressPercent} />
                         </div>
                       </td>
-                      <td>{displayObjective.keyResults.length}</td>
-                      <td>
-                        {canPropose ? (
-                          <form action={proposeChildObjectiveAction} className="form-grid">
-                            <input name="assignmentId" type="hidden" value={assignment.id} />
-                            <label className="field wide">
-                              <span>Propose child objective</span>
-                              <select name="proposedObjectiveId" required>
-                                <option value="">Select an objective</option>
-                                {allObjectives
-                                  .filter((o) => o.id !== assignment.parentObjectiveId)
-                                  .map((o) => (
-                                    <option key={o.id} value={o.id}>
-                                      {o.title}
-                                    </option>
-                                  ))}
-                              </select>
-                            </label>
-                            <div className="field button-field">
-                              <Button type="submit">Submit Proposal</Button>
-                            </div>
-                          </form>
-                        ) : null}
-                      </td>
+                      <td>{objective.keyResults.length}</td>
                     </tr>
-                  );
-                })}
-                {assignedObjectives.length === 0 ? (
-                  <tr>
-                    <td colSpan={7}>No contributing objectives assigned to you yet.</td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
           <h2>Assigned Key Results</h2>
-          <p>{ownedKeyResults.length} KRs are assigned to you.</p>
+          <p>{ownedKeyResults.length} KRs assigned to you across all objectives.</p>
         </CardHeader>
         <CardContent>
           <div className="table-wrap">
@@ -227,6 +175,7 @@ export default async function MyOkrsPage() {
                   <th>Pacing</th>
                   <th>Confidence</th>
                   <th>Progress</th>
+                  <th>Monthly Targets</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,11 +204,16 @@ export default async function MyOkrsPage() {
                         <ProgressBar value={keyResult.progressPercent} />
                       </div>
                     </td>
+                    <td>
+                      {keyResult.monthlyTargets.length > 0
+                        ? keyResult.monthlyTargets.map((t) => `M${t.monthIndex}: ${t.targetPercent ?? 0}%`).join(" / ")
+                        : "No targets set"}
+                    </td>
                   </tr>
                 ))}
                 {ownedKeyResults.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>No assigned KRs yet.</td>
+                    <td colSpan={7}>No assigned KRs yet.</td>
                   </tr>
                 ) : null}
               </tbody>

@@ -58,8 +58,8 @@ Local commands:
   Lint      : npm run lint
   Build     : npm run build
 
-Next planned work: Day 27 (part 2) — Company Objective Approval Workflow.
-R3.4 complete and verified. DB should be reseeded before proceeding.
+Next planned work: R3.4 Chunk B — KR Assignment Org Scope + Scoped Company Tree View.
+R3.4 Chunk A complete. DB should be reseeded before testing UI changes.
 ```
 
 ---
@@ -123,6 +123,38 @@ R3.4 complete and verified. DB should be reseeded before proceeding.
 - Alert-not-crash, concurrency safety, KR picker scoped to owner, no direct progress update without check-in.
 
 **Routes:** Added "Weekly Plan" (`/weekly-plan`, CalendarDays icon) before "Weekly Report" in sidebar.
+
+### R3.4 Chunk A — Navigation + Child Objective Cleanup + My OKR Refactor (2026-05-14)
+
+**Updated `src/lib/routes.ts`:**
+- New `NavItem` discriminated union type: `{ kind: "link" }` and `{ kind: "group" }`.
+- Sidebar now has three primary items: Dashboard / OKR group (Company OKRs, My OKRs, Create Objective) / Weekly Report.
+- Weekly Plan, Reviews, Summary, Search, Notifications removed from primary sidebar (accessible via URLs and page links).
+- Used `LucideIcon` type to avoid TypeScript Booleanish incompatibility.
+
+**Updated `src/components/layout/sidebar.tsx`:**
+- Renders groups with a header + indented child links using `.nav-group` / `.nav-group-header` / `.nav-link-child`.
+
+**Updated `src/app/globals.css`:**
+- Added `.nav-group`, `.nav-group-header`, `.nav-link-child` styles.
+
+**Updated `src/app/objectives/[id]/page.tsx`:**
+- Removed "Objective Contributions" card (R3.2 assignment workflow) entirely.
+- Removed `parentObjectives` query, `parentObjectiveId` field from edit form.
+- Removed now-unused imports: `batchUpdateObjectiveAssignmentsAction`, `createObjectiveAssignmentAction`, `deleteObjectiveAssignmentAction`, `reviewAssignmentAction`, `validateObjectiveAssignmentContributions`.
+- `CHILD_OBJECTIVES` removed from progress source dropdown.
+
+**Updated `src/app/objectives/new/page.tsx`:**
+- Removed parent objective picker. Objectives are now parallel.
+- `CHILD_OBJECTIVES` removed from progress source dropdown. Default is `DIRECT_KRS`.
+
+**Updated `src/app/my-okrs/page.tsx`:**
+- Removed "Contributing Objectives" section (R3.2 assignment-based).
+- Added "Objectives via Assigned KRs" table for objectives where user owns ≥1 KR but not the objective.
+- OWNER badge on owned objectives; ASSIGNED KR badge on assigned-KR objectives.
+- Monthly targets column added to Assigned KRs table.
+
+**Verification:** lint clean, production build passing (25 routes, TypeScript clean).
 
 ### R3.4 — Objective Health Calculation (2026-05-14)
 

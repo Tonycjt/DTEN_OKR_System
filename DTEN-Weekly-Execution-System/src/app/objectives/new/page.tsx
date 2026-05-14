@@ -8,7 +8,8 @@ import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
-const objectiveProgressSources: ObjectiveProgressSource[] = ["MANUAL", "DIRECT_KRS", "CHILD_OBJECTIVES"];
+// R3.4: CHILD_OBJECTIVES removed from active UI; objectives are now parallel with direct KRs
+const objectiveProgressSources: ObjectiveProgressSource[] = ["MANUAL", "DIRECT_KRS"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
 type NewObjectivePageProps = {
@@ -25,11 +26,10 @@ export default async function NewObjectivePage({ searchParams }: NewObjectivePag
   const user = await requireUser();
   const error = firstParam((await searchParams)?.error);
 
-  const [users, departments, teams, parentObjectives] = await Promise.all([
+  const [users, departments, teams] = await Promise.all([
     prisma.user.findMany({ orderBy: { name: "asc" } }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.team.findMany({ orderBy: [{ department: { name: "asc" } }, { name: "asc" }], include: { department: true } }),
-    prisma.objective.findMany({ orderBy: [{ level: "asc" }, { title: "asc" }] }),
   ]);
 
   return (
@@ -39,7 +39,7 @@ export default async function NewObjectivePage({ searchParams }: NewObjectivePag
       <Card>
         <CardHeader>
           <h2>Objective Details</h2>
-          <p>Objectives can align to a parent objective and later hold multiple KRs.</p>
+          <p>Objectives are parallel items. Each objective holds its own direct KRs.</p>
         </CardHeader>
         <CardContent>
           <form action={createObjectiveAction} className="form-grid">
@@ -73,7 +73,7 @@ export default async function NewObjectivePage({ searchParams }: NewObjectivePag
             </label>
             <label className="field">
               <span>Progress Source</span>
-              <select defaultValue="MANUAL" name="progressSource" required>
+              <select defaultValue="DIRECT_KRS" name="progressSource" required>
                 {objectiveProgressSources.map((source) => (
                   <option key={source} value={source}>
                     {formatEnumLabel(source)}
@@ -116,21 +116,6 @@ export default async function NewObjectivePage({ searchParams }: NewObjectivePag
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="field">
-              <span>Parent Objective</span>
-              <select name="parentObjectiveId">
-                <option value="">None</option>
-                {parentObjectives.map((objective) => (
-                  <option key={objective.id} value={objective.id}>
-                    {objective.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Progress Percent</span>
-              <input defaultValue="0" max="100" min="0" name="progressPercent" type="number" />
             </label>
             <label className="field">
               <span>Confidence</span>

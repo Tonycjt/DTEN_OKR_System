@@ -1,45 +1,64 @@
 import {
-  Bell,
   Building2,
-  CalendarDays,
-  ClipboardCheck,
-  FileText,
+  CalendarCheck2,
   FileClock,
   Home,
-  ListChecks,
   Network,
   PlusCircle,
-  Search,
   ScrollText,
   Target,
   Upload,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
-export const primaryNav = [
-  { href: "/dashboard", label: "Dashboard", icon: Home, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"] },
-  { href: "/company-okrs", label: "Company OKRs", icon: Network, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "VIEWER"] },
-  { href: "/my-okrs", label: "My OKRs", icon: Target, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
-  { href: "/objectives/new", label: "Create Objective", icon: PlusCircle, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
-  { href: "/weekly-plan", label: "Weekly Plan", icon: CalendarDays, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
-  { href: "/weekly-report/current", label: "Weekly Report", icon: ListChecks, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
-  { href: "/reviews/pending", label: "Reviews", icon: ClipboardCheck, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"] },
-  { href: "/executive-summary", label: "Summary", icon: FileText, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"] },
-  { href: "/search", label: "Search", icon: Search, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"] },
-  { href: "/notifications", label: "Notifications", icon: Bell, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
-] as const;
+// Primary nav for normal users: Dashboard / OKR group / Weekly Report.
+// Reviews, Summary, Search, and Notifications are accessible from within pages
+// (dashboard links, report pages, top-bar) but not in the primary sidebar.
+
+export type NavItem =
+  | { kind: "link"; href: string; label: string; icon: LucideIcon; roles: readonly UserRole[] }
+  | { kind: "group"; label: string; icon: LucideIcon; roles: readonly UserRole[]; children: Array<{ href: string; label: string; icon: LucideIcon; roles: readonly UserRole[] }> };
+
+export const primaryNav: NavItem[] = [
+  {
+    kind: "link",
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: Home,
+    roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"],
+  },
+  {
+    kind: "group",
+    label: "OKR",
+    icon: Network,
+    roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"],
+    children: [
+      { href: "/company-okrs", label: "Company OKRs", icon: Network, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "VIEWER"] },
+      { href: "/my-okrs", label: "My OKRs", icon: Target, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
+      { href: "/objectives/new", label: "Create Objective", icon: PlusCircle, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
+    ],
+  },
+  {
+    kind: "link",
+    href: "/weekly-report/current",
+    label: "Weekly Report",
+    icon: CalendarCheck2,
+    roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"],
+  },
+];
 
 export const adminNav = [
-  { href: "/admin/users", label: "Users", icon: Users, roles: ["ADMIN", "CEO", "DEPARTMENT_HEAD"] },
-  { href: "/admin/departments", label: "Departments", icon: Building2, roles: ["ADMIN", "CEO", "DEPARTMENT_HEAD"] },
-  { href: "/admin/teams", label: "Teams", icon: FileClock, roles: ["ADMIN", "CEO", "DEPARTMENT_HEAD"] },
-  { href: "/admin/org-import", label: "Org Import", icon: Upload, roles: ["ADMIN", "CEO"] },
-  { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, roles: ["ADMIN", "CEO"] },
+  { href: "/admin/users", label: "Users", icon: Users, roles: ["ADMIN", "CEO", "DEPARTMENT_HEAD"] as readonly UserRole[] },
+  { href: "/admin/departments", label: "Departments", icon: Building2, roles: ["ADMIN", "CEO", "DEPARTMENT_HEAD"] as readonly UserRole[] },
+  { href: "/admin/teams", label: "Teams", icon: FileClock, roles: ["ADMIN", "CEO", "DEPARTMENT_HEAD"] as readonly UserRole[] },
+  { href: "/admin/org-import", label: "Org Import", icon: Upload, roles: ["ADMIN", "CEO"] as readonly UserRole[] },
+  { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, roles: ["ADMIN", "CEO"] as readonly UserRole[] },
 ] as const;
 
-type NavItem = (typeof primaryNav | typeof adminNav)[number];
+type AdminNavItem = (typeof adminNav)[number];
 
-export function canSeeNavItem(item: NavItem, role: UserRole) {
+export function canSeeNavItem(item: NavItem | AdminNavItem, role: UserRole) {
   return (item.roles as readonly UserRole[]).includes(role);
 }

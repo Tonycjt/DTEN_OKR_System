@@ -2,11 +2,7 @@ import Link from "next/link";
 import type { ObjectiveLevel, ObjectiveProgressSource, WorkStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
 import {
-  batchUpdateObjectiveAssignmentsAction,
   createKeyResultAction,
-  createObjectiveAssignmentAction,
-  deleteObjectiveAssignmentAction,
-  reviewAssignmentAction,
   updateObjectiveAction,
 } from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +13,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
 import { calculateObjectiveHealth, getObjectiveChildStatuses } from "@/lib/objective-health";
-import { validateObjectiveAssignmentContributions, validateObjectiveKrWeights } from "@/lib/rollup-validation";
+import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
@@ -32,7 +28,8 @@ type ObjectiveDetailPageProps = {
 
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
-const objectiveProgressSources: ObjectiveProgressSource[] = ["MANUAL", "DIRECT_KRS", "CHILD_OBJECTIVES"];
+// R3.4: CHILD_OBJECTIVES removed from active UI; data remains for compatibility
+const objectiveProgressSources: ObjectiveProgressSource[] = ["MANUAL", "DIRECT_KRS"];
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -43,7 +40,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
   const { id } = await params;
   const error = firstParam((await searchParams)?.error);
 
-  const [objective, users, departments, teams, parentObjectives] = await Promise.all([
+  const [objective, users, departments, teams] = await Promise.all([
     prisma.objective.findUnique({
       where: { id },
       include: {
@@ -78,12 +75,6 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
       orderBy: [{ department: { name: "asc" } }, { name: "asc" }],
       include: { department: true },
     }),
-    prisma.objective.findMany({
-      where: {
-        NOT: { id },
-      },
-      orderBy: [{ level: "asc" }, { title: "asc" }],
-    }),
   ]);
 
   if (!objective) {
@@ -96,31 +87,10 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
     status: objective.status,
     approvalStatus: objective.approvalStatus,
   });
-  const assignmentContributionValidation = validateObjectiveAssignmentContributions({
-    contributions: objective.parentAssignments.map((assignment) => ({ percent: assignment.contributionPercent })),
-    status: objective.status,
-    approvalStatus: objective.approvalStatus,
-  });
   const defaultNewKrWeight = objective.keyResults.length === 0 ? 100 : 0;
-  const userNameById = new Map(users.map((user) => [user.id, user.name]));
-  const departmentNameById = new Map(departments.map((department) => [department.id, department.name]));
-  const teamNameById = new Map(teams.map((team) => [team.id, `${team.department.name} / ${team.name}`]));
   const canManageDirectKrs = objective.progressSource !== "CHILD_OBJECTIVES";
-  const canManageChildObjectiveAssignments = objective.progressSource !== "DIRECT_KRS";
   const isOwner = objective.ownerId === currentUser.id;
   const canEditObjective = isOwner || currentUser.role === "CEO" || currentUser.role === "ADMIN";
-
-  function assignmentOwnerLabel(assignment: { assigneeType: "USER" | "TEAM" | "DEPARTMENT"; assigneeId: string }) {
-    if (assignment.assigneeType === "USER") {
-      return userNameById.get(assignment.assigneeId) ?? "Unknown user";
-    }
-
-    if (assignment.assigneeType === "TEAM") {
-      return teamNameById.get(assignment.assigneeId) ?? "Unknown team";
-    }
-
-    return departmentNameById.get(assignment.assigneeId) ?? "Unknown department";
-  }
 
   return (
     <div className="stack">
@@ -277,17 +247,6 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                   {teams.map((team) => (
                     <option key={team.id} value={team.id}>
                       {team.department.name} / {team.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Parent Objective</span>
-                <select defaultValue={objective.parentObjectiveId ?? ""} name="parentObjectiveId">
-                  <option value="">None</option>
-                  {parentObjectives.map((parentObjective) => (
-                    <option key={parentObjective.id} value={parentObjective.id}>
-                      {parentObjective.title}
                     </option>
                   ))}
                 </select>
@@ -465,219 +424,6 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <h2>Objective Contributions</h2>
-          <p>
-            {objective.parentAssignments.length} assignments contribute to this objective. Contributions total {assignmentContributionValidation.total}%.
-          </p>
-        </CardHeader>
-        <CardContent>
-          {objective.progressSource === "DIRECT_KRS" ? (
-            <div className="notice">This objective calculates progress from direct KRs. Child objective assignments are not used in the roll-up.</div>
-          ) : assignmentContributionValidation.message ? (
-            <div className={`notice ${assignmentContributionValidation.isValid ? "" : "notice-danger"}`}>{assignmentContributionValidation.message}</div>
-          ) : objective.progressSource === "CHILD_OBJECTIVES" && objective.parentAssignments.length > 0 ? (
-            <div className="notice">Objective assignment contributions are balanced at 100%.</div>
-          ) : (
-            <div className="notice">Objective assignment contributions are optional unless this objective calculates progress from child objectives.</div>
-          )}
-
-          {canManageChildObjectiveAssignments ? (
-            <>
-              <form action={batchUpdateObjectiveAssignmentsAction} id="assignment-batch-form">
-                <input name="parentObjectiveId" type="hidden" value={objective.id} />
-              </form>
-
-              <form action={createObjectiveAssignmentAction} className="form-grid">
-                <input name="parentObjectiveId" type="hidden" value={objective.id} />
-                <label className="field">
-                  <span>Assignment Mode</span>
-                  <select defaultValue="CONTRIBUTION_ONLY" name="assignmentMode">
-                    <option value="CONTRIBUTION_ONLY">Contribution Only — assignee proposes child objective</option>
-                    <option value="PREDEFINED_CHILD_OBJECTIVE">Predefined — parent defines child objective now</option>
-                  </select>
-                </label>
-                <label className="field wide">
-                  <span>Instruction / Strategic Context</span>
-                  <input name="assignmentInstruction" placeholder="e.g. Focus on enterprise certification readiness" />
-                </label>
-                <label className="field">
-                  <span>Assignment Owner</span>
-                  <select name="assigneeRef" required>
-                    <option value="">Choose owner</option>
-                    <optgroup label="Departments">
-                      {departments.map((department) => (
-                        <option key={department.id} value={`DEPARTMENT::${department.id}`}>
-                          {department.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Teams">
-                      {teams.map((team) => (
-                        <option key={team.id} value={`TEAM::${team.id}`}>
-                          {team.department.name} / {team.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Users">
-                      {users.map((user) => (
-                        <option key={user.id} value={`USER::${user.id}`}>
-                          {user.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Linked Child Objective</span>
-                  <select name="assignedObjectiveId">
-                    <option value="">No linked child objective yet</option>
-                    {parentObjectives.map((parentObjective) => (
-                      <option key={parentObjective.id} value={parentObjective.id}>
-                        {parentObjective.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Contribution Percent</span>
-                  <input defaultValue="0" max="100" min="0" name="contributionPercent" type="number" />
-                </label>
-                <div className="field button-field">
-                  <Button type="submit">Add Assignment</Button>
-                </div>
-              </form>
-            </>
-          ) : null}
-
-          {canManageChildObjectiveAssignments && objective.parentAssignments.length > 0 ? (
-            <div className="table-actions">
-              <Button form="assignment-batch-form" type="submit">
-                Save All Contributions
-              </Button>
-            </div>
-          ) : null}
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Owner</th>
-                  <th>Child Objective</th>
-                  <th>Status</th>
-                  <th>Contribution</th>
-                  <th>Child Progress</th>
-                  <th>Weighted Impact</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {objective.parentAssignments.map((assignment) => {
-                  const childProgress = assignment.assignedObjective?.progressPercent ?? 0;
-                  const weightedImpact = childProgress * (assignment.contributionPercent / 100);
-                  const isPendingReview = assignment.status === "PENDING_REVIEW";
-
-                  return (
-                    <tr key={assignment.id}>
-                      <td>
-                        <strong>{assignmentOwnerLabel(assignment)}</strong>
-                        <br />
-                        <span className="muted">{formatEnumLabel(assignment.assigneeType)}</span>
-                        {assignment.assignmentInstruction ? (
-                          <div className="muted" style={{ fontSize: "0.8em", marginTop: "2px" }}>{assignment.assignmentInstruction}</div>
-                        ) : null}
-                      </td>
-                      <td>
-                        {assignment.assignedObjective ? (
-                          <Link href={`/objectives/${assignment.assignedObjective.id}`}>{assignment.assignedObjective.title}</Link>
-                        ) : (
-                          <span className="muted">Awaiting proposal</span>
-                        )}
-                      </td>
-                      <td>
-                        <Badge
-                          tone={
-                            assignment.status === "ACTIVE" || assignment.status === "APPROVED"
-                              ? "success"
-                              : assignment.status === "REJECTED"
-                              ? "danger"
-                              : assignment.status === "NEEDS_REVISION"
-                              ? "warning"
-                              : "neutral"
-                          }
-                        >
-                          {formatEnumLabel(assignment.status)}
-                        </Badge>
-                        {assignment.approvedBy ? (
-                          <div className="muted" style={{ fontSize: "0.8em" }}>by {assignment.approvedBy.name}</div>
-                        ) : null}
-                      </td>
-                      <td>{assignment.contributionPercent}%</td>
-                      <td>{Math.round(childProgress)}%</td>
-                      <td>{Math.round(weightedImpact)} pts</td>
-                      <td>
-                        {canManageChildObjectiveAssignments ? (
-                          <div className="stack">
-                            {isPendingReview && isOwner ? (
-                              <form action={reviewAssignmentAction} className="form-grid">
-                                <input name="assignmentId" type="hidden" value={assignment.id} />
-                                <input name="parentObjectiveId" type="hidden" value={objective.id} />
-                                <label className="field wide">
-                                  <span>Revision note (optional)</span>
-                                  <input name="revisionNote" placeholder="Explain what needs to change" />
-                                </label>
-                                <div className="table-actions">
-                                  <Button name="decision" type="submit" value="APPROVED">Approve</Button>
-                                  <Button name="decision" tone="secondary" type="submit" value="NEEDS_REVISION">Request Revision</Button>
-                                  <Button name="decision" tone="secondary" type="submit" value="REJECTED">Reject</Button>
-                                </div>
-                              </form>
-                            ) : null}
-                            <input form="assignment-batch-form" name="assignmentId" type="hidden" value={assignment.id} />
-                            <select className="inline-select" defaultValue={assignment.assignedObjectiveId ?? ""} form="assignment-batch-form" name="assignedObjectiveId">
-                              <option value="">No linked child objective</option>
-                              {parentObjectives.map((po) => (
-                                <option key={po.id} value={po.id}>
-                                  {po.title}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="table-actions">
-                              <input
-                                className="inline-number"
-                                defaultValue={assignment.contributionPercent}
-                                form="assignment-batch-form"
-                                max="100"
-                                min="0"
-                                name="contributionPercent"
-                                type="number"
-                              />
-                              <span className="muted">Save with all rows</span>
-                            </div>
-                            <form action={deleteObjectiveAssignmentAction}>
-                              <input name="assignmentId" type="hidden" value={assignment.id} />
-                              <input name="parentObjectiveId" type="hidden" value={objective.id} />
-                              <Button tone="secondary" type="submit">Delete</Button>
-                            </form>
-                          </div>
-                        ) : (
-                          <span className="muted">Not available for direct KR source</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {objective.parentAssignments.length === 0 ? (
-                  <tr>
-                    <td colSpan={6}>No contribution assignments yet.</td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
