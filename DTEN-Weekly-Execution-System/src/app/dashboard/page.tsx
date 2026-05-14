@@ -10,6 +10,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatCard } from "@/components/ui/stat-card";
 import { pacingStatusTone, weeklyReportStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { calculateObjectiveHealth, getObjectiveChildStatuses } from "@/lib/objective-health";
 import { reviewOwnerWhere, reviewQueueWhere } from "@/lib/review-routing";
 import { formatReviewCompletionRate, getKrRiskReasons, krRiskWhere } from "@/lib/risk-detection";
 import { formatShortDate, getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
@@ -404,6 +405,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     departmentPendingReports,
     departmentEscalatedReviews,
     recentAuditLogs,
+    objectivesForHealth,
   ] = await Promise.all([
     prisma.weeklyReport.findMany({
       where: andWeeklyReportWhere(reportUserScopeWhere, { weekStart }),
@@ -543,6 +545,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           include: { actor: true },
         })
       : Promise.resolve([]),
+    prisma.objective.findMany({
+      where: andObjectiveWhere(objectiveScopeWhere, { status: { not: "COMPLETED" } }),
+      orderBy: [{ level: "asc" }, { title: "asc" }],
+      take: 20,
+      include: {
+        owner: true,
+        keyResults: { select: { id: true, status: true } },
+        parentAssignments: {
+          where: { status: { in: ["ACTIVE", "APPROVED"] } },
+          select: {
+            id: true,
+            status: true,
+            assignedObjective: { select: { id: true, status: true } },
+          },
+        },
+      },
+    }),
   ]);
 
   const reportsByUserId = new Map(reportsThisWeek.map((report) => [report.userId, report]));
@@ -607,6 +626,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     };
   });
   const filterQuarterOptions = Array.from(new Set(filterQuarters.map((objective) => objective.quarter))).sort().reverse();
+  const atRiskObjectives = objectivesForHealth
+    .map((objective) => {
+      const childStatuses = getObjectiveChildStatuses(objective);
+      const health = calculateObjectiveHealth(childStatuses);
+      return { ...objective, health, childCount: childStatuses.length };
+    })
+    .filter((objective) => objective.health.computedStatus === "AT_RISK" || objective.health.computedStatus === "OFF_TRACK");
 
   return (
     <div className="stack">
@@ -986,6 +1012,33 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <h2>Objective Health</h2>
+          <p>Objectives whose child KRs or child objectives signal a health problem.</p>
+        </CardHeader>
+        <CardContent>
+          <div className="route-grid">
+            {atRiskObjectives.map((objective) => (
+              <div className="route-item" key={objective.id}>
+                <span>
+                  <Link href={`/objectives/${objective.id}`}>
+                    <strong>{objective.title}</strong>
+                  </Link>
+                  <br />
+                  <span className="muted">
+                    {objective.owner.name} / {formatEnumLabel(objective.progressSource)} / {objective.childCount} children
+                    {objective.health.reason ? ` — ${objective.health.reason}` : ""}
+                  </span>
+                </span>
+                <Badge tone={workStatusTone(objective.health.computedStatus!)}>{formatEnumLabel(objective.health.computedStatus!)}</Badge>
+              </div>
+            ))}
+            {atRiskObjectives.length === 0 ? <div className="route-item">No objectives have health signals from children in your scope.</div> : null}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

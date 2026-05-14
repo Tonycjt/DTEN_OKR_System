@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { calculateObjectiveHealth, getObjectiveChildStatuses } from "@/lib/objective-health";
 import { validateObjectiveAssignmentContributions, validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
@@ -89,6 +90,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
     notFound();
   }
 
+  const objectiveHealth = calculateObjectiveHealth(getObjectiveChildStatuses(objective));
   const krWeightValidation = validateObjectiveKrWeights({
     weights: objective.keyResults.map((keyResult) => ({ percent: keyResult.weightPercent })),
     status: objective.status,
@@ -151,6 +153,17 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
               <div className="detail-row">
                 <span className="detail-label">Status</span>
                 <Badge tone={workStatusTone(objective.status)}>{formatEnumLabel(objective.status)}</Badge>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Computed Health</span>
+                {objectiveHealth.computedStatus ? (
+                  <span className="stack">
+                    <Badge tone={workStatusTone(objectiveHealth.computedStatus)}>{formatEnumLabel(objectiveHealth.computedStatus)}</Badge>
+                    {objectiveHealth.reason ? <small className="muted">{objectiveHealth.reason}</small> : null}
+                  </span>
+                ) : (
+                  <span className="muted">No health signal from children</span>
+                )}
               </div>
               <div className="detail-row">
                 <span className="detail-label">Progress Source</span>

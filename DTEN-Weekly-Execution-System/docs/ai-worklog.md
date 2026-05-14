@@ -58,8 +58,8 @@ Local commands:
   Lint      : npm run lint
   Build     : npm run build
 
-Next planned work: Day 27 — Objective Health Calculation (now R3.4 per updated PRD).
-R3.3 complete and DB reseeded. Ready to proceed.
+Next planned work: Day 27 (part 2) — Company Objective Approval Workflow.
+R3.4 complete and verified. DB should be reseeded before proceeding.
 ```
 
 ---
@@ -123,6 +123,34 @@ R3.3 complete and DB reseeded. Ready to proceed.
 - Alert-not-crash, concurrency safety, KR picker scoped to owner, no direct progress update without check-in.
 
 **Routes:** Added "Weekly Plan" (`/weekly-plan`, CalendarDays icon) before "Weekly Report" in sidebar.
+
+### R3.4 — Objective Health Calculation (2026-05-14)
+
+**New `src/lib/objective-health.ts`:**
+- `calculateObjectiveHealth(childStatuses: WorkStatus[]): ObjectiveHealthResult` — pure function.
+- Rules (PRD language mapped to WorkStatus enum):
+  - Any child `ON_HOLD` (PRD: BLOCKED) → computed `AT_RISK`.
+  - All children `COMPLETED` → computed `COMPLETED`.
+  - Majority children `OFF_TRACK` (PRD: BEHIND) → computed `OFF_TRACK`.
+  - Any child `AT_RISK` → computed `AT_RISK`.
+  - No signal → `null` (advisory only; objective's stored status is still set manually).
+- `getObjectiveChildStatuses(objective)` — selects the right child list based on `progressSource`:
+  - `DIRECT_KRS` or `MANUAL`: uses KR statuses.
+  - `CHILD_OBJECTIVES`: uses only `ACTIVE` / `APPROVED` assignment child objective statuses.
+
+**New `src/lib/objective-health.test.ts`:** 15 tests covering all health rules and child status selection.
+
+**Objective detail page (`/objectives/:id`):**
+- Added "Computed Health" row to the Objective Summary card, showing computed status badge + reason string, or "No health signal from children" when null.
+
+**Dashboard (`/dashboard`):**
+- New `objectivesForHealth` query (up to 20 non-completed objectives in scope, with KR statuses and active/approved assignment child statuses).
+- New "Objective Health" card shows objectives where computed health is `AT_RISK` or `OFF_TRACK`, with owner, progress source, child count, and reason.
+- Placed between Risk Items and Escalations cards.
+
+**No schema changes.** No migration required.
+
+**Verification:** 32 tests passing, lint clean, production build passing (25 routes).
 
 ### Release 3 Days 22–25 + Clarifications + R3.2
 
@@ -239,13 +267,12 @@ Latest verified state (2026-05-14, testing branch):
 
 ```text
 Migrations       : 10 applied, schema up to date
-Vitest           : 4 files, 17 tests — all passing
+Vitest           : 5 files, 32 tests — all passing
 Lint             : clean
-Build            : production build passes (25 routes including /weekly-plan)
-currentWeekReports: 0 (DB reseeded)
+Build            : production build passes (25 routes)
+currentWeekReports: 0 (DB reseeded after R3.3)
 Objectives       : 4 (3 DIRECT_KRS, 1 CHILD_OBJECTIVES)
 ObjectiveAssignments: 2 (both PREDEFINED_CHILD_OBJECTIVE / ACTIVE)
-WeeklyPriority   : userId + weekStartDate + carriedOverFromId added; weeklyReportId nullable
 Active branch    : testing
 ```
 
