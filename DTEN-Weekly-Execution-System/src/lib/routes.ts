@@ -2,9 +2,9 @@ import {
   Building2,
   CalendarCheck2,
   FileClock,
+  GitBranch,
   Home,
   Network,
-  PlusCircle,
   ScrollText,
   Target,
   Upload,
@@ -35,11 +35,17 @@ export const primaryNav: NavItem[] = [
     icon: Network,
     roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"],
     children: [
-      { href: "/company-okrs", label: "Company OKRs", icon: Network, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "VIEWER"] },
-      { href: "/company-tree", label: "Company Tree", icon: Building2, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "VIEWER"] },
+      { href: "/company-okrs", label: "Company OKRs", icon: Network, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"] },
       { href: "/my-okrs", label: "My OKRs", icon: Target, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
-      { href: "/objectives/new", label: "Create Objective", icon: PlusCircle, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
     ],
+  },
+  // Company Tree is shown only when the user has direct reports — sidebar gates this with hasDirectReports.
+  {
+    kind: "link",
+    href: "/company-tree",
+    label: "My Team",
+    icon: GitBranch,
+    roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"],
   },
   {
     kind: "link",

@@ -4,7 +4,7 @@ import type { getCurrentUser } from "@/server/auth";
 
 type CurrentUser = Awaited<ReturnType<typeof getCurrentUser>>;
 
-export function Sidebar({ user }: { user: CurrentUser }) {
+export function Sidebar({ user, hasDirectReports }: { user: CurrentUser; hasDirectReports: boolean }) {
   const visibleAdminNav = user ? adminNav.filter((item) => canSeeNavItem(item, user.role)) : [];
   const brandHref = user?.role === "ADMIN" ? "/admin/users" : "/dashboard";
 
@@ -21,6 +21,9 @@ export function Sidebar({ user }: { user: CurrentUser }) {
 
           {primaryNav.map((item) => {
             if (!canSeeNavItem(item, user.role)) return null;
+
+            // My Team is only shown when the user has at least one direct report.
+            if (item.kind === "link" && item.href === "/company-tree" && !hasDirectReports) return null;
 
             if (item.kind === "group") {
               const visibleChildren = item.children.filter((child) =>

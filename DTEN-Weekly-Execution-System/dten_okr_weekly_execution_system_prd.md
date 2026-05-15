@@ -2235,6 +2235,41 @@ Acceptance criteria:
 
 ---
 
+### R3.4.11 Simplified Direct-Report Tree View
+
+#### Goal
+
+The current company tree view is difficult to read because it attempts to show too much hierarchy at once.
+
+For R3.4, the organization tree should be simplified into a visually clear “actual tree” UI that shows only the current user as the root node and one layer of direct reports below them.
+
+This tree is not meant to show the full company hierarchy. It is meant to help each user quickly understand who is directly under them in the org structure.
+
+#### Tree Scope
+
+The org tree must follow this structure:
+
+Current logged-in user
+→ Direct reports only
+
+The tree should not display:
+
+- The current user’s manager
+- Peers
+- Indirect reports
+- Other departments
+- Full company structure
+- Employees outside the current user’s visibility scope
+
+Example:
+
+```text
+            Current User
+          /      |       \
+   Direct A   Direct B   Direct C
+
+---
+
 ## R3.4 Non-Goals
 
 R3.4 should not include:

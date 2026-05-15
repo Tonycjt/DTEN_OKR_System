@@ -632,6 +632,67 @@ td {
   font-weight: 750;
 }
 
+.person-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.person-tree-root {
+  display: flex;
+  justify-content: center;
+}
+
+.person-tree-root-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 10px;
+  padding: 18px 28px;
+  min-width: 180px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.person-tree-root-card .muted {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.84rem;
+}
+
+.person-tree-connector {
+  width: 2px;
+  height: 32px;
+  background: var(--border);
+  margin: 0 auto;
+}
+
+.person-tree-children {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.person-tree-child-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 22px;
+  min-width: 160px;
+  max-width: 220px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgb(22 32 51 / 0.06);
+}
+
 .org-tree {
   display: grid;
   gap: 10px;

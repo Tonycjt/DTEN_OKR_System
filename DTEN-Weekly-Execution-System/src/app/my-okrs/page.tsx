@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { WorkStatus } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -23,34 +24,62 @@ export default async function MyOkrsPage() {
       orderBy: { updatedAt: "desc" },
       include: {
         objective: {
-          include: { department: true, team: true, keyResults: { select: { id: true } } },
+          include: {
+            department: true,
+            team: true,
+            keyResults: { select: { id: true } },
+          },
         },
         monthlyTargets: { orderBy: { monthIndex: "asc" } },
       },
     }),
   ]);
 
-  // Objectives related via assigned KRs (not owned by user)
-  const ownedObjectiveIds = new Set(ownedObjectives.map((o) => o.id));
-  const assignedKrObjectives = ownedKeyResults
-    .map((kr) => kr.objective)
-    .filter((objective) => !ownedObjectiveIds.has(objective.id))
-    .reduce<typeof ownedKeyResults[number]["objective"][]>((unique, objective) => {
-      if (!unique.some((o) => o.id === objective.id)) unique.push(objective);
-      return unique;
-    }, []);
+  // Build a unified objectives list:
+  // - Start with all directly owned objectives → tagged "owner"
+  // - Add any objectives reachable via an assigned KR that aren't already in the list → tagged "assigned_kr"
+  // An objective where user is both owner and has a KR gets the "owner" tag (higher privilege).
+  type ObjRow = {
+    id: string;
+    title: string;
+    status: WorkStatus;
+    confidenceScore: number;
+    progressPercent: number;
+    department: { name: string } | null;
+    team: { name: string } | null;
+    keyResults: { id: string }[];
+    tag: "owner" | "assigned_kr";
+  };
+
+  const ownedIds = new Set(ownedObjectives.map((o) => o.id));
+
+  const unifiedObjectives: ObjRow[] = [
+    ...ownedObjectives.map((o) => ({ ...o, tag: "owner" as const })),
+  ];
+
+  for (const kr of ownedKeyResults) {
+    const obj = kr.objective;
+    if (!ownedIds.has(obj.id)) {
+      ownedIds.add(obj.id);
+      unifiedObjectives.push({ ...obj, tag: "assigned_kr" as const });
+    }
+  }
 
   return (
     <div className="stack">
       <PageHeader
         title="My OKRs"
-        description={`Objectives and Key Results for ${user.name}. OWNER = you own the objective. ASSIGNED KR = you own a KR under the objective.`}
+        description={`All objectives and key results connected to ${user.name}.`}
       />
 
+      {/* Unified objectives table */}
       <Card>
         <CardHeader>
-          <h2>Owned Objectives</h2>
-          <p>{ownedObjectives.length} objectives where you are the owner.</p>
+          <h2>My Objectives</h2>
+          <p>
+            {unifiedObjectives.length} objective{unifiedObjectives.length !== 1 ? "s" : ""} — objectives you own or have an assigned KR under.
+            {" "}<span className="muted">Owner = you created / own the objective and can edit it. Assigned KR = you own a KR under this objective; the objective context is read-only.</span>
+          </p>
         </CardHeader>
         <CardContent>
           <div className="table-wrap">
@@ -59,7 +88,7 @@ export default async function MyOkrsPage() {
                 <tr>
                   <th>Objective</th>
                   <th>Org</th>
-                  <th>Tag</th>
+                  <th>Your Role</th>
                   <th>Status</th>
                   <th>Confidence</th>
                   <th>Progress</th>
@@ -67,19 +96,23 @@ export default async function MyOkrsPage() {
                 </tr>
               </thead>
               <tbody>
-                {ownedObjectives.map((objective) => (
+                {unifiedObjectives.map((objective) => (
                   <tr key={objective.id}>
                     <td>
                       <Link href={`/objectives/${objective.id}`}>
                         <strong>{objective.title}</strong>
                       </Link>
                     </td>
-                    <td>
+                    <td className="muted">
                       {objective.department?.name ?? "Company"}
                       {objective.team ? ` / ${objective.team.name}` : ""}
                     </td>
                     <td>
-                      <Badge tone="info">Owner</Badge>
+                      {objective.tag === "owner" ? (
+                        <Badge tone="info">Owner</Badge>
+                      ) : (
+                        <Badge tone="neutral">Assigned KR</Badge>
+                      )}
                     </td>
                     <td>
                       <Badge tone={workStatusTone(objective.status)}>{formatEnumLabel(objective.status)}</Badge>
@@ -94,9 +127,9 @@ export default async function MyOkrsPage() {
                     <td>{objective.keyResults.length}</td>
                   </tr>
                 ))}
-                {ownedObjectives.length === 0 ? (
+                {unifiedObjectives.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>No owned objectives yet.</td>
+                    <td colSpan={7} className="muted">No objectives linked to you yet.</td>
                   </tr>
                 ) : null}
               </tbody>
@@ -105,65 +138,11 @@ export default async function MyOkrsPage() {
         </CardContent>
       </Card>
 
-      {assignedKrObjectives.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <h2>Objectives via Assigned KRs</h2>
-            <p>{assignedKrObjectives.length} objectives where you own at least one KR. Read-only unless you are also the objective owner.</p>
-          </CardHeader>
-          <CardContent>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Objective</th>
-                    <th>Org</th>
-                    <th>Tag</th>
-                    <th>Status</th>
-                    <th>Confidence</th>
-                    <th>Progress</th>
-                    <th>Total KRs</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assignedKrObjectives.map((objective) => (
-                    <tr key={objective.id}>
-                      <td>
-                        <Link href={`/objectives/${objective.id}`}>
-                          <strong>{objective.title}</strong>
-                        </Link>
-                      </td>
-                      <td>
-                        {objective.department?.name ?? "Company"}
-                        {objective.team ? ` / ${objective.team.name}` : ""}
-                      </td>
-                      <td>
-                        <Badge tone="neutral">Assigned KR</Badge>
-                      </td>
-                      <td>
-                        <Badge tone={workStatusTone(objective.status)}>{formatEnumLabel(objective.status)}</Badge>
-                      </td>
-                      <td>{objective.confidenceScore}/5</td>
-                      <td>
-                        <div className="stack">
-                          <span>{Math.round(objective.progressPercent)}%</span>
-                          <ProgressBar value={objective.progressPercent} />
-                        </div>
-                      </td>
-                      <td>{objective.keyResults.length}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
+      {/* Assigned Key Results */}
       <Card>
         <CardHeader>
           <h2>Assigned Key Results</h2>
-          <p>{ownedKeyResults.length} KRs assigned to you across all objectives.</p>
+          <p>{ownedKeyResults.length} KR{ownedKeyResults.length !== 1 ? "s" : ""} assigned to you across all objectives.</p>
         </CardHeader>
         <CardContent>
           <div className="table-wrap">
@@ -188,7 +167,9 @@ export default async function MyOkrsPage() {
                       </Link>
                     </td>
                     <td>
-                      <Link href={`/objectives/${keyResult.objectiveId}`}>{keyResult.objective.title}</Link>
+                      <Link href={`/objectives/${keyResult.objectiveId}`} className="muted">
+                        {keyResult.objective.title}
+                      </Link>
                     </td>
                     <td>
                       <Badge tone={workStatusTone(keyResult.status)}>{formatEnumLabel(keyResult.status)}</Badge>
@@ -222,7 +203,7 @@ export default async function MyOkrsPage() {
                 ))}
                 {ownedKeyResults.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>No assigned KRs yet.</td>
+                    <td colSpan={7} className="muted">No assigned KRs yet.</td>
                   </tr>
                 ) : null}
               </tbody>
