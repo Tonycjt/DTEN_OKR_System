@@ -89,7 +89,7 @@ export default async function CompanyOkrsPage() {
                       {objective.keyResults.length > 0 ? (
                         <>
                           <br />
-                          <span className="muted">{objective.keyResults.map((kr) => kr.owner.name).join(", ")}</span>
+                          <span className="muted">{objective.keyResults.map((kr) => kr.owner?.name ?? "—").join(", ")}</span>
                         </>
                       ) : null}
                     </td>

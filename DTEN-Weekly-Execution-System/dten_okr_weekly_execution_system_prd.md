@@ -477,6 +477,10 @@ Business rules:
 - KRs can be assigned to users under the assigner's org tree scope.
 - A user assigned to a KR should see the linked objective in My OKR.
 - KR-related objectives shown through assigned KRs are read-only unless the user also owns the objective.
+- The objective creator / owner may edit direct KRs under that objective, including KR title, owner assignment, metric values, status, and weight/contribution percentage.
+- In R3.4, "KR contribution percentage" means `weight_percent` on direct KRs. It does not mean deprecated child-objective assignment contribution percentage.
+- Deleting or materially changing a KR that is assigned to a user requires an impact confirmation step before the change is committed.
+- Impacted users must be shown to the objective owner before confirmation and notified after the confirmed change.
 ```
 
 ---
@@ -801,6 +805,9 @@ REVIEW_REQUESTED
 FOLLOW_UP_REQUESTED
 KR_AT_RISK
 KR_BLOCKED
+KR_UPDATED_BY_OBJECTIVE_OWNER
+KR_DELETED_BY_OBJECTIVE_OWNER
+KR_ASSIGNMENT_CHANGED
 MANAGER_COMMENT
 CEO_COMMENT
 ```
@@ -1133,6 +1140,7 @@ Can:
 - View own objectives.
 - View objectives linked to assigned KRs.
 - View own assigned KRs.
+- Edit direct KRs under objectives they own or created, subject to publish/update validation.
 - Create monthly targets for assigned KRs if allowed.
 - Create and submit own weekly reports.
 - Add this week's tasks and next week's tasks.
@@ -1144,6 +1152,7 @@ Cannot:
 
 ```text
 - Edit KR-related objective context unless they own the objective or have permission.
+- Delete or materially change assigned KRs without confirming impacted users.
 - Assign KRs to people outside their org scope.
 - View full company tree unless permitted by role.
 ```
@@ -1494,6 +1503,7 @@ GET    /api/key-results
 GET    /api/key-results/:id
 PATCH  /api/key-results/:id
 DELETE /api/key-results/:id
+GET    /api/key-results/:id/impact-preview
 GET    /api/key-results/:id/monthly-targets
 GET    /api/key-results/:id/updates
 GET    /api/key-results/risk-list
@@ -1505,6 +1515,16 @@ Assignment validation:
 
 ```text
 - Backend checks whether assignee is inside assigner's allowed org scope.
+```
+
+KR impact validation:
+
+```text
+- Objective owner / creator can edit direct KRs under their objective.
+- `GET /api/key-results/:id/impact-preview` returns impacted users before delete, reassignment, or major KR weight/contribution change.
+- Deleting an assigned KR, changing the assigned KR owner, or changing KR weight/contribution percentage after publish requires explicit confirmation.
+- Confirmed changes notify impacted users and write audit logs.
+- If confirmation is missing, backend blocks the change and returns impacted user details for the UI alert.
 ```
 
 ---
@@ -2359,6 +2379,8 @@ Required:
 - DRAFT must not appear in the status selector for an already published objective.
 - The bottom action should be Save for Later for draft objectives and Update for published objectives.
 - For published objectives, Update validates required objective fields, required KR fields, KR assignment scope, and KR weights.
+- The objective owner / creator can add, edit, delete, and reweight direct KRs under the objective.
+- Changing a KR's weight/contribution percentage should be allowed as long as the final direct KR weights pass publish/update validation.
 - Validation failures must appear as red inline messages at the exact failed field or section.
 - Successfully updating a published objective preserves the selected non-draft status.
 ```
@@ -2375,9 +2397,91 @@ Acceptance criteria:
 - Successful publish changes status to IN_PROGRESS.
 - Editing a published objective shows a status selector without DRAFT.
 - Published objective edit uses an Update action instead of Publish Objective.
+- Objective owner / creator can change existing KR details and weight/contribution percentages.
+- Objective owner / creator can add new direct KRs while editing an objective.
 ```
 
 ---
+
+### R3.4.13 KR Edit/Delete Impact Confirmation
+
+#### Goal
+
+Objective owners need to manage the KRs under their objectives after creation, including changing KR weights/contribution percentages and deleting KRs. The workflow should protect assigned users from silent disruption.
+
+In this section, "KR contribution percentage" means the direct KR `weight_percent` used for objective progress. It does not refer to the deprecated child-objective contribution workflow.
+
+#### KR Editing Permissions
+
+Required:
+
+```text
+- The objective creator / owner can edit direct KRs under the objective.
+- Editable KR fields include title, metric label, start/current/target values, owner assignment, status, confidence, and weight/contribution percentage.
+- The objective creator / owner can add new KRs while editing the objective.
+- The objective creator / owner can delete existing KRs if they pass the impact confirmation flow when required.
+- CEO and Admin retain elevated edit permissions according to the broader permission model.
+```
+
+#### Impact Confirmation
+
+Required:
+
+```text
+- If a KR is assigned to a user, deleting it requires a confirmation alert before the delete is committed.
+- If a KR owner assignment changes, the current owner and new owner are impacted users.
+- If a published objective's KR weight/contribution percentage changes, the current KR owner is an impacted user.
+- The confirmation alert must show who will be impacted by name, role/title when available, and email.
+- The owner must explicitly confirm before the system commits the delete, reassignment, or major KR weight change.
+- If the owner cancels, no data is changed.
+```
+
+Impacted users:
+
+```text
+- The current KR owner.
+- The new KR owner when reassignment is happening.
+- Any user with weekly KR updates/check-ins tied to the KR, if different from the KR owner.
+- Any user with open follow-ups or comments tied to the KR, if different from the KR owner.
+```
+
+#### Notifications and Audit
+
+Required:
+
+```text
+- After a confirmed KR delete, notify impacted users that the KR was deleted by the objective owner.
+- After a confirmed KR reassignment, notify previous and new KR owners.
+- After a confirmed KR weight/contribution percentage change on a published objective, notify the assigned KR owner.
+- Notification should include objective title, KR title, changed field/action, actor, and link to the objective or My OKR.
+- Audit logs should record the actor, objective, KR, impacted users, old value, new value, and confirmation result.
+```
+
+#### Validation
+
+Required:
+
+```text
+- After KR add/delete/reweight, the final KR weight total must satisfy the same publish/update validation rules.
+- If the final KR weights do not total 100 for a published direct-KR objective, the system blocks update and shows a red inline error at the KR weight section.
+- If a KR delete would leave a published objective with no KRs, the system blocks update and shows a red inline error at the KR list.
+- Monthly target existence must not block KR edit/delete confirmation.
+```
+
+Acceptance criteria:
+
+```text
+- Objective owner / creator can edit existing KRs under the objective.
+- Objective owner / creator can change KR weight/contribution percentages.
+- Objective owner / creator can add new KRs while editing an objective.
+- Deleting an assigned KR opens an impact confirmation alert.
+- Impact confirmation shows impacted user names and emails before commit.
+- Cancelling impact confirmation leaves the KR unchanged.
+- Confirming impact deletes or changes the KR and notifies impacted users.
+- Reassigning a KR notifies previous and new KR owners after confirmation.
+- Reweighting an assigned KR under a published objective notifies the assigned KR owner after confirmation.
+- Final KR weights are still validated before publish/update succeeds.
+```
 
 ## R3.4 Non-Goals
 
@@ -2412,15 +2516,18 @@ Build R3.4 in this order:
 10. Add objective draft/publish workflow with Save for Later and Publish Objective actions.
 11. Add inline publish validation for required fields and direct KR weights totaling 100.
 12. Add published-objective update workflow with non-draft status selector and Update action.
-13. Add or refine monthly target UI for each KR.
-14. Update Weekly Report page to three sections.
-15. Add weekly task limit validation.
-16. Add KR update section to Weekly Report.
-17. Add weekly report comment section.
-18. Ensure KR updates recalculate pacing.
-19. Ensure objective health recalculates from direct KRs.
-20. Update dashboards to use simplified model.
-21. Polish labels, permissions, and tests.
+13. Add objective-owner KR edit/delete/reweight support.
+14. Add KR impact preview and confirmation for assigned KR delete, reassignment, and reweighting.
+15. Notify impacted users after confirmed KR changes.
+16. Add or refine monthly target UI for each KR.
+17. Update Weekly Report page to three sections.
+18. Add weekly task limit validation.
+19. Add KR update section to Weekly Report.
+20. Add weekly report comment section.
+21. Ensure KR updates recalculate pacing.
+22. Ensure objective health recalculates from direct KRs.
+23. Update dashboards to use simplified model.
+24. Polish labels, permissions, and tests.
 ```
 
 ---
@@ -2458,6 +2565,10 @@ R3.4 is complete when:
 26. Publish validation errors appear inline in red at the failed field or section.
 27. Successful publish changes the objective to IN_PROGRESS.
 28. Published objective edit shows a status selector without DRAFT and uses an Update action.
+29. Objective owner / creator can add, edit, delete, and reweight direct KRs under the objective.
+30. Assigned KR delete, reassignment, and published-objective reweighting require impact confirmation.
+31. Impact confirmation shows impacted users before commit.
+32. Confirmed KR changes notify impacted users and write audit logs.
 ```
 
 ---
@@ -2474,6 +2585,7 @@ Reusable components:
 - ObjectiveCard
 - ObjectiveEditor
 - ObjectivePublishValidation
+- KRImpactConfirmationDialog
 - ObjectiveOwnershipTag
 - MonthlyTargetCard
 - MonthlyTargetEditor
@@ -2644,6 +2756,9 @@ Backend should return clear error messages for:
 - Objective publish required field is missing.
 - Objective publish KR weight total is not 100.
 - Published objective cannot be changed back to draft from the edit status selector.
+- KR delete/reassignment/reweight requires impact confirmation.
+- KR delete would leave a published objective with no KRs.
+- KR update would leave direct KR weights not totaling 100.
 - Weekly report already submitted.
 - Manager cannot review this report.
 ```
@@ -2691,6 +2806,12 @@ publishing an objective requires all publish-required objective fields.
 publishing an objective requires all publish-required KR fields.
 publishing a direct-KR objective requires KR weights to total 100.
 monthly targets are not required to save or publish an objective.
+objective owner / creator may edit direct KRs under the objective.
+KR delete/reassignment/reweight requires confirmation when assigned users are impacted.
+KR impact confirmation must list impacted users before commit.
+confirmed KR changes must notify impacted users.
+published direct-KR objective update requires final KR weights to total 100.
+published objective cannot be updated to have zero direct KRs.
 ```
 
 ---
@@ -2794,6 +2915,22 @@ monthly targets are not required to save or publish an objective.
 - Editing a published objective shows a status selector.
 - Published objective status selector does not include DRAFT.
 - Published objective form uses Update instead of Publish Objective.
+```
+
+### 21.9 KR Edit/Delete Impact Tests
+
+```text
+- Objective owner / creator can edit existing KRs under the objective.
+- Objective owner / creator can add a new KR while editing the objective.
+- Objective owner / creator can change existing KR weight/contribution percentage.
+- Update blocks save when final direct KR weights do not total 100 for a published objective.
+- Deleting an assigned KR opens an impact confirmation alert.
+- Impact confirmation lists impacted users by name and email.
+- Cancelling impact confirmation leaves the KR unchanged.
+- Confirming assigned KR delete removes the KR and notifies impacted users.
+- Reassigning a KR shows impacted previous and new owners before commit.
+- Reassigning a KR notifies previous and new owners after confirmation.
+- Reweighting an assigned KR under a published objective notifies the assigned KR owner after confirmation.
 ```
 
 ---

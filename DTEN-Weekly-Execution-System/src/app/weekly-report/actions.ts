@@ -288,7 +288,7 @@ export async function savePriorityCheckInAction(formData: FormData) {
 
     await recalculateObjectiveAndParents(tx, linkedKeyResult.objectiveId);
 
-    if (becameBlocked) {
+    if (becameBlocked && linkedKeyResult.ownerId) {
       await tx.notification.create({
         data: {
           userId: linkedKeyResult.ownerId,
@@ -311,7 +311,7 @@ export async function savePriorityCheckInAction(formData: FormData) {
     });
   });
 
-  if (becameBlocked) {
+  if (becameBlocked && linkedKeyResult.owner) {
     await sendKrBlockedEmail({
       owner: linkedKeyResult.owner,
       keyResultTitle: linkedKeyResult.title,
@@ -481,7 +481,7 @@ export async function saveKrUpdateAction(formData: FormData) {
 
     await recalculateObjectiveAndParents(tx, keyResult.objectiveId);
 
-    if (becameBlocked) {
+    if (becameBlocked && keyResult.ownerId) {
       await tx.notification.create({
         data: {
           userId: keyResult.ownerId,
@@ -504,7 +504,7 @@ export async function saveKrUpdateAction(formData: FormData) {
     });
   });
 
-  if (becameBlocked) {
+  if (becameBlocked && keyResult.owner) {
     await sendKrBlockedEmail({
       owner: keyResult.owner,
       keyResultTitle: keyResult.title,

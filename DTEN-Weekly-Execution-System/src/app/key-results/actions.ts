@@ -72,11 +72,11 @@ export async function addKeyResultCommentAction(formData: FormData) {
 
   const notifyUserIds = new Set<string>();
 
-  if (keyResult.ownerId !== user.id) {
+  if (keyResult.ownerId && keyResult.ownerId !== user.id) {
     notifyUserIds.add(keyResult.ownerId);
   }
 
-  if (keyResult.owner.managerId && keyResult.owner.managerId !== user.id) {
+  if (keyResult.owner?.managerId && keyResult.owner.managerId !== user.id) {
     notifyUserIds.add(keyResult.owner.managerId);
   }
 

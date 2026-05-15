@@ -271,7 +271,7 @@ model Objective {
 model KeyResult {
   id          String     @id @default(cuid())
   objectiveId String
-  ownerId     String
+  ownerId     String?
   title       String
   metricName  String?
 
@@ -285,7 +285,7 @@ model KeyResult {
   pacingStatus    PacingStatus @default(NO_TARGET)
 
   objective       Objective        @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
-  owner           User             @relation("KeyResultOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  owner           User?            @relation("KeyResultOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   monthlyTargets  MonthlyTarget[]
   weeklyPriorities WeeklyPriority[]
   checkIns        CheckIn[]

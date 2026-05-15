@@ -28,8 +28,14 @@ export async function getAssignableUsers(actorId: string, role: UserRole): Promi
     departmentId: true,
   } as const;
 
-  if (role === "CEO" || role === "ADMIN" || role === "EXECUTIVE") {
+  if (role === "ADMIN") {
     return prisma.user.findMany({ where: { isActive: true }, select, orderBy: { name: "asc" } });
+  }
+
+  if (role === "CEO" || role === "EXECUTIVE") {
+    const allActive = await prisma.user.findMany({ where: { isActive: true }, select, orderBy: { name: "asc" } });
+    const subtree = buildSubtree(actorId, allActive);
+    return allActive.filter((u) => subtree.has(u.id));
   }
 
   if (role === "DEPARTMENT_HEAD") {
@@ -69,7 +75,7 @@ export function buildSubtree(rootId: string, users: Array<{ id: string; managerI
 // Returns true if `targetUserId` is within the actor's assignable scope.
 // CEO/ADMIN/EXECUTIVE skip the check (always allowed).
 export async function isInAssignableScope(actorId: string, role: UserRole, targetUserId: string): Promise<boolean> {
-  if (role === "CEO" || role === "ADMIN" || role === "EXECUTIVE") {
+  if (role === "ADMIN") {
     return true;
   }
 

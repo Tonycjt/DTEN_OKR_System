@@ -996,7 +996,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     </Link>
                     <br />
                     <span className="muted">
-                      {kr.objective.title} / {kr.owner.name} / Confidence {kr.confidenceScore}/5
+                      {kr.objective.title} / {kr.owner?.name ?? "No owner"} / Confidence {kr.confidenceScore}/5
                       <br />
                       {getKrRiskReasons(kr).join(", ")}
                     </span>

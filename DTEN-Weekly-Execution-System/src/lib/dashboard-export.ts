@@ -261,8 +261,8 @@ export async function buildDashboardCsvRows(user: DashboardExportUser, filters: 
       section: "Key Results",
       type: "Key Result",
       name: kr.title,
-      owner: kr.owner.name,
-      department: kr.owner.department?.name ?? "",
+      owner: kr.owner?.name ?? "",
+      department: kr.owner?.department?.name ?? "",
       status: formatEnumLabel(kr.status),
       pacing: formatEnumLabel(kr.pacingStatus),
       confidence: csvConfidence(kr.confidenceScore),
@@ -274,8 +274,8 @@ export async function buildDashboardCsvRows(user: DashboardExportUser, filters: 
       section: "Risk Items",
       type: "Key Result",
       name: kr.title,
-      owner: kr.owner.name,
-      department: kr.owner.department?.name ?? "",
+      owner: kr.owner?.name ?? "",
+      department: kr.owner?.department?.name ?? "",
       status: formatEnumLabel(kr.status),
       pacing: formatEnumLabel(kr.pacingStatus),
       confidence: csvConfidence(kr.confidenceScore),
@@ -357,7 +357,7 @@ export async function buildWeeklySummaryData(user: DashboardExportUser): Promise
   }
 
   for (const kr of keyResults) {
-    const departmentId = kr.owner.departmentId ?? "unassigned";
+    const departmentId = kr.owner?.departmentId ?? "unassigned";
     const existing = departmentMap.get(departmentId);
     if (existing) {
       existing.keyResultCount += 1;
@@ -380,7 +380,7 @@ export async function buildWeeklySummaryData(user: DashboardExportUser): Promise
     riskKrs: riskKrs.map((kr) => ({
       id: kr.id,
       title: kr.title,
-      ownerName: kr.owner.name,
+      ownerName: kr.owner?.name ?? "",
       objectiveTitle: kr.objective.title,
       status: kr.status,
       pacingStatus: kr.pacingStatus,

@@ -93,13 +93,9 @@ export async function createObjectiveAction(
   })).filter((kr) => Boolean(kr.title));
 
   if (isPublish && Object.keys(errors).length === 0) {
-    // Validate each KR owner is within actor's scope
+    // Validate each KR owner is within actor's scope (skip unassigned KRs)
     for (const kr of krRows) {
-      if (!kr.ownerId) {
-        errors.krs = "Every KR must have an owner assigned.";
-        break;
-      }
-      if (!(await isInAssignableScope(user.id, user.role, kr.ownerId))) {
+      if (kr.ownerId && !(await isInAssignableScope(user.id, user.role, kr.ownerId))) {
         errors.krs = "One or more KR owners are outside your assignable org scope.";
         break;
       }
@@ -146,12 +142,12 @@ export async function createObjectiveAction(
 
   // Create any inline KR rows
   for (const kr of krRows) {
-    if (!kr.title || !kr.ownerId) continue;
+    if (!kr.title) continue;
     const progressPercent = calculateProgressPercent(kr.startValue, kr.startValue, kr.targetValue);
     await prisma.keyResult.create({
       data: {
         objectiveId: objective.id,
-        ownerId: kr.ownerId,
+        ownerId: kr.ownerId ?? null,
         title: kr.title,
         startValue: kr.startValue,
         currentValue: kr.startValue,
@@ -188,9 +184,12 @@ export async function updateObjectiveAction(
   const objectiveId = optionalString(formData.get("objectiveId"));
   if (!objectiveId) actionAlert("/company-okrs", "Objective ID missing.");
 
-  const isUpdate = optionalString(formData.get("intent")) === "update";
+  const intentStr = optionalString(formData.get("intent")) ?? "save";
+  const isPublish = intentStr === "publish";
+  const isUpdate = intentStr === "update";
   const level = (optionalString(formData.get("level")) ?? "COMPANY") as ObjectiveLevel;
-  const status = (optionalString(formData.get("status")) ?? "DRAFT") as WorkStatus;
+  let status = (optionalString(formData.get("status")) ?? "DRAFT") as WorkStatus;
+  if (isPublish) status = "ON_TRACK";
   const progressSource = (optionalString(formData.get("progressSource")) ?? "DIRECT_KRS") as ObjectiveProgressSource;
 
   const errors: ObjectiveFormErrors = {};
@@ -222,15 +221,21 @@ export async function updateObjectiveAction(
     return { errors: { general: "Only the objective owner can edit this objective." } };
   }
 
-  // For the Update action (published objective): validate KR weights if DIRECT_KRS
-  if (isUpdate && progressSource === "DIRECT_KRS" && existingObjective!.keyResults.length > 0) {
+  // Validate KR weights when publishing a draft or updating a published objective with DIRECT_KRS
+  if ((isUpdate || isPublish) && progressSource === "DIRECT_KRS" && existingObjective!.keyResults.length > 0) {
     const weightValidation = validateObjectiveKrWeights({
       weights: existingObjective!.keyResults.map((kr) => ({ percent: kr.weightPercent })),
       status,
       approvalStatus: existingObjective!.approvalStatus,
     });
     if (!weightValidation.isValid) {
-      return { errors: { krs: weightValidation.message ?? "KR weights must total 100% before updating." } };
+      return {
+        errors: {
+          krs: weightValidation.message ?? (isPublish
+            ? "KR weights must total 100% before publishing."
+            : "KR weights must total 100% before updating."),
+        },
+      };
     }
   }
 
@@ -272,6 +277,287 @@ export async function updateObjectiveAction(
   redirect(`/objectives/${objectiveId!}`);
 }
 
+// ─── R3.4.13: KR delete / update from objective detail page ──────────────────
+
+export type ImpactedUser = { id: string; name: string; email: string; title: string | null };
+
+export type KrDeleteState = { error: string } | null;
+
+export type KrUpdateFromObjectiveErrors = {
+  title?: string;
+  ownerId?: string;
+  weightPercent?: string;
+  general?: string;
+};
+
+export type KrUpdateFromObjectiveState =
+  | { step: "confirm"; impactedUsers: ImpactedUser[]; changes: string[] }
+  | { step: "errors"; errors: KrUpdateFromObjectiveErrors }
+  | null;
+
+export async function deleteKrAction(
+  _prevState: KrDeleteState,
+  formData: FormData,
+): Promise<KrDeleteState> {
+  const user = await requireUser();
+  const keyResultId = optionalString(formData.get("keyResultId"));
+  const objectiveId = optionalString(formData.get("objectiveId"));
+
+  if (!keyResultId || !objectiveId) return { error: "Missing parameters." };
+
+  const kr = await prisma.keyResult.findUnique({
+    where: { id: keyResultId },
+    select: {
+      title: true,
+      ownerId: true,
+      checkIns: { distinct: ["userId"], select: { userId: true } },
+      objective: {
+        select: {
+          id: true,
+          title: true,
+          ownerId: true,
+          status: true,
+          progressSource: true,
+          keyResults: { select: { id: true } },
+        },
+      },
+    },
+  });
+
+  if (!kr) return { error: "Key result not found." };
+
+  if (kr.objective.ownerId !== user.id && user.role !== "CEO" && user.role !== "ADMIN") {
+    return { error: "Only the objective owner can delete KRs." };
+  }
+
+  if (
+    kr.objective.status !== "DRAFT" &&
+    kr.objective.progressSource === "DIRECT_KRS" &&
+    kr.objective.keyResults.length <= 1
+  ) {
+    return { error: "Cannot delete the last KR on a published Direct KR objective." };
+  }
+
+  const impactedIds = new Set<string>();
+  if (kr.ownerId) impactedIds.add(kr.ownerId);
+  for (const ci of kr.checkIns) impactedIds.add(ci.userId);
+
+  const openFollowUps = await prisma.followUp.findMany({
+    where: {
+      sourceObjectType: "KEY_RESULT",
+      sourceObjectId: keyResultId,
+      status: { notIn: ["DONE", "CANCELLED"] },
+    },
+    select: { ownerId: true },
+  });
+  for (const fu of openFollowUps) impactedIds.add(fu.ownerId);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.keyResult.delete({ where: { id: keyResultId } });
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "DELETED",
+        entityType: "KeyResult",
+        entityId: keyResultId,
+        metadata: { krTitle: kr.title, objectiveId, objectiveTitle: kr.objective.title },
+      },
+    });
+    await recalculateObjectiveAndParents(tx, objectiveId);
+  });
+
+  for (const userId of impactedIds) {
+    if (userId === user.id) continue;
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: "KR_BLOCKED",
+        title: "KR deleted",
+        body: `"${kr.title}" was removed from "${kr.objective.title}" by ${user.name ?? "an objective owner"}.`,
+        relatedUrl: `/my-okrs`,
+      },
+    });
+  }
+
+  revalidatePath(`/objectives/${objectiveId}`);
+  revalidatePath("/my-okrs");
+  revalidatePath("/company-okrs");
+  revalidatePath("/notifications");
+  redirect(`/objectives/${objectiveId}`);
+}
+
+export async function updateKrFromObjectiveAction(
+  _prevState: KrUpdateFromObjectiveState,
+  formData: FormData,
+): Promise<KrUpdateFromObjectiveState> {
+  const user = await requireUser();
+  const keyResultId = optionalString(formData.get("keyResultId"));
+  const objectiveId = optionalString(formData.get("objectiveId"));
+  const confirmed = formData.get("confirmed") === "true";
+
+  if (!keyResultId || !objectiveId) {
+    return { step: "errors", errors: { general: "Missing parameters." } };
+  }
+
+  const title = optionalString(formData.get("title"));
+  const ownerId = optionalString(formData.get("ownerId"));
+  const startValue = numberValue(formData.get("startValue"), 0);
+  const currentValue = numberValue(formData.get("currentValue"), 0);
+  const targetValue = numberValue(formData.get("targetValue"), 100);
+  const weightPercent = clamp(numberValue(formData.get("weightPercent"), 0), 0, 100);
+  const confidenceScore = clamp(intValue(formData.get("confidenceScore"), 3), 1, 5);
+  const status = (optionalString(formData.get("status")) ?? "ON_TRACK") as WorkStatus;
+
+  const errors: KrUpdateFromObjectiveErrors = {};
+  if (!title) errors.title = "Title is required.";
+  if (Object.keys(errors).length > 0) return { step: "errors", errors };
+
+  const existingKr = await prisma.keyResult.findUnique({
+    where: { id: keyResultId },
+    include: {
+      owner: { select: { id: true, name: true, email: true, title: true } },
+      objective: {
+        select: {
+          id: true,
+          title: true,
+          ownerId: true,
+          status: true,
+          progressSource: true,
+          approvalStatus: true,
+          keyResults: { select: { id: true, weightPercent: true } },
+        },
+      },
+    },
+  });
+
+  if (!existingKr) return { step: "errors", errors: { general: "KR not found." } };
+
+  if (
+    existingKr.objective.ownerId !== user.id &&
+    user.role !== "CEO" &&
+    user.role !== "ADMIN"
+  ) {
+    return { step: "errors", errors: { general: "Only the objective owner can edit KRs." } };
+  }
+
+  if (ownerId && !(await isInAssignableScope(user.id, user.role, ownerId))) {
+    return { step: "errors", errors: { ownerId: "That user is outside your org scope." } };
+  }
+
+  const isPublished = existingKr.objective.status !== "DRAFT";
+  const ownerChanged = ownerId !== existingKr.ownerId;
+  const weightChanged = Math.abs(weightPercent - existingKr.weightPercent) > 0.01;
+  const needsConfirmation = ownerChanged || (isPublished && weightChanged);
+
+  // Validate KR weights for published DIRECT_KRS
+  if (isPublished && existingKr.objective.progressSource === "DIRECT_KRS") {
+    const newWeights = existingKr.objective.keyResults.map((kr) => ({
+      percent: kr.id === keyResultId ? weightPercent : kr.weightPercent,
+    }));
+    const wv = validateObjectiveKrWeights({
+      weights: newWeights,
+      status: existingKr.objective.status,
+      approvalStatus: existingKr.objective.approvalStatus,
+    });
+    if (!wv.isValid) {
+      return { step: "errors", errors: { weightPercent: wv.message ?? "KR weights must total 100%." } };
+    }
+  }
+
+  if (needsConfirmation && !confirmed) {
+    const impactedIds = new Set<string>();
+    if (existingKr.ownerId) impactedIds.add(existingKr.ownerId);
+    if (ownerId) impactedIds.add(ownerId);
+    const impactedUsers = await prisma.user.findMany({
+      where: { id: { in: [...impactedIds] } },
+      select: { id: true, name: true, email: true, title: true },
+    });
+    const changes: string[] = [];
+    if (ownerChanged) {
+      const newOwner = impactedUsers.find((u) => u.id === ownerId);
+      changes.push(`Owner: ${existingKr.owner?.name ?? "No owner"} → ${newOwner?.name ?? ownerId ?? "No owner"}`);
+    }
+    if (isPublished && weightChanged) {
+      changes.push(`Weight: ${existingKr.weightPercent}% → ${weightPercent}%`);
+    }
+    return { step: "confirm", impactedUsers, changes };
+  }
+
+  const progressPercent = calculateProgressPercent(startValue, currentValue, targetValue);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.keyResult.update({
+      where: { id: keyResultId },
+      data: {
+        title: title!,
+        metricName: optionalString(formData.get("metricName")),
+        ownerId: ownerId ?? null,
+        startValue,
+        currentValue,
+        targetValue,
+        progressPercent,
+        weightPercent,
+        confidenceScore,
+        status,
+        pacingStatus: calculatePacingStatus({ progressPercent, currentMonthTargetPercent: null }),
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "UPDATED",
+        entityType: "KeyResult",
+        entityId: keyResultId,
+        metadata: { objectiveId, ownerChanged, weightChanged, confirmed, progressPercent, weightPercent },
+      },
+    });
+    await recalculateObjectiveAndParents(tx, objectiveId);
+  });
+
+  if (ownerChanged) {
+    if (existingKr.ownerId && existingKr.ownerId !== user.id) {
+      await prisma.notification.create({
+        data: {
+          userId: existingKr.ownerId,
+          type: "KR_BLOCKED",
+          title: "KR reassigned",
+          body: `"${existingKr.title}" in "${existingKr.objective.title}" was reassigned. You are no longer the KR owner.`,
+          relatedUrl: `/my-okrs`,
+        },
+      });
+    }
+    if (ownerId && ownerId !== user.id) {
+      await prisma.notification.create({
+        data: {
+          userId: ownerId,
+          type: "KR_BLOCKED",
+          title: "KR assigned to you",
+          body: `"${existingKr.title}" in "${existingKr.objective.title}" has been assigned to you.`,
+          relatedUrl: `/my-okrs`,
+        },
+      });
+    }
+  }
+
+  if (isPublished && weightChanged && ownerId && ownerId !== user.id) {
+    await prisma.notification.create({
+      data: {
+        userId: ownerId,
+        type: "KR_BLOCKED",
+        title: "KR weight updated",
+        body: `The weight for "${existingKr.title}" was updated to ${weightPercent}%.`,
+        relatedUrl: `/my-okrs`,
+      },
+    });
+  }
+
+  revalidatePath(`/objectives/${objectiveId}`);
+  revalidatePath("/my-okrs");
+  revalidatePath("/company-okrs");
+  revalidatePath("/notifications");
+  redirect(`/objectives/${objectiveId}`);
+}
+
 // ─── Key Result actions (unchanged) ──────────────────────────────────────────
 
 export async function createKeyResultAction(formData: FormData) {
@@ -284,12 +570,12 @@ export async function createKeyResultAction(formData: FormData) {
   const progressPercent = calculateProgressPercent(startValue, currentValue, targetValue);
   const confidenceScore = clamp(intValue(formData.get("confidenceScore"), 3), 1, 5);
   const status = requiredStringOrAlert(formData.get("status"), "Status", alertPath) as WorkStatus;
-  const ownerId = requiredStringOrAlert(formData.get("ownerId"), "Owner", alertPath);
+  const ownerId = optionalString(formData.get("ownerId")) ?? null;
   const weightPercent = clamp(numberValue(formData.get("weightPercent"), 0), 0, 100);
 
   if (!workStatuses.includes(status)) actionAlert(alertPath, "Invalid KR status.");
 
-  if (!(await isInAssignableScope(user.id, user.role, ownerId))) {
+  if (ownerId && !(await isInAssignableScope(user.id, user.role, ownerId))) {
     actionAlert(alertPath, "You cannot assign a KR to that user.");
   }
 
@@ -359,7 +645,7 @@ export async function createKeyResultAction(formData: FormData) {
     return created;
   });
 
-  if (status === "ON_HOLD") {
+  if (status === "ON_HOLD" && ownerId) {
     const owner = await prisma.user.findUnique({
       where: { id: ownerId },
       select: { id: true, email: true, name: true },
@@ -396,12 +682,12 @@ export async function updateKeyResultAction(formData: FormData) {
   const targetValue = numberValue(formData.get("targetValue"), 100);
   const progressPercent = calculateProgressPercent(startValue, currentValue, targetValue);
   const status = requiredStringOrAlert(formData.get("status"), "Status", alertPath) as WorkStatus;
-  const ownerId = requiredStringOrAlert(formData.get("ownerId"), "Owner", alertPath);
+  const ownerId = optionalString(formData.get("ownerId")) ?? null;
   const weightPercent = clamp(numberValue(formData.get("weightPercent"), 100), 0, 100);
 
   if (!workStatuses.includes(status)) actionAlert(alertPath, "Invalid KR status.");
 
-  if (!(await isInAssignableScope(user.id, user.role, ownerId))) {
+  if (ownerId && !(await isInAssignableScope(user.id, user.role, ownerId))) {
     actionAlert(alertPath, "You cannot assign a KR to that user.");
   }
 
@@ -472,7 +758,7 @@ export async function updateKeyResultAction(formData: FormData) {
     return result;
   });
 
-  if (existingKeyResult.status !== "ON_HOLD" && status === "ON_HOLD") {
+  if (existingKeyResult.status !== "ON_HOLD" && status === "ON_HOLD" && updatedKeyResult.ownerId && updatedKeyResult.owner) {
     await prisma.notification.create({
       data: {
         userId: updatedKeyResult.ownerId,

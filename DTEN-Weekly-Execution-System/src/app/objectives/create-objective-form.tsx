@@ -155,7 +155,7 @@ export function CreateObjectiveForm({ currentUserId, allUsers, assignableUsers, 
                     <label className="field">
                       <span>Owner</span>
                       <select name={`krOwnerId_${i}`}>
-                        <option value="">Select owner</option>
+                        <option value="">No owner (assign later)</option>
                         {assignableUsers.map((u) => (
                           <option key={u.id} value={u.id}>{u.name}</option>
                         ))}

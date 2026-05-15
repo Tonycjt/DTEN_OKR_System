@@ -123,7 +123,7 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
             <div className="detail-list">
               <div className="detail-row">
                 <span className="detail-label">Owner</span>
-                <span>{keyResult.owner.name}</span>
+                <span>{keyResult.owner?.name ?? <span className="muted">No owner</span>}</span>
               </div>
               <div className="detail-row">
                 <span className="detail-label">Status</span>
@@ -177,7 +177,8 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
               </label>
               <label className="field">
                 <span>Owner</span>
-                <select defaultValue={keyResult.ownerId} name="ownerId" required>
+                <select defaultValue={keyResult.ownerId ?? ""} name="ownerId">
+                  <option value="">No owner (assign later)</option>
                   {users.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.name}
@@ -343,7 +344,7 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
                   <input name="redirectPath" type="hidden" value={`/key-results/${keyResult.id}`} />
                   <label className="field">
                     <span>Owner</span>
-                    <select defaultValue={keyResult.ownerId} name="ownerId" required>
+                    <select defaultValue={keyResult.ownerId ?? ""} name="ownerId" required>
                       {users.map((user) => (
                         <option key={user.id} value={user.id}>
                           {user.name}

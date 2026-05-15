@@ -212,7 +212,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       id: kr.id,
       type: "Key Result",
       title: kr.title,
-      description: `${kr.objective.title} / ${kr.owner.name} / Confidence ${kr.confidenceScore}/5`,
+      description: `${kr.objective.title} / ${kr.owner?.name ?? "No owner"} / Confidence ${kr.confidenceScore}/5`,
       href: `/key-results/${kr.id}`,
       badge: formatEnumLabel(kr.pacingStatus),
       badgeTone: asBadgeTone(pacingStatusTone(kr.pacingStatus)),

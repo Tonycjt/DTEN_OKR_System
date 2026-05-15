@@ -304,6 +304,23 @@ Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 
 **Verification:** documentation-only review and `git diff` sanity check. No app tests run.
 
+### PRD Update: R3.4.13 KR Edit/Delete Impact Confirmation (2026-05-15)
+
+**Doc-only change:** Updated `dten_okr_weekly_execution_system_prd.md` to add R3.4.13 as the next implementation session.
+
+**New product direction:**
+- Objective creator / owner can add, edit, delete, and reweight direct KRs under their objective.
+- "KR contribution percentage" means direct KR `weight_percent`, not deprecated child-objective assignment contribution.
+- Assigned KR delete, reassignment, and published-objective reweighting require impact confirmation.
+- Confirmation must show impacted users by name/email before commit.
+- Cancelling confirmation leaves data unchanged.
+- Confirmed changes notify impacted users and write audit logs.
+- Final KR weights must still pass publish/update validation; a published direct-KR objective cannot be left with zero KRs.
+
+**PRD sections updated:** Key Result business rules, permissions, notification types, Key Result APIs, R3.4.12 update behavior, new R3.4.13 section, R3.4 build priority, R3.4 DOD, reusable components, error handling, validation rules, and R3.4 testing requirements.
+
+**Verification:** documentation-only review. No app tests run.
+
 ### Weekly Task Form Fixes (2026-05-14)
 
 **Bug:** After saving a This Week / Next Week task, the Status select reset to "Not Started". Root cause: React reconciliation — the card's `key={task.id}` never changed, so React kept the card as the same DOM element and did not re-apply `defaultValue` on uncontrolled inputs after the server action revalidated the page.

@@ -1,13 +1,13 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createKeyResultAction } from "@/app/objectives/actions";
 import { EditObjectiveForm } from "@/app/objectives/edit-objective-form";
+import { KrManagementSection } from "@/app/objectives/kr-management-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
+import { workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
 import { calculateObjectiveHealth, getObjectiveChildStatuses } from "@/lib/objective-health";
 import { getMonthIndexForQuarter, getQuarterMonthNames } from "@/lib/okr-calculations";
@@ -85,98 +85,84 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
       <PageHeader title={objective.title} description={objective.description ?? "Objective detail and KR management."} />
       {error ? <div className="alert">{error}</div> : null}
 
-      <div className="grid grid-2">
-        {/* Summary */}
-        <Card>
-          <CardHeader>
-            <h2>Objective Summary</h2>
-          </CardHeader>
-          <CardContent>
-            <div className="detail-list">
-              <div className="detail-row">
-                <span className="detail-label">Level</span>
-                <span>{formatEnumLabel(objective.level)}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Owner</span>
-                <span>{objective.owner.name}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Org</span>
-                <span>
-                  {objective.department?.name ?? "Company"}
-                  {objective.team ? ` / ${objective.team.name}` : ""}
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Status</span>
-                <Badge tone={workStatusTone(objective.status)}>{formatEnumLabel(objective.status)}</Badge>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Computed Health</span>
-                {objectiveHealth.computedStatus ? (
-                  <span className="stack">
-                    <Badge tone={workStatusTone(objectiveHealth.computedStatus)}>{formatEnumLabel(objectiveHealth.computedStatus)}</Badge>
-                    {objectiveHealth.reason ? <small className="muted">{objectiveHealth.reason}</small> : null}
-                  </span>
-                ) : (
-                  <span className="muted">No health signal from children</span>
-                )}
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Progress Source</span>
-                <Badge tone={objective.progressSource === "MANUAL" ? "neutral" : "success"}>{formatEnumLabel(objective.progressSource)}</Badge>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Confidence</span>
-                <span>{objective.confidenceScore}/5</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Progress</span>
-                <span className="stack">
-                  {Math.round(objective.progressPercent)}%
-                  <ProgressBar value={objective.progressPercent} />
-                </span>
-              </div>
+      {/* Summary */}
+      <Card>
+        <CardHeader>
+          <h2>Objective Summary</h2>
+        </CardHeader>
+        <CardContent>
+          <div className="detail-list">
+            <div className="detail-row">
+              <span className="detail-label">Level</span>
+              <span>{formatEnumLabel(objective.level)}</span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="detail-row">
+              <span className="detail-label">Owner</span>
+              <span>{objective.owner.name}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Org</span>
+              <span>
+                {objective.department?.name ?? "Company"}
+                {objective.team ? ` / ${objective.team.name}` : ""}
+              </span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Status</span>
+              <Badge tone={workStatusTone(objective.status)}>{formatEnumLabel(objective.status)}</Badge>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Computed Health</span>
+              {objectiveHealth.computedStatus ? (
+                <span className="stack">
+                  <Badge tone={workStatusTone(objectiveHealth.computedStatus)}>{formatEnumLabel(objectiveHealth.computedStatus)}</Badge>
+                  {objectiveHealth.reason ? <small className="muted">{objectiveHealth.reason}</small> : null}
+                </span>
+              ) : (
+                <span className="muted">No health signal from children</span>
+              )}
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Progress Source</span>
+              <Badge tone={objective.progressSource === "MANUAL" ? "neutral" : "success"}>{formatEnumLabel(objective.progressSource)}</Badge>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Confidence</span>
+              <span>{objective.confidenceScore}/5</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Progress</span>
+              <span className="stack">
+                {Math.round(objective.progressPercent)}%
+                <ProgressBar value={objective.progressPercent} />
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Edit form — client component */}
-        {canEditObjective ? (
-          <Card>
-            <CardHeader>
-              <h2>{objective.status === "DRAFT" ? "Edit Draft Objective" : "Edit Objective"}</h2>
-              <p>
-                {objective.status === "DRAFT"
-                  ? "Save for Later keeps it as a draft. Publish validates and activates it."
-                  : "DRAFT status is not available for already-published objectives."}
-              </p>
-            </CardHeader>
-            <CardContent>
-              <EditObjectiveForm
-                objective={{
-                  id: objective.id,
-                  title: objective.title,
-                  description: objective.description,
-                  level: objective.level,
-                  status: objective.status,
-                  quarter: objective.quarter,
-                  progressSource: objective.progressSource,
-                  progressPercent: objective.progressPercent,
-                  confidenceScore: objective.confidenceScore,
-                  ownerId: objective.ownerId,
-                  departmentId: objective.departmentId,
-                  teamId: objective.teamId,
-                }}
-                users={users.map((u) => ({ id: u.id, name: u.name }))}
-                departments={departments}
-                teams={teams.map((t) => ({ id: t.id, name: t.name, department: { name: t.department.name } }))}
-              />
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
+      {/* Edit form — client component */}
+      {canEditObjective ? (
+        <EditObjectiveForm
+          objective={{
+            id: objective.id,
+            title: objective.title,
+            description: objective.description,
+            level: objective.level,
+            status: objective.status,
+            quarter: objective.quarter,
+            progressSource: objective.progressSource,
+            progressPercent: objective.progressPercent,
+            confidenceScore: objective.confidenceScore,
+            ownerId: objective.ownerId,
+            departmentId: objective.departmentId,
+            teamId: objective.teamId,
+          }}
+          users={users.map((u) => ({ id: u.id, name: u.name }))}
+          departments={departments}
+          teams={teams.map((t) => ({ id: t.id, name: t.name, department: { name: t.department.name } }))}
+        />
+      ) : null}
 
       {/* Add Key Result */}
       {canEditObjective && canManageDirectKrs ? (
@@ -198,7 +184,8 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
               </label>
               <label className="field">
                 <span>Owner</span>
-                <select name="ownerId" required>
+                <select name="ownerId">
+                  <option value="">No owner (assign later)</option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
@@ -240,85 +227,34 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
         </Card>
       ) : null}
 
-      {/* Key Results table */}
-      <Card>
-        <CardHeader>
-          <h2>Key Results</h2>
-          <p>
-            {objective.keyResults.length} KRs linked. KR weights total {krWeightValidation.total}%.
-          </p>
-        </CardHeader>
-        <CardContent>
-          {objective.progressSource === "CHILD_OBJECTIVES" ? (
-            <div className="notice">This objective calculates progress from child objectives. Direct KRs are not used in the roll-up.</div>
-          ) : krWeightValidation.message ? (
-            <div className={`notice ${krWeightValidation.isValid ? "" : "notice-danger"}`}>{krWeightValidation.message}</div>
-          ) : objective.progressSource === "DIRECT_KRS" && objective.keyResults.length > 0 ? (
-            <div className="notice">KR weights are balanced at 100%.</div>
-          ) : (
-            <div className="notice">KR weights are optional for manual-progress objectives.</div>
-          )}
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Key Result</th>
-                  <th>Owner</th>
-                  <th>Status</th>
-                  <th>Pacing</th>
-                  <th>Confidence</th>
-                  <th>Weight</th>
-                  <th>Progress</th>
-                  <th>Monthly Target</th>
-                </tr>
-              </thead>
-              <tbody>
-                {objective.keyResults.map((kr) => (
-                  <tr key={kr.id}>
-                    <td>
-                      <Link href={`/key-results/${kr.id}`}>
-                        <strong>{kr.title}</strong>
-                      </Link>
-                      <br />
-                      <span className="muted">{kr.metricName ?? "No metric label"}</span>
-                    </td>
-                    <td>{kr.owner.name}</td>
-                    <td>
-                      <Badge tone={workStatusTone(kr.status)}>{formatEnumLabel(kr.status)}</Badge>
-                    </td>
-                    <td>
-                      <Badge tone={pacingStatusTone(kr.pacingStatus)}>{formatEnumLabel(kr.pacingStatus)}</Badge>
-                    </td>
-                    <td>{kr.confidenceScore}/5</td>
-                    <td>{kr.weightPercent}%</td>
-                    <td>
-                      <div className="stack">
-                        <span>{kr.currentValue} / {kr.targetValue}</span>
-                        <ProgressBar value={kr.progressPercent} />
-                      </div>
-                    </td>
-                    <td className="muted">
-                      {currentMonthIdx
-                        ? (() => {
-                            const t = kr.monthlyTargets.find((m) => m.monthIndex === currentMonthIdx);
-                            return `${quarterMonthNames[currentMonthIdx - 1]}: ${t?.title ?? "—"}`;
-                          })()
-                        : kr.monthlyTargets.length > 0
-                          ? kr.monthlyTargets.map((t) => `${quarterMonthNames[t.monthIndex - 1]}: ${t.title ?? "–"}`).join(" / ")
-                          : "—"}
-                    </td>
-                  </tr>
-                ))}
-                {objective.keyResults.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="muted">No KRs yet. Add one above.</td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Key Results table with edit/delete */}
+      <KrManagementSection
+        krs={objective.keyResults.map((kr) => ({
+          id: kr.id,
+          title: kr.title,
+          metricName: kr.metricName,
+          ownerId: kr.ownerId,
+          owner: kr.owner ? { id: kr.owner.id, name: kr.owner.name, email: kr.owner.email } : null,
+          startValue: kr.startValue,
+          currentValue: kr.currentValue,
+          targetValue: kr.targetValue,
+          progressPercent: kr.progressPercent,
+          weightPercent: kr.weightPercent,
+          confidenceScore: kr.confidenceScore,
+          status: kr.status,
+          pacingStatus: kr.pacingStatus,
+          monthlyTargets: kr.monthlyTargets,
+        }))}
+        objectiveId={objective.id}
+        progressSource={objective.progressSource}
+        users={users.map((u) => ({ id: u.id, name: u.name, email: u.email }))}
+        canEdit={canEditObjective}
+        quarterMonthNames={quarterMonthNames}
+        currentMonthIdx={currentMonthIdx}
+        krWeightMessage={krWeightValidation.message}
+        krWeightIsValid={krWeightValidation.isValid}
+        krWeightTotal={krWeightValidation.total}
+      />
     </div>
   );
 }
