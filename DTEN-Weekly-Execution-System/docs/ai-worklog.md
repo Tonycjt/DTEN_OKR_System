@@ -58,8 +58,8 @@ Local commands:
   Lint      : npm run lint
   Build     : npm run build
 
-R3.4 fully complete + CHILD_OBJECTIVES removal done. DB migrated (11 migrations applied). Reseed: npm run prisma:seed
-Latest additions: Removed CHILD_OBJECTIVES progress source entirely — migration, schema, seed, objective-health, rollup-validation, objective-rollup, dashboard, and objective detail all updated.
+R3.4 fully complete including R3.4.14 Weekly Report History. DB migrated (11 migrations applied). Reseed: npm run prisma:seed
+Latest additions: Weekly Report History page (grouped by monthly target → KR → weekly report week → tasks/KR updates/comments/review). Weekly Report nav is now a group with Current Report + Report History. CHILD_OBJECTIVES removed entirely.
 Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 ```
 
@@ -321,6 +321,23 @@ Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 
 **Verification:** documentation-only review. No app tests run.
 
+### PRD Update: R3.4.14 Weekly Report History (2026-05-15)
+
+**Doc-only change:** Updated `dten_okr_weekly_execution_system_prd.md` to add R3.4.14.
+
+**New product direction:**
+- Weekly Report History stores and displays each user's historical weekly reports.
+- History is personal by default; normal users cannot browse other employees' histories or a company-wide history feed.
+- Managers/review owners can only access historical reports within their authorized review scope.
+- History should show every weekly task, regardless of completion status, with task progress percent.
+- History should show every relevant monthly target.
+- History structure should be: monthly target → KR → weekly report week → tasks and KR updates.
+- History should include report summary, comments, review status, reviewer, and reviewer feedback where available.
+
+**PRD sections updated:** weekly report historical behavior, Weekly Report History page, Weekly Report APIs, Weekly Report History flow, new R3.4.14 section, R3.4 build priority, R3.4 DOD, reusable components, error handling, validation rules, security requirements, and R3.4 testing requirements.
+
+**Verification:** documentation-only review. No app tests run.
+
 ### Weekly Task Form Fixes (2026-05-14)
 
 **Bug:** After saving a This Week / Next Week task, the Status select reset to "Not Started". Root cause: React reconciliation — the card's `key={task.id}` never changed, so React kept the card as the same DOM element and did not re-apply `defaultValue` on uncontrolled inputs after the server action revalidated the page.
@@ -369,6 +386,31 @@ Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 **Verification:** 32 tests passing, lint clean, production build passing (26 routes, TypeScript clean).
 
 **DB migration needed before testing:** `npx prisma migrate deploy` (or `prisma db push`) then `npm run prisma:seed`.
+
+### R3.4.14 — Weekly Report History (2026-05-15)
+
+**New `src/app/weekly-report/history/page.tsx` (full rewrite):**
+- Previous page used deprecated `WeeklyPriority` model; rewritten to use `WeeklyTask` and `CheckIn`.
+- Privacy: query scoped to `userId: currentUser.id` — backend enforces personal scope.
+- Grouping algorithm: for each report's `CheckIn` rows, computes `getMonthIndexForQuarter(kr.objective.quarter, report.weekStart)` → groups by `${krId}:${monthIndex}`.
+- Reports with tasks but no checkIns → "No Monthly Target" bucket.
+- Rendered structure: monthly target card → KR link + objective link → per-week entry (tasks, KR update values, review, comments).
+- Tasks: all THIS_WEEK and NEXT_WEEK tasks shown regardless of status, with ProgressBar + status badge + blocker text.
+- KR update: previousValue → newValue, progressPercent, confidenceScore, status badge, note, blocker.
+- Review: decision badge + manager name + comment.
+- Comments: author + body, chronological.
+
+**`src/lib/routes.ts`:**
+- "Weekly Report" changed from a single link to a group with "Current Report" (`/weekly-report/current`) and "Report History" (`/weekly-report/history`).
+- Added `History` icon import from lucide-react.
+
+**`src/lib/badge-tone.ts`:**
+- Added `weeklyTaskStatusTone(status: WeeklyTaskStatus)` for COMPLETED/IN_PROGRESS/BLOCKED/CANCELLED/NOT_STARTED.
+
+**`src/app/globals.css`:**
+- Added `.history-entry`, `.history-entry-header`, `.history-entry-week`, `.history-section-title`, `.history-task-list`, `.history-task`, `.history-task-header`, `.history-task-content`, `.history-task-progress`, `.history-kr-update`, `.history-kr-update-values`, `.history-review`, `.history-comments`, `.history-comment`, `.notice-danger-inline`, `.link`.
+
+**Verification:** 28 tests passing, lint clean, production build passing (25 routes).
 
 ### R3.4 Chunks C+D — WeeklyTask Schema + Simplified Weekly Report (2026-05-14)
 

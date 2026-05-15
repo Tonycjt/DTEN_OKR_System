@@ -1,4 +1,4 @@
-import type { PacingStatus, PriorityStatus, WeeklyReportStatus, WorkStatus } from "@prisma/client";
+import type { PacingStatus, PriorityStatus, WeeklyReportStatus, WeeklyTaskStatus, WorkStatus } from "@prisma/client";
 
 export function workStatusTone(status: WorkStatus) {
   if (status === "COMPLETED" || status === "ON_TRACK") {
@@ -61,5 +61,13 @@ export function priorityStatusTone(status: PriorityStatus) {
     return "danger";
   }
 
+  return "neutral";
+}
+
+export function weeklyTaskStatusTone(status: WeeklyTaskStatus) {
+  if (status === "COMPLETED") return "success";
+  if (status === "IN_PROGRESS") return "info";
+  if (status === "BLOCKED") return "danger";
+  if (status === "CANCELLED") return "neutral";
   return "neutral";
 }

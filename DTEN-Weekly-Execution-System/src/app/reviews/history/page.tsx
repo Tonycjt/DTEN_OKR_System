@@ -11,20 +11,17 @@ export default async function ReviewHistoryPage() {
   const manager = await requireRole(["ADMIN", "CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"]);
 
   const reviews = await prisma.managerReview.findMany({
-    where: {
-      managerId: manager.id,
-    },
+    where: { managerId: manager.id },
     orderBy: { createdAt: "desc" },
     include: {
       weeklyReport: {
         include: {
           user: {
-            include: {
-              department: true,
-              team: true,
-            },
+            include: { department: true, team: true },
           },
-          priorities: true,
+          _count: {
+            select: { weeklyTasks: true, checkIns: true },
+          },
         },
       },
     },
@@ -32,12 +29,17 @@ export default async function ReviewHistoryPage() {
 
   return (
     <div className="stack">
-      <PageHeader title="Review History" description="Reports you have reviewed, including decisions and follow-up context." />
+      <PageHeader
+        title="Review History"
+        description="Reports you have reviewed, including decisions and follow-up context."
+      />
 
       <Card>
         <CardHeader>
           <h2>Completed Reviews</h2>
-          <p>{reviews.length} reviews have been submitted by you.</p>
+          <p className="muted">
+            {reviews.length} review{reviews.length === 1 ? "" : "s"} submitted by you.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="table-wrap">
@@ -46,10 +48,11 @@ export default async function ReviewHistoryPage() {
                 <tr>
                   <th>Employee</th>
                   <th>Week</th>
-                  <th>Report Status</th>
+                  <th>Status</th>
                   <th>Decision</th>
+                  <th>Tasks</th>
+                  <th>KR Updates</th>
                   <th>Comment</th>
-                  <th>Priorities</th>
                 </tr>
               </thead>
               <tbody>
@@ -59,7 +62,7 @@ export default async function ReviewHistoryPage() {
                       <strong>{review.weeklyReport.user.name}</strong>
                       <br />
                       <span className="muted">
-                        {review.weeklyReport.user.department?.name ?? "No department"}
+                        {review.weeklyReport.user.department?.name ?? "No dept"}
                         {review.weeklyReport.user.team ? ` / ${review.weeklyReport.user.team.name}` : ""}
                       </span>
                     </td>
@@ -69,14 +72,27 @@ export default async function ReviewHistoryPage() {
                         {formatEnumLabel(review.weeklyReport.status)}
                       </Badge>
                     </td>
-                    <td>{formatEnumLabel(review.decision)}</td>
-                    <td>{review.comment ?? <span className="muted">No comment</span>}</td>
-                    <td>{review.weeklyReport.priorities.length}</td>
+                    <td>
+                      <Badge
+                        tone={
+                          review.decision === "APPROVED"
+                            ? "success"
+                            : review.decision === "NEEDS_FOLLOW_UP"
+                              ? "warning"
+                              : "danger"
+                        }
+                      >
+                        {formatEnumLabel(review.decision)}
+                      </Badge>
+                    </td>
+                    <td>{review.weeklyReport._count.weeklyTasks}</td>
+                    <td>{review.weeklyReport._count.checkIns}</td>
+                    <td>{review.comment ?? <span className="muted">—</span>}</td>
                   </tr>
                 ))}
                 {reviews.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>No reviews submitted yet.</td>
+                    <td colSpan={7}>No reviews submitted yet.</td>
                   </tr>
                 ) : null}
               </tbody>

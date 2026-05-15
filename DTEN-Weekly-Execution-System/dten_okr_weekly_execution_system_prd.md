@@ -569,6 +569,17 @@ weekly_reports
 - updated_at
 ```
 
+Historical behavior:
+
+```text
+- Weekly reports are permanent historical records for the report owner.
+- Each user has their own weekly report history.
+- The default history view must show only the current user's own reports.
+- There must not be a global company-wide weekly report history visible to normal users.
+- Managers/review owners may access reports they are explicitly authorized to review, but this should be scoped and contextual, not an all-company history feed.
+- Historical weekly reports should preserve all tasks, KR updates, comments, and review outcomes for the week.
+```
+
 Allowed report statuses:
 
 ```text
@@ -1389,7 +1400,42 @@ Requirements:
 
 ---
 
-### 10.5 Organization Tree View
+### 10.5 Weekly Report History Page
+
+Route:
+
+```text
+/weekly-report/history
+```
+
+Requirements:
+
+```text
+- Show the current user's own weekly report history by default.
+- Do not show one user's history to unrelated users.
+- Do not provide a company-wide weekly report history page to normal users.
+- Store and display every historical weekly report for the user.
+- Show every weekly task in history, regardless of whether the task was completed.
+- For each task, show task content, status, progress percent, blocker if present, and week range.
+- Show every monthly target relevant to the user's historical reports.
+- Structure history by monthly target first, then KR, then weekly reports/tasks under that target.
+- Under each monthly target, show the KR related to that monthly target.
+- Under each KR/monthly target grouping, show weekly tasks and KR updates from the weeks covered by that target period.
+- Include report summary, comments, review status, and reviewer comment where available.
+```
+
+Privacy rules:
+
+```text
+- Employee sees only their own weekly report history.
+- Manager/review owner can access another user's historical report only when the manager/reviewer has explicit review permission for that user/report.
+- CEO/Admin dashboards may aggregate counts and risk signals, but should not expose a browsable all-user history feed unless a later admin/audit requirement explicitly allows it.
+- Backend must enforce history scope; hiding links in the UI is not enough.
+```
+
+---
+
+### 10.6 Organization Tree View
 
 Route suggestion:
 
@@ -1547,12 +1593,22 @@ GET    /api/monthly-targets/my-current
 ```text
 POST   /api/weekly-reports
 GET    /api/weekly-reports/current
+GET    /api/weekly-reports/history
 GET    /api/weekly-reports/:id
 PATCH  /api/weekly-reports/:id
 POST   /api/weekly-reports/:id/submit
 GET    /api/weekly-reports/user/:userId
 GET    /api/weekly-reports/team/:teamId
 GET    /api/weekly-reports/pending-review
+```
+
+History validation:
+
+```text
+- `GET /api/weekly-reports/history` returns only the current user's own report history.
+- `GET /api/weekly-reports/:id` must verify that the current user is the report owner or an authorized reviewer/manager for that report.
+- History responses should include weekly tasks, KR updates/check-ins, monthly targets, related KRs, comments, and review status needed by the history UI.
+- History grouping should support monthly target → KR → weekly reports/tasks.
 ```
 
 ---
@@ -1767,7 +1823,35 @@ Acceptance criteria:
 
 ---
 
-## 12.5 Manager Review / Comment Flow
+## 12.5 Weekly Report History Flow
+
+```text
+1. User opens Weekly Report History.
+2. System loads only that user's own historical weekly reports.
+3. System groups history by monthly target.
+4. Under each monthly target, system shows the related KR.
+5. Under each monthly target/KR group, system shows the weekly reports and all weekly tasks for the relevant weeks.
+6. Each weekly task shows content, status, progress percent, and blocker if present.
+7. KR updates/check-ins for the same week appear with the related KR.
+8. User can open a historical report to see summary, comments, review status, and reviewer feedback.
+```
+
+Acceptance criteria:
+
+```text
+- User sees only their own weekly report history by default.
+- History includes every historical weekly report for that user.
+- History shows all tasks, completed or not completed.
+- History shows task progress for each task.
+- History shows every relevant monthly target.
+- History is structured as monthly target → KR → weekly reports/tasks.
+- Backend rejects attempts to access another user's history unless the current user is an authorized reviewer/manager for that specific report.
+- There is no normal-user all-company history view.
+```
+
+---
+
+## 12.6 Manager Review / Comment Flow
 
 ```text
 1. Manager opens Dashboard or Weekly Report review queue.
@@ -1791,7 +1875,7 @@ Acceptance criteria:
 
 ---
 
-## 12.6 Organization Tree Flow
+## 12.7 Organization Tree Flow
 
 ```text
 1. User opens organization tree view.
@@ -2483,6 +2567,67 @@ Acceptance criteria:
 - Final KR weights are still validated before publish/update succeeds.
 ```
 
+---
+
+### R3.4.14 Weekly Report History
+
+#### Goal
+
+Users need a clear personal history of their weekly execution records. The history should preserve all historical weekly reports while preventing broad visibility into other employees' histories.
+
+The history view should help a user and their authorized reviewer understand execution over time by connecting monthly targets, KRs, weekly tasks, task progress, KR updates, comments, and reviews.
+
+#### Privacy and Scope
+
+Required:
+
+```text
+- Weekly Report History is personal by default.
+- A user can see their own weekly report history.
+- A user must not see another user's weekly report history unless they are an authorized manager/review owner for that specific report or user.
+- There must not be a normal-user page that exposes all company weekly histories.
+- CEO/Admin dashboards may show aggregate history metrics, but should not expose a browsable all-user history feed without a separate explicit admin/audit requirement.
+- Backend must enforce all history visibility rules.
+```
+
+#### History Structure
+
+Required:
+
+```text
+- Group history by monthly target.
+- Under each monthly target, show the related KR.
+- Under each monthly target/KR group, show relevant weekly reports.
+- Under each weekly report, show all tasks for that week.
+- Show both This Week and Next Week tasks in history.
+- Show every task regardless of completion status.
+- For each task, show content, status, progress percent, blocker if present, and week range.
+- Show weekly KR updates/check-ins associated with the KR and report week.
+- Show report summary, comments, review status, reviewer, and reviewer feedback when available.
+```
+
+Monthly target behavior:
+
+```text
+- Show every monthly target relevant to the user's historical reports.
+- If a historical report has KR updates tied to multiple monthly targets, show each monthly target as its own group.
+- If a report week has tasks but no matching monthly target, place those tasks under a clear "No monthly target" group for that week.
+- Historical records should remain readable even if a KR or monthly target is later edited or deleted; preserve enough title/label information for history display where practical.
+```
+
+Acceptance criteria:
+
+```text
+- Weekly Report History shows only the current user's own history by default.
+- Backend blocks unrelated users from viewing another person's weekly report history.
+- History includes all historical weekly reports for the user.
+- History displays all weekly tasks, including incomplete, blocked, cancelled, and next-week tasks.
+- History displays task progress percent for every task.
+- History shows every relevant monthly target.
+- History uses the structure: monthly target → KR → weekly report week → tasks and KR updates.
+- History includes comments and review outcome where available.
+```
+
 ## R3.4 Non-Goals
 
 R3.4 should not include:
@@ -2524,10 +2669,12 @@ Build R3.4 in this order:
 18. Add weekly task limit validation.
 19. Add KR update section to Weekly Report.
 20. Add weekly report comment section.
-21. Ensure KR updates recalculate pacing.
-22. Ensure objective health recalculates from direct KRs.
-23. Update dashboards to use simplified model.
-24. Polish labels, permissions, and tests.
+21. Add scoped personal Weekly Report History.
+22. Group history by monthly target, KR, weekly report week, and tasks/KR updates.
+23. Ensure KR updates recalculate pacing.
+24. Ensure objective health recalculates from direct KRs.
+25. Update dashboards to use simplified model.
+26. Polish labels, permissions, and tests.
 ```
 
 ---
@@ -2569,6 +2716,11 @@ R3.4 is complete when:
 30. Assigned KR delete, reassignment, and published-objective reweighting require impact confirmation.
 31. Impact confirmation shows impacted users before commit.
 32. Confirmed KR changes notify impacted users and write audit logs.
+33. Weekly Report History stores and displays all historical reports for the current user.
+34. Weekly Report History is scoped so unrelated users cannot see another person's history.
+35. Weekly Report History shows all weekly tasks regardless of completion status.
+36. Weekly Report History shows each task's progress percent.
+37. Weekly Report History is structured by monthly target → KR → weekly report week → tasks and KR updates.
 ```
 
 ---
@@ -2590,6 +2742,8 @@ Reusable components:
 - MonthlyTargetCard
 - MonthlyTargetEditor
 - WeeklyReportForm
+- WeeklyReportHistory
+- WeeklyReportHistoryGroup
 - WeeklyTaskEditor
 - KRUpdateForm
 - CommentThread
@@ -2759,6 +2913,8 @@ Backend should return clear error messages for:
 - KR delete/reassignment/reweight requires impact confirmation.
 - KR delete would leave a published objective with no KRs.
 - KR update would leave direct KR weights not totaling 100.
+- User cannot view another person's weekly report history.
+- Weekly report history requested report is outside user's authorized scope.
 - Weekly report already submitted.
 - Manager cannot review this report.
 ```
@@ -2812,6 +2968,11 @@ KR impact confirmation must list impacted users before commit.
 confirmed KR changes must notify impacted users.
 published direct-KR objective update requires final KR weights to total 100.
 published objective cannot be updated to have zero direct KRs.
+weekly report history defaults to current user's own reports only.
+weekly report history access requires report owner or authorized reviewer/manager scope.
+weekly report history must include all weekly tasks regardless of status.
+weekly report history must include task progress percent.
+weekly report history must preserve monthly target and KR context where practical.
 ```
 
 ---
@@ -2824,6 +2985,8 @@ published objective cannot be updated to have zero direct KRs.
 - Permission checks must happen server-side.
 - Org scope checks must happen server-side.
 - Users should not access reports outside their permission scope.
+- Users should not access weekly report history outside their permission scope.
+- Normal users should not have access to a company-wide weekly report history feed.
 - Users should not see full company tree unless authorized.
 - Users should not assign KRs outside their org scope.
 - Audit logs should record important business data changes.
@@ -2931,6 +3094,21 @@ published objective cannot be updated to have zero direct KRs.
 - Reassigning a KR shows impacted previous and new owners before commit.
 - Reassigning a KR notifies previous and new owners after confirmation.
 - Reweighting an assigned KR under a published objective notifies the assigned KR owner after confirmation.
+```
+
+### 21.10 Weekly Report History Tests
+
+```text
+- User can open their own Weekly Report History.
+- User sees all of their historical weekly reports.
+- User sees every weekly task in history, including incomplete, blocked, cancelled, and next-week tasks.
+- Each historical task shows progress percent.
+- History shows relevant monthly targets.
+- History groups records by monthly target → KR → weekly report week → tasks and KR updates.
+- History shows comments and review outcome where available.
+- Employee cannot view another employee's weekly report history.
+- Manager/review owner can only view history for users/reports within their authorized review scope.
+- Normal user cannot access a company-wide weekly report history feed.
 ```
 
 ---

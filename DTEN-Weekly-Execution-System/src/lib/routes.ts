@@ -1,8 +1,10 @@
 import {
   Building2,
   CalendarCheck2,
+  ClipboardList,
   FileClock,
   GitBranch,
+  History,
   Home,
   Network,
   ScrollText,
@@ -48,11 +50,16 @@ export const primaryNav: NavItem[] = [
     roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE", "VIEWER"],
   },
   {
-    kind: "link",
-    href: "/weekly-report/current",
+    kind: "group",
     label: "Weekly Report",
     icon: CalendarCheck2,
     roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"],
+    children: [
+      { href: "/weekly-report/current", label: "Current Report", icon: CalendarCheck2, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
+      { href: "/weekly-report/history", label: "Report History", icon: History, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER", "EMPLOYEE"] },
+      { href: "/reviews/pending", label: "Pending Reviews", icon: ClipboardList, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"] },
+      { href: "/reviews/history", label: "Review History", icon: History, roles: ["CEO", "EXECUTIVE", "DEPARTMENT_HEAD", "MANAGER"] },
+    ],
   },
 ];
 
