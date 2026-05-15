@@ -425,11 +425,7 @@ export function KrManagementSection({
         </p>
       </div>
       <div className="card-content">
-        {progressSource === "CHILD_OBJECTIVES" ? (
-          <div className="notice">
-            This objective calculates progress from child objectives. Direct KRs are not used in the roll-up.
-          </div>
-        ) : krWeightMessage ? (
+        {krWeightMessage ? (
           <div className={`notice ${krWeightIsValid ? "" : "notice-danger"}`}>{krWeightMessage}</div>
         ) : progressSource === "DIRECT_KRS" && krs.length > 0 ? (
           <div className="notice">KR weights are balanced at 100%.</div>

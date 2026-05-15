@@ -58,8 +58,8 @@ Local commands:
   Lint      : npm run lint
   Build     : npm run build
 
-R3.4 fully complete (including R3.4.11 My Team tree + R3.4.12 Draft/Publish workflow). DB migrated (all migrations applied). Reseed: npm run prisma:seed
-Latest additions: Objective draft/publish inline-error form, My Team sidebar with hasDirectReports gate, merged My OKRs table.
+R3.4 fully complete + CHILD_OBJECTIVES removal done. DB migrated (11 migrations applied). Reseed: npm run prisma:seed
+Latest additions: Removed CHILD_OBJECTIVES progress source entirely — migration, schema, seed, objective-health, rollup-validation, objective-rollup, dashboard, and objective detail all updated.
 Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 ```
 
@@ -576,13 +576,13 @@ Verification baseline when schema changes:
 Latest verified state (2026-05-14, testing branch):
 
 ```text
-Migrations       : 10 applied, schema up to date
+Migrations       : 11 applied, schema up to date
 Vitest           : 5 files, 32 tests — all passing
 Lint             : clean
 Build            : production build passes (25 routes)
 currentWeekReports: 0 (DB reseeded after R3.3)
-Objectives       : 4 (3 DIRECT_KRS, 1 CHILD_OBJECTIVES)
-ObjectiveAssignments: 2 (both PREDEFINED_CHILD_OBJECTIVE / ACTIVE)
+Objectives       : 3 (all DIRECT_KRS — CHILD_OBJECTIVES removed)
+ObjectiveAssignments: 0
 Active branch    : testing
 ```
 

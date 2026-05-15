@@ -552,14 +552,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       include: {
         owner: true,
         keyResults: { select: { id: true, status: true } },
-        parentAssignments: {
-          where: { status: { in: ["ACTIVE", "APPROVED"] } },
-          select: {
-            id: true,
-            status: true,
-            assignedObjective: { select: { id: true, status: true } },
-          },
-        },
       },
     }),
   ]);

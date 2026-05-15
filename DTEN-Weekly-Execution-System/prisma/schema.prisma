@@ -26,7 +26,6 @@ enum ObjectiveLevel {
 enum ObjectiveProgressSource {
   MANUAL
   DIRECT_KRS
-  CHILD_OBJECTIVES
 }
 
 enum ObjectiveApprovalStatus {

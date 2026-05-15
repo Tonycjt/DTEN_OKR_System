@@ -3,7 +3,6 @@ import {
   getRollupValidationTarget,
   objectiveRequiresCompleteRollup,
   sumRollupPercents,
-  validateObjectiveAssignmentContributions,
   validateObjectiveKrWeights,
 } from "./rollup-validation";
 
@@ -35,17 +34,6 @@ describe("roll-up validation", () => {
     expect(result.message).toBe("KR weights must total 100%. Current total is 60%.");
   });
 
-  it("requires assignment contributions to total 100 before approval", () => {
-    const result = validateObjectiveAssignmentContributions({
-      contributions: [{ percent: 60 }, { percent: 25 }, { percent: 10 }],
-      status: "DRAFT",
-      approvalStatus: "PENDING_APPROVAL",
-    });
-
-    expect(result.isValid).toBe(false);
-    expect(result.message).toBe("Objective assignment contributions must total 100%. Current total is 95%.");
-  });
-
   it("recognizes approved and published objectives as complete-rollup states", () => {
     expect(objectiveRequiresCompleteRollup({ status: "DRAFT", approvalStatus: "APPROVED" })).toBe(true);
     expect(objectiveRequiresCompleteRollup({ status: "DRAFT", approvalStatus: "PUBLISHED" })).toBe(true);
@@ -54,6 +42,5 @@ describe("roll-up validation", () => {
   it("maps progress sources to one validation target", () => {
     expect(getRollupValidationTarget("MANUAL")).toBe("NONE");
     expect(getRollupValidationTarget("DIRECT_KRS")).toBe("KR_WEIGHTS");
-    expect(getRollupValidationTarget("CHILD_OBJECTIVES")).toBe("OBJECTIVE_ASSIGNMENTS");
   });
 });

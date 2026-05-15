@@ -15,39 +15,14 @@ export async function recalculateObjectiveProgress(prisma: PrismaExecutor, objec
           weightPercent: true,
         },
       },
-      parentAssignments: {
-        where: { status: { in: ["APPROVED", "ACTIVE"] } },
-        select: {
-          contributionPercent: true,
-          assignedObjective: {
-            select: {
-              progressPercent: true,
-            },
-          },
-        },
-      },
     },
   });
 
-  if (!objective) {
+  if (!objective || objective.progressSource === "MANUAL") {
     return null;
   }
 
-  if (objective.progressSource === "MANUAL") {
-    return null;
-  }
-
-  const progressPercent =
-    objective.progressSource === "CHILD_OBJECTIVES"
-      ? calculateWeightedProgress(
-          objective.parentAssignments
-            .filter((assignment) => assignment.assignedObjective)
-            .map((assignment) => ({
-              progressPercent: assignment.assignedObjective?.progressPercent ?? 0,
-              weightPercent: assignment.contributionPercent,
-            }))
-        )
-      : calculateWeightedProgress(objective.keyResults);
+  const progressPercent = calculateWeightedProgress(objective.keyResults);
 
   await prisma.objective.update({
     where: { id: objectiveId },
@@ -57,24 +32,6 @@ export async function recalculateObjectiveProgress(prisma: PrismaExecutor, objec
   return progressPercent;
 }
 
-export async function recalculateParentObjectiveProgress(prisma: PrismaExecutor, childObjectiveId: string) {
-  const parentLinks = await prisma.objectiveAssignment.findMany({
-    where: {
-      assignedObjectiveId: childObjectiveId,
-      status: { in: ["APPROVED", "ACTIVE"] },
-    },
-    select: {
-      parentObjectiveId: true,
-    },
-  });
-
-  for (const link of parentLinks) {
-    await recalculateObjectiveProgress(prisma, link.parentObjectiveId);
-    await recalculateParentObjectiveProgress(prisma, link.parentObjectiveId);
-  }
-}
-
 export async function recalculateObjectiveAndParents(prisma: PrismaExecutor, objectiveId: string) {
   await recalculateObjectiveProgress(prisma, objectiveId);
-  await recalculateParentObjectiveProgress(prisma, objectiveId);
 }

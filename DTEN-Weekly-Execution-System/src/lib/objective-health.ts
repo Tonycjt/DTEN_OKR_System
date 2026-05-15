@@ -45,19 +45,8 @@ export function calculateObjectiveHealth(childStatuses: WorkStatus[]): Objective
 }
 
 export function getObjectiveChildStatuses(objective: {
-  progressSource: "MANUAL" | "DIRECT_KRS" | "CHILD_OBJECTIVES";
+  progressSource: "MANUAL" | "DIRECT_KRS";
   keyResults: Array<{ status: WorkStatus }>;
-  parentAssignments: Array<{
-    status: string;
-    assignedObjective: { status: WorkStatus } | null;
-  }>;
 }): WorkStatus[] {
-  if (objective.progressSource === "CHILD_OBJECTIVES") {
-    return objective.parentAssignments
-      .filter((a) => a.status === "ACTIVE" || a.status === "APPROVED")
-      .flatMap((a) => (a.assignedObjective ? [a.assignedObjective.status] : []));
-  }
-
-  // DIRECT_KRS or MANUAL: use direct KR statuses
   return objective.keyResults.map((kr) => kr.status);
 }

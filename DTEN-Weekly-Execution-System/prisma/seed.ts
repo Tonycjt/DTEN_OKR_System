@@ -172,22 +172,6 @@ async function main() {
     },
   });
 
-  const companyProduct = await prisma.objective.create({
-    data: {
-      title: "Re-establish product and solution leadership",
-      description: "Improve release readiness, certifications, and executive visibility into product execution risk.",
-      level: "COMPANY",
-      status: "AT_RISK",
-      quarter: "2026-Q2",
-      progressPercent: 40,
-      progressSource: "CHILD_OBJECTIVES",
-      approvalStatus: "PUBLISHED",
-      confidenceScore: 3,
-      ownerId: ceo.id,
-      departmentId: executive.id,
-    },
-  });
-
   const certificationObjective = await prisma.objective.create({
     data: {
       title: "Drive product certifications and GA readiness",
@@ -202,7 +186,6 @@ async function main() {
       ownerId: departmentHead.id,
       departmentId: productEngineering.id,
       teamId: certificationTeam.id,
-      parentObjectiveId: companyProduct.id,
     },
   });
 
@@ -220,37 +203,7 @@ async function main() {
       ownerId: salesUser.id,
       departmentId: sales.id,
       teamId: salesTeam.id,
-      parentObjectiveId: companyProduct.id,
     },
-  });
-
-  await prisma.objectiveAssignment.createMany({
-    data: [
-      {
-        parentObjectiveId: companyProduct.id,
-        assignedObjectiveId: certificationObjective.id,
-        assigneeId: productEngineering.id,
-        assigneeType: "DEPARTMENT",
-        contributionPercent: 60,
-        assignmentMode: "PREDEFINED_CHILD_OBJECTIVE",
-        status: "ACTIVE",
-        createdById: ceo.id,
-        approvedById: ceo.id,
-        approvedAt: new Date(),
-      },
-      {
-        parentObjectiveId: companyProduct.id,
-        assignedObjectiveId: salesEnablementObjective.id,
-        assigneeId: sales.id,
-        assigneeType: "DEPARTMENT",
-        contributionPercent: 40,
-        assignmentMode: "PREDEFINED_CHILD_OBJECTIVE",
-        status: "ACTIVE",
-        createdById: ceo.id,
-        approvedById: ceo.id,
-        approvedAt: new Date(),
-      },
-    ],
   });
 
   const shipD7x = await prisma.keyResult.create({
@@ -563,26 +516,6 @@ async function main() {
 
   await prisma.auditLog.createMany({
     data: [
-      {
-        actorId: ceo.id,
-        action: "CREATED",
-        entityType: "Objective",
-        entityId: companyProduct.id,
-        metadata: { title: companyProduct.title },
-      },
-      {
-        actorId: ceo.id,
-        action: "CREATED",
-        entityType: "ObjectiveAssignment",
-        entityId: companyProduct.id,
-        metadata: {
-          parentObjectiveId: companyProduct.id,
-          assignments: [
-            { assignedObjectiveId: certificationObjective.id, contributionPercent: 60 },
-            { assignedObjectiveId: salesEnablementObjective.id, contributionPercent: 40 },
-          ],
-        },
-      },
       {
         actorId: engineer.id,
         action: "SUBMITTED",

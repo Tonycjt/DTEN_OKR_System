@@ -1,6 +1,6 @@
 export type RollupApprovalStatus = "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "PUBLISHED";
 export type RollupWorkStatus = "DRAFT" | "ON_TRACK" | "AT_RISK" | "OFF_TRACK" | "COMPLETED" | "ON_HOLD";
-export type RollupProgressSource = "MANUAL" | "DIRECT_KRS" | "CHILD_OBJECTIVES";
+export type RollupProgressSource = "MANUAL" | "DIRECT_KRS";
 
 export type RollupPercentItem = {
   percent: number | null | undefined;
@@ -42,10 +42,6 @@ export function objectiveRequiresCompleteRollup({
 export function getRollupValidationTarget(progressSource: RollupProgressSource): RollupValidationTarget {
   if (progressSource === "DIRECT_KRS") {
     return "KR_WEIGHTS";
-  }
-
-  if (progressSource === "CHILD_OBJECTIVES") {
-    return "OBJECTIVE_ASSIGNMENTS";
   }
 
   return "NONE";
@@ -107,18 +103,3 @@ export function validateObjectiveKrWeights({
   });
 }
 
-export function validateObjectiveAssignmentContributions({
-  contributions,
-  status,
-  approvalStatus,
-}: {
-  contributions: RollupPercentItem[];
-  status: RollupWorkStatus;
-  approvalStatus: RollupApprovalStatus;
-}) {
-  return validateRollupPercentTotal({
-    items: contributions,
-    label: "Objective assignment contributions",
-    allowIncomplete: !objectiveRequiresCompleteRollup({ status, approvalStatus }),
-  });
-}

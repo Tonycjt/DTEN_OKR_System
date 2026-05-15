@@ -39,15 +39,6 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
         owner: true,
         department: true,
         team: true,
-        parentObjective: true,
-        childObjectives: true,
-        parentAssignments: {
-          orderBy: { contributionPercent: "desc" },
-          include: {
-            assignedObjective: { include: { owner: true, department: true, team: true } },
-            approvedBy: { select: { name: true } },
-          },
-        },
         keyResults: {
           orderBy: { createdAt: "asc" },
           include: {
@@ -76,7 +67,6 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
     approvalStatus: objective.approvalStatus,
   });
   const defaultNewKrWeight = objective.keyResults.length === 0 ? 100 : 0;
-  const canManageDirectKrs = objective.progressSource !== "CHILD_OBJECTIVES";
   const isOwner = objective.ownerId === currentUser.id;
   const canEditObjective = isOwner || currentUser.role === "CEO" || currentUser.role === "ADMIN";
 
@@ -165,7 +155,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
       ) : null}
 
       {/* Add Key Result */}
-      {canEditObjective && canManageDirectKrs ? (
+      {canEditObjective ? (
         <Card>
           <CardHeader>
             <h2>Add Key Result</h2>

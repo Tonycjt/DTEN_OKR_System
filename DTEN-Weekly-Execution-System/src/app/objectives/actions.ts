@@ -8,7 +8,7 @@ import { isInAssignableScope } from "@/lib/org-scope";
 import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { sendKrBlockedEmail } from "@/server/email-notifications";
-import { recalculateObjectiveAndParents, recalculateObjectiveProgress, recalculateParentObjectiveProgress } from "@/server/objective-rollup";
+import { recalculateObjectiveAndParents, recalculateObjectiveProgress } from "@/server/objective-rollup";
 import { prisma } from "@/server/prisma";
 
 const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
@@ -258,7 +258,6 @@ export async function updateObjectiveAction(
 
   await prisma.$transaction(async (tx) => {
     await recalculateObjectiveProgress(tx, objectiveId!);
-    await recalculateParentObjectiveProgress(tx, objectiveId!);
   });
 
   await prisma.auditLog.create({
@@ -596,10 +595,6 @@ export async function createKeyResultAction(formData: FormData) {
 
   if (objective.ownerId !== user.id && user.role !== "CEO" && user.role !== "ADMIN") {
     actionAlert(alertPath, "Only the objective owner can add KRs to this objective.");
-  }
-
-  if (objective.progressSource === "CHILD_OBJECTIVES") {
-    actionAlert(alertPath, "This objective calculates progress from child objectives. Switch progress source before adding direct KRs.");
   }
 
   if (objective.progressSource === "DIRECT_KRS") {
