@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { WorkStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { createFollowUpAction, updateFollowUpStatusAction } from "@/app/follow-ups/actions";
-import { addKeyResultCommentAction } from "@/app/key-results/actions";
+import { addKeyResultCommentAction, saveMonthlyTargetsAction } from "@/app/key-results/actions";
 import { updateKeyResultAction } from "@/app/objectives/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { TrendChart } from "@/components/ui/trend-chart";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { getQuarterMonthNames } from "@/lib/okr-calculations";
 import { getAssignableUsers } from "@/lib/org-scope";
 import { formatShortDate } from "@/lib/week";
 import { requireUser } from "@/server/auth";
@@ -80,6 +81,7 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
   }
 
   const targetsByMonth = new Map(keyResult.monthlyTargets.map((target) => [target.monthIndex, target]));
+  const quarterMonthNames = getQuarterMonthNames(keyResult.objective.quarter);
   const trendCheckIns = [...keyResult.checkIns].reverse();
   const progressTrend = trendCheckIns.map((checkIn) => ({
     label: formatShortDate(checkIn.weeklyReport.weekStart),
@@ -94,6 +96,13 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
     currentUser.role === "CEO" ||
     currentUser.role === "EXECUTIVE" ||
     currentUser.role === "DEPARTMENT_HEAD" ||
+    currentUser.role === "MANAGER";
+
+  const canEditMonthlyTargets =
+    keyResult.ownerId === currentUser.id ||
+    currentUser.role === "ADMIN" ||
+    currentUser.role === "CEO" ||
+    currentUser.role === "EXECUTIVE" ||
     currentUser.role === "MANAGER";
 
   return (
@@ -151,7 +160,7 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
         <Card>
           <CardHeader>
             <h2>Update KR</h2>
-            <p>Edit KR values, owner, status, confidence, and monthly targets.</p>
+            <p>Edit KR values, owner, status, and confidence.</p>
           </CardHeader>
           <CardContent>
             <form action={updateKeyResultAction} className="form-grid">
@@ -205,22 +214,6 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
                 <span>Weight Percent</span>
                 <input defaultValue={keyResult.weightPercent} max="100" min="0" name="weightPercent" type="number" />
               </label>
-              {[1, 2, 3].map((monthIndex) => {
-                const target = targetsByMonth.get(monthIndex);
-
-                return (
-                  <div className="form-grid wide" key={monthIndex}>
-                    <label className="field">
-                      <span>Month {monthIndex} Target Value</span>
-                      <input defaultValue={target?.targetValue ?? ""} name={`targetValue${monthIndex}`} type="number" />
-                    </label>
-                    <label className="field">
-                      <span>Month {monthIndex} Target Percent</span>
-                      <input defaultValue={target?.targetPercent ?? ""} max="100" min="0" name={`targetPercent${monthIndex}`} type="number" />
-                    </label>
-                  </div>
-                );
-              })}
               <div className="wide">
                 <Button type="submit">Update KR</Button>
               </div>
@@ -228,6 +221,38 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <h2>Monthly Targets</h2>
+          <p>Define what you plan to accomplish each month toward this KR. Set by the KR owner.</p>
+        </CardHeader>
+        <CardContent>
+          <form action={saveMonthlyTargetsAction} className="form-grid">
+            <input name="keyResultId" type="hidden" value={keyResult.id} />
+            {[1, 2, 3].map((monthIndex) => {
+              const target = targetsByMonth.get(monthIndex);
+              const monthName = quarterMonthNames[monthIndex - 1];
+              return (
+                <label className="field wide" key={monthIndex}>
+                  <span>{monthName} Goal</span>
+                  <input
+                    defaultValue={target?.title ?? ""}
+                    disabled={!canEditMonthlyTargets}
+                    name={`title${monthIndex}`}
+                    placeholder={`What will you accomplish in ${monthName}?`}
+                  />
+                </label>
+              );
+            })}
+            {canEditMonthlyTargets ? (
+              <div className="wide">
+                <Button type="submit">Save Monthly Targets</Button>
+              </div>
+            ) : null}
+          </form>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

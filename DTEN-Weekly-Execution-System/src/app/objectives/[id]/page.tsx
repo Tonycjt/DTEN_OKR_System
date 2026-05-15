@@ -13,6 +13,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
 import { calculateObjectiveHealth, getObjectiveChildStatuses } from "@/lib/objective-health";
+import { getQuarterMonthNames } from "@/lib/okr-calculations";
 import { getAssignableUsers } from "@/lib/org-scope";
 import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
@@ -270,11 +271,11 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
         ) : null}
       </div>
 
-      {canManageDirectKrs ? (
+      {canEditObjective && canManageDirectKrs ? (
         <Card>
           <CardHeader>
             <h2>Add Key Result</h2>
-            <p>Create a measurable KR under this objective with monthly targets.</p>
+            <p>Create a measurable KR under this objective. Set monthly goals on the KR detail page after creation.</p>
           </CardHeader>
           <CardContent>
             <form action={createKeyResultAction} className="form-grid">
@@ -327,18 +328,6 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                 <span>Weight Percent</span>
                 <input defaultValue={defaultNewKrWeight} max="100" min="0" name="weightPercent" type="number" />
               </label>
-              {[1, 2, 3].map((monthIndex) => (
-                <div className="form-grid wide" key={monthIndex}>
-                  <label className="field">
-                    <span>Month {monthIndex} Target Value</span>
-                    <input defaultValue={monthIndex === 3 ? "100" : String(monthIndex * 33)} name={`targetValue${monthIndex}`} type="number" />
-                  </label>
-                  <label className="field">
-                    <span>Month {monthIndex} Target Percent</span>
-                    <input defaultValue={monthIndex === 3 ? "100" : String(monthIndex * 33)} max="100" min="0" name={`targetPercent${monthIndex}`} type="number" />
-                  </label>
-                </div>
-              ))}
               <div className="wide">
                 <Button type="submit">Create KR</Button>
               </div>
@@ -406,11 +395,14 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                       </div>
                     </td>
                     <td>
-                      {keyResult.monthlyTargets.map((target) => (
-                        <div key={target.id}>
-                          M{target.monthIndex}: {target.targetPercent ?? 0}%
-                        </div>
-                      ))}
+                      {keyResult.monthlyTargets.map((target) => {
+                        const names = getQuarterMonthNames(objective.quarter);
+                        return (
+                          <div key={target.id} className="muted">
+                            {names[target.monthIndex - 1]}: {target.title ?? "–"}
+                          </div>
+                        );
+                      })}
                     </td>
                   </tr>
                 ))}

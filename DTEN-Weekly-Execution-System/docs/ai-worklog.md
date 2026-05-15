@@ -58,8 +58,9 @@ Local commands:
   Lint      : npm run lint
   Build     : npm run build
 
-Next planned work: R3.4 Chunk E — monthly target polish, dashboard simplification, full reseed verification.
-R3.4 Chunks A–D complete. DB must be migrated (prisma migrate deploy or prisma db push) before testing.
+R3.4 fully complete. DB migrated (all migrations applied). Reseed: npm run prisma:seed
+Latest additions: objective-lock for KR assignees, date-based monthly targets (actual month names per quarter).
+Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 ```
 
 ---
@@ -220,6 +221,92 @@ R3.4 Chunks A–D complete. DB must be migrated (prisma migrate deploy or prisma
 - Removed unused `NavItem` type import (lint fix).
 
 **Verification:** 32 tests passing, lint clean, production build passing (26 routes).
+
+### Objective Lock + Date-Based Monthly Targets (2026-05-14)
+
+**Objective-is-read-only for KR assignees:**
+- `objectives/[id]/page.tsx`: changed "Add Key Result" card gate from `{canManageDirectKrs ?` to `{canEditObjective && canManageDirectKrs ?` — KR owners who don't own the objective no longer see the create-KR form.
+- `objectives/actions.ts` `createKeyResultAction`: added ownership check — only objective owner, CEO, or ADMIN can create KRs under an objective; others get an alert redirect.
+
+**Date-based monthly targets (`src/lib/okr-calculations.ts`):**
+- Added `MONTH_NAMES` constant (12 month names).
+- Added `getQuarterMonthNames(quarter)` → `["April","May","June"]` for `"2026-Q2"`.
+- Added `getMonthIndexForQuarter(quarter, date?)` → 1/2/3 if `date` is within that quarter/year, null otherwise (respects year — Q1 2026 ≠ Q1 2027).
+
+**Updated displays:**
+- `key-results/[id]/page.tsx` Monthly Targets card: labels are now "April Goal", "May Goal", "June Goal" based on KR's objective quarter.
+- `objectives/[id]/page.tsx` KR table: monthly targets column shows "April: goal text" etc.
+- `weekly-report/current/page.tsx`: header shows "May target period." Page description "May targets shown." Per-KR target found using `getMonthIndexForQuarter(kr.objective.quarter)` so only the matching quarter's target is shown, null-safe. Display shows "May: goal text".
+- `my-okrs/page.tsx`: monthly targets column shows actual month names per KR's quarter.
+
+**Test path:** Log in as `engineer@dten.com` → `/key-results/{id}` → Monthly Targets card shows "April Goal / May Goal / June Goal" (2026-Q2). Log in as `sales@dten.com` → `/weekly-report/current` → header shows "May target period." and KR Updates section shows "May: Build pipeline to consistently deliver 10 qualified demos" in KR subtitle.
+
+**Verification:** lint clean, production build passing (25 routes, TypeScript clean).
+
+### R3.4 Monthly Target Text Redesign (2026-05-14)
+
+**Motivation:** User clarified that monthly targets should be text-based task descriptions set by the KR owner — not numeric value/percent inputs entered during KR creation.
+
+**Schema changes (`prisma/schema.prisma`):**
+- `MonthlyTarget` model: dropped `targetValue Float?` and `targetPercent Float?`; added `title String?`.
+- Migration: `20260514200000_r3_4_monthly_target_text`.
+
+**Updated `src/app/objectives/actions.ts`:**
+- `createKeyResultAction`: removed `monthlyTargets.create` block (3 rows with targetValue/targetPercent); removed `currentMonthTargetPercent` from form data; pacing always initialises as `NO_TARGET`.
+- `updateKeyResultAction`: removed `monthlyTarget.upsert` loop; removed `currentMonthTargetPercent` from form data; pacing always `NO_TARGET`. Removed unused `getCurrentQuarterMonthIndex` import.
+
+**Updated `src/app/weekly-report/actions.ts`:**
+- `savePriorityCheckInAction`: removed `monthlyTargets` from `linkedKeyResult` include; pacing set to `NO_TARGET`.
+- `saveKrUpdateAction`: removed `monthlyTargets` from `keyResult` include; pacing set to `NO_TARGET`. Removed unused `getCurrentQuarterMonthIndex` import.
+- `ensureCurrentWeeklyReport`: removed `monthlyTargets` from priorities' linkedKeyResult include.
+
+**Updated `src/app/objectives/[id]/page.tsx`:**
+- Removed Month 1/2/3 Target Value + Target Percent fields from the KR create form.
+- KR table "Monthly Targets" column now shows `M{N}: {title ?? "–"}` instead of percent.
+
+**Updated `src/app/key-results/[id]/page.tsx`:**
+- Removed Month 1/2/3 numeric fields from the KR edit form.
+- Updated "Update KR" card description.
+- Added **Monthly Targets** card (full-width, below the Summary+Edit 2-grid): 3 text inputs for Month 1/2/3 goals, disabled for non-editors. Save button triggers `saveMonthlyTargetsAction`.
+
+**New `saveMonthlyTargetsAction` in `src/app/key-results/actions.ts`:**
+- Upserts 3 MonthlyTarget rows (title only) for the given KR.
+- Editable by: KR owner, CEO, ADMIN, EXECUTIVE, MANAGER.
+
+**Updated `src/app/weekly-report/current/page.tsx`:**
+- KR Updates section: monthly target display changed from `M{N} target: {percent}%` to `M{N}: {title}` (shown only when title is set).
+
+**Updated `src/app/my-okrs/page.tsx`:**
+- Monthly Targets column: changed from `targetPercent ?? 0}%` to `title ?? "–"`.
+
+**Updated `prisma/seed.ts`:**
+- Replaced numeric monthly target rows with meaningful text descriptions for all 4 seeded KRs × 3 months.
+
+**Test path:** Log in as `engineer@dten.com` → `/key-results/{shipD7x-id}` → see Monthly Targets card with seeded month goals pre-filled → edit Month 2 goal → Save Monthly Targets. Log in as `sales@dten.com` → `/weekly-report/current` → KR Updates section shows `M2: <goal text>` under the KR title.
+
+**Verification:** lint clean, production build passing (25 routes, TypeScript clean). DB migrated + reseeded.
+
+### R3.4 Chunk E — Monthly Target Polish + Dashboard + Company Tree Scoping (2026-05-14)
+
+**Updated `src/app/weekly-report/current/page.tsx`:**
+- Page header description now reads: `"{week range} · Month {N} target period."` — satisfies PRD item 14 (weekly report title shows current monthly target context).
+
+**Updated `src/app/dashboard/page.tsx`:**
+- `currentReport` query: replaced `priorities: true` include with `weeklyTasks: { select: { id: true } }`.
+- "Current Report" StatCard detail now shows task count (`"N task(s)"`) instead of priority count.
+- Dashboard no longer reads from the deprecated WeeklyPriority model for the weekly report card.
+
+**Updated `src/app/company-tree/page.tsx`:**
+- Role-based scoping added (PRD DOD item 12 — "Company tree view is scoped by role/org tree"):
+  - CEO/ADMIN/EXECUTIVE: all objectives and departments.
+  - DEPARTMENT_HEAD: company-level objectives + own department (all levels within it).
+  - MANAGER/EMPLOYEE/VIEWER: company-level + own department + own team + own objectives.
+- `departmentWhere` filters the departments list to only show relevant cards.
+- Scope label shown in page description.
+
+**Verification:** 32 tests passing, lint clean, production build passing (26 routes, TypeScript clean).
+
+**DB migration needed before testing:** `npx prisma migrate deploy` (or `prisma db push`) then `npm run prisma:seed`.
 
 ### R3.4 Chunks C+D — WeeklyTask Schema + Simplified Weekly Report (2026-05-14)
 

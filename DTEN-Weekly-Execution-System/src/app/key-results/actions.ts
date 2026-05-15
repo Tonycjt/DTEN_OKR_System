@@ -4,14 +4,53 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
-function requiredString(value: FormDataEntryValue | null, fieldName: string) {
+function optionalString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
+  return text.length > 0 ? text : null;
+}
+
+function requiredString(value: FormDataEntryValue | null, fieldName: string) {
+  const text = optionalString(value);
 
   if (!text) {
     throw new Error(`${fieldName} is required.`);
   }
 
   return text;
+}
+
+export async function saveMonthlyTargetsAction(formData: FormData) {
+  const user = await requireUser();
+  const keyResultId = requiredString(formData.get("keyResultId"), "Key Result");
+
+  const keyResult = await prisma.keyResult.findUnique({
+    where: { id: keyResultId },
+    select: { ownerId: true },
+  });
+
+  if (!keyResult) throw new Error("Key Result not found.");
+
+  const canEdit =
+    keyResult.ownerId === user.id ||
+    user.role === "CEO" ||
+    user.role === "ADMIN" ||
+    user.role === "EXECUTIVE" ||
+    user.role === "MANAGER";
+
+  if (!canEdit) throw new Error("You do not have permission to set monthly targets for this KR.");
+
+  await Promise.all(
+    [1, 2, 3].map((monthIndex) => {
+      const title = optionalString(formData.get(`title${monthIndex}`));
+      return prisma.monthlyTarget.upsert({
+        where: { keyResultId_monthIndex: { keyResultId, monthIndex } },
+        create: { keyResultId, monthIndex, title },
+        update: { title },
+      });
+    })
+  );
+
+  revalidatePath(`/key-results/${keyResultId}`);
 }
 
 export async function addKeyResultCommentAction(formData: FormData) {

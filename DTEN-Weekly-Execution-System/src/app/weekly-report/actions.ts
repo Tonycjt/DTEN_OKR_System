@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PriorityStatus, WeeklyTaskSectionType, WeeklyTaskStatus, WorkStatus } from "@prisma/client";
-import { calculatePacingStatus, calculateProgressPercent, getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
+import { calculatePacingStatus, calculateProgressPercent } from "@/lib/okr-calculations";
 import { getEffectiveReviewOwnerId } from "@/lib/review-routing";
 import { getMondayWeekStart, getSundayWeekEnd } from "@/lib/week";
 import { requireUser } from "@/server/auth";
@@ -70,7 +70,6 @@ export async function ensureCurrentWeeklyReport(userId: string) {
           linkedKeyResult: {
             include: {
               objective: true,
-              monthlyTargets: { orderBy: { monthIndex: "asc" } },
               checkIns: { where: { userId }, orderBy: { createdAt: "desc" }, take: 1 },
             },
           },
@@ -227,7 +226,6 @@ export async function savePriorityCheckInAction(formData: FormData) {
       weeklyReport: true,
       linkedKeyResult: {
         include: {
-          monthlyTargets: true,
           owner: { select: { id: true, email: true, name: true } },
         },
       },
@@ -245,9 +243,7 @@ export async function savePriorityCheckInAction(formData: FormData) {
   const newValue = numberValue(formData.get("newValue"), linkedKeyResult.currentValue);
   const progressPercent = calculateProgressPercent(linkedKeyResult.startValue, newValue, linkedKeyResult.targetValue);
   const confidenceScore = clamp(intValue(formData.get("confidenceScore"), linkedKeyResult.confidenceScore), 1, 5);
-  const currentMonthIndex = getCurrentQuarterMonthIndex();
-  const currentTarget = linkedKeyResult.monthlyTargets.find((t) => t.monthIndex === currentMonthIndex);
-  const pacingStatus = calculatePacingStatus({ progressPercent, currentMonthTargetPercent: currentTarget?.targetPercent });
+  const pacingStatus = calculatePacingStatus({ progressPercent, currentMonthTargetPercent: null });
   const becameBlocked = linkedKeyResult.status !== "ON_HOLD" && status === "ON_HOLD";
 
   const existingCheckIn = await prisma.checkIn.findFirst({
@@ -427,7 +423,6 @@ export async function saveKrUpdateAction(formData: FormData) {
     prisma.keyResult.findFirst({
       where: { id: keyResultId, ownerId: user.id },
       include: {
-        monthlyTargets: { orderBy: { monthIndex: "asc" } },
         owner: { select: { id: true, email: true, name: true } },
       },
     }),
@@ -441,9 +436,7 @@ export async function saveKrUpdateAction(formData: FormData) {
   const newValue = numberValue(formData.get("newValue"), keyResult.currentValue);
   const progressPercent = calculateProgressPercent(keyResult.startValue, newValue, keyResult.targetValue);
   const confidenceScore = clamp(intValue(formData.get("confidenceScore"), keyResult.confidenceScore), 1, 5);
-  const currentMonthIndex = getCurrentQuarterMonthIndex();
-  const currentTarget = keyResult.monthlyTargets.find((t) => t.monthIndex === currentMonthIndex);
-  const pacingStatus = calculatePacingStatus({ progressPercent, currentMonthTargetPercent: currentTarget?.targetPercent ?? null });
+  const pacingStatus = calculatePacingStatus({ progressPercent, currentMonthTargetPercent: null });
   const becameBlocked = keyResult.status !== "ON_HOLD" && status === "ON_HOLD";
 
   const existingCheckIn = await prisma.checkIn.findFirst({

@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { weeklyReportStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
-import { getCurrentQuarterMonthIndex } from "@/lib/okr-calculations";
+import { MONTH_NAMES, getMonthIndexForQuarter } from "@/lib/okr-calculations";
 import { formatWeekRange } from "@/lib/week";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
@@ -40,13 +40,13 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
   const params = searchParams ? await searchParams : {};
   const error = params.error ? (errorMessages[params.error] ?? params.error) : null;
 
-  const currentMonthIndex = getCurrentQuarterMonthIndex();
+  const currentMonthName = MONTH_NAMES[new Date().getMonth()];
 
   const userKeyResults = await prisma.keyResult.findMany({
     where: { ownerId: user.id },
     orderBy: [{ objective: { title: "asc" } }, { title: "asc" }],
     include: {
-      objective: { select: { id: true, title: true } },
+      objective: { select: { id: true, title: true, quarter: true } },
       monthlyTargets: { orderBy: { monthIndex: "asc" } },
       checkIns: {
         where: { weeklyReportId: report.id, userId: user.id, weeklyPriorityId: null },
@@ -65,7 +65,7 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
     <div className="stack">
       <PageHeader
         title="Weekly Report"
-        description={`Report your execution for ${formatWeekRange(report.weekStart, report.weekEnd)}.`}
+        description={`${formatWeekRange(report.weekStart, report.weekEnd)} · ${currentMonthName} target period.`}
       />
 
       {error ? <div className="alert">{error}</div> : null}
@@ -219,7 +219,7 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
       <Card>
         <CardHeader>
           <h2>KR Updates</h2>
-          <p>Update measurable progress on your key results for this week. Month {currentMonthIndex} targets shown.</p>
+          <p>Update measurable progress on your key results for this week. {currentMonthName} targets shown.</p>
         </CardHeader>
         <CardContent>
           {userKeyResults.length === 0 ? (
@@ -231,7 +231,8 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
             <div className="stack">
               {userKeyResults.map((kr) => {
                 const checkIn = kr.checkIns[0];
-                const currentTarget = kr.monthlyTargets.find((t) => t.monthIndex === currentMonthIndex);
+                const currentMonthIdx = getMonthIndexForQuarter(kr.objective.quarter);
+                const currentTarget = currentMonthIdx ? kr.monthlyTargets.find((t) => t.monthIndex === currentMonthIdx) : null;
 
                 return (
                   <div className="card" key={kr.id}>
@@ -244,7 +245,7 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
                           <br />
                           <span className="muted">
                             {kr.objective.title} · {kr.currentValue} / {kr.targetValue} ({Math.round(kr.progressPercent)}%)
-                            {currentTarget ? ` · M${currentMonthIndex} target: ${currentTarget.targetPercent ?? 0}%` : ""}
+                            {currentTarget?.title ? ` · ${currentMonthName}: ${currentTarget.title}` : ""}
                           </span>
                         </span>
                         <Badge tone={workStatusTone(kr.status)}>{formatEnumLabel(kr.status)}</Badge>

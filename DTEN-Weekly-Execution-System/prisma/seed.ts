@@ -323,18 +323,18 @@ async function main() {
 
   await prisma.monthlyTarget.createMany({
     data: [
-      { keyResultId: shipD7x.id, monthIndex: 1, targetValue: 35, targetPercent: 35 },
-      { keyResultId: shipD7x.id, monthIndex: 2, targetValue: 70, targetPercent: 70 },
-      { keyResultId: shipD7x.id, monthIndex: 3, targetValue: 100, targetPercent: 100 },
-      { keyResultId: teamsCertification.id, monthIndex: 1, targetValue: 40, targetPercent: 40 },
-      { keyResultId: teamsCertification.id, monthIndex: 2, targetValue: 75, targetPercent: 75 },
-      { keyResultId: teamsCertification.id, monthIndex: 3, targetValue: 100, targetPercent: 100 },
-      { keyResultId: demosPerWeek.id, monthIndex: 1, targetValue: 10, targetPercent: 67 },
-      { keyResultId: demosPerWeek.id, monthIndex: 2, targetValue: 13, targetPercent: 87 },
-      { keyResultId: demosPerWeek.id, monthIndex: 3, targetValue: 15, targetPercent: 100 },
-      { keyResultId: salesEnablementKit.id, monthIndex: 1, targetValue: 35, targetPercent: 35 },
-      { keyResultId: salesEnablementKit.id, monthIndex: 2, targetValue: 70, targetPercent: 70 },
-      { keyResultId: salesEnablementKit.id, monthIndex: 3, targetValue: 100, targetPercent: 100 },
+      { keyResultId: shipD7x.id, monthIndex: 1, title: "Establish production readiness baseline and complete initial partner test pass." },
+      { keyResultId: shipD7x.id, monthIndex: 2, title: "Close partner validation gaps and complete certification evidence package." },
+      { keyResultId: shipD7x.id, monthIndex: 3, title: "Ship D7X AI 55 inch to production with full certification sign-off." },
+      { keyResultId: teamsCertification.id, monthIndex: 1, title: "Complete Microsoft Teams certification pre-submission checklist and lab setup." },
+      { keyResultId: teamsCertification.id, monthIndex: 2, title: "Submit Teams certification package and address initial review feedback." },
+      { keyResultId: teamsCertification.id, monthIndex: 3, title: "Achieve full Microsoft Teams certification approval and publish results." },
+      { keyResultId: demosPerWeek.id, monthIndex: 1, title: "Build pipeline to consistently deliver 10 qualified demos per week." },
+      { keyResultId: demosPerWeek.id, monthIndex: 2, title: "Scale to 13 qualified demos per week with improved conversion rate." },
+      { keyResultId: demosPerWeek.id, monthIndex: 3, title: "Sustain 15 qualified demos per week for the full month." },
+      { keyResultId: salesEnablementKit.id, monthIndex: 1, title: "Draft D7X product overview, key differentiators, and competitive positioning." },
+      { keyResultId: salesEnablementKit.id, monthIndex: 2, title: "Complete sales deck, demo scripts, and objection handling guides." },
+      { keyResultId: salesEnablementKit.id, monthIndex: 3, title: "Publish full D7X launch enablement kit and deliver team training." },
     ],
   });
 

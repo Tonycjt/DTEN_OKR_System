@@ -243,7 +243,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         weekStart,
       },
       include: {
-        priorities: true,
+        weeklyTasks: { select: { id: true } },
         reviews: {
           orderBy: { createdAt: "desc" },
           include: { manager: true },
@@ -756,7 +756,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <StatCard
           label="Current Report"
           value={currentReport ? formatEnumLabel(currentReport.status) : "Not Started"}
-          detail={currentReport ? `${currentReport.priorities.length} priorities` : "create this week"}
+          detail={currentReport ? `${currentReport.weeklyTasks.length} task${currentReport.weeklyTasks.length !== 1 ? "s" : ""}` : "create this week"}
           tone={currentReport?.status === "NEEDS_FOLLOW_UP" ? "warning" : currentReport ? "success" : "info"}
         />
         <StatCard label="Assigned KRs" value={String(assignedKrs.length)} detail="owned by you" tone="info" />

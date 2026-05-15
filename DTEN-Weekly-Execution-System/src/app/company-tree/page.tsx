@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import { LinkButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -10,16 +11,46 @@ import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
 export default async function CompanyTreePage() {
-  await requireUser();
+  const user = await requireUser();
+
+  const isCompanyViewer = user.role === "CEO" || user.role === "ADMIN" || user.role === "EXECUTIVE";
+
+  // Scope departments: company viewers see all; others see only their own department.
+  const departmentWhere: Prisma.DepartmentWhereInput =
+    isCompanyViewer || user.role === "DEPARTMENT_HEAD"
+      ? isCompanyViewer
+        ? {}
+        : user.departmentId
+          ? { id: user.departmentId }
+          : { id: "__none__" }
+      : user.departmentId
+        ? { id: user.departmentId }
+        : { id: "__none__" };
+
+  // Scope objectives by role.
+  let objectiveWhere: Prisma.ObjectiveWhereInput = {};
+  if (!isCompanyViewer) {
+    const orClauses: Prisma.ObjectiveWhereInput[] = [{ level: "COMPANY" }];
+    if (user.departmentId) {
+      orClauses.push({ departmentId: user.departmentId });
+    }
+    if (user.teamId) {
+      orClauses.push({ teamId: user.teamId });
+    }
+    orClauses.push({ ownerId: user.id });
+    objectiveWhere = { OR: orClauses };
+  }
 
   const [departments, objectives] = await Promise.all([
     prisma.department.findMany({
+      where: departmentWhere,
       orderBy: { name: "asc" },
       include: {
         teams: { orderBy: { name: "asc" } },
       },
     }),
     prisma.objective.findMany({
+      where: objectiveWhere,
       orderBy: [{ level: "asc" }, { createdAt: "asc" }],
       include: {
         owner: { select: { id: true, name: true } },
@@ -37,18 +68,22 @@ export default async function CompanyTreePage() {
     INDIVIDUAL: objectives.filter((o) => o.level === "INDIVIDUAL"),
   };
 
+  const scopeLabel = isCompanyViewer
+    ? "All objectives across the company."
+    : "Objectives in your department, team, and own scope.";
+
   return (
     <div className="stack">
       <PageHeader
         title="Company Tree"
-        description="Objectives organized by org level — company, department, team, and individual."
+        description={`Objectives organized by org level. ${scopeLabel}`}
         actions={<LinkButton href="/objectives/new">Create Objective</LinkButton>}
       />
 
       <Card>
         <CardHeader>
           <h2>Company</h2>
-          <p>{byLevel.COMPANY.length} company-level objectives.</p>
+          <p>{byLevel.COMPANY.length} company-level objective{byLevel.COMPANY.length !== 1 ? "s" : ""}.</p>
         </CardHeader>
         <CardContent>
           <ObjectiveList objectives={byLevel.COMPANY} />
@@ -62,7 +97,7 @@ export default async function CompanyTreePage() {
           <Card key={department.id}>
             <CardHeader>
               <h2>{department.name}</h2>
-              <p>{deptObjectives.length} department-level objectives.</p>
+              <p>{deptObjectives.length} department-level objective{deptObjectives.length !== 1 ? "s" : ""}.</p>
             </CardHeader>
             <CardContent>
               <ObjectiveList objectives={deptObjectives} />
@@ -86,7 +121,7 @@ export default async function CompanyTreePage() {
         <Card>
           <CardHeader>
             <h2>Individual</h2>
-            <p>{byLevel.INDIVIDUAL.length} individual-level objectives.</p>
+            <p>{byLevel.INDIVIDUAL.length} individual-level objective{byLevel.INDIVIDUAL.length !== 1 ? "s" : ""}.</p>
           </CardHeader>
           <CardContent>
             <ObjectiveList objectives={byLevel.INDIVIDUAL} />

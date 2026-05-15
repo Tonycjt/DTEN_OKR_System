@@ -338,8 +338,7 @@ model MonthlyTarget {
   keyResultId String
   monthIndex  Int
 
-  targetValue   Float?
-  targetPercent Float?
+  title String?
 
   keyResult KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
 

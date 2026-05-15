@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
+import { getQuarterMonthNames } from "@/lib/okr-calculations";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
@@ -206,7 +207,10 @@ export default async function MyOkrsPage() {
                     </td>
                     <td>
                       {keyResult.monthlyTargets.length > 0
-                        ? keyResult.monthlyTargets.map((t) => `M${t.monthIndex}: ${t.targetPercent ?? 0}%`).join(" / ")
+                        ? keyResult.monthlyTargets.map((t) => {
+                            const names = getQuarterMonthNames(keyResult.objective.quarter);
+                            return `${names[t.monthIndex - 1]}: ${t.title ?? "–"}`;
+                          }).join(" / ")
                         : "No targets set"}
                     </td>
                   </tr>
