@@ -13,7 +13,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
 import { calculateObjectiveHealth, getObjectiveChildStatuses } from "@/lib/objective-health";
-import { getQuarterMonthNames } from "@/lib/okr-calculations";
+import { getMonthIndexForQuarter, getQuarterMonthNames } from "@/lib/okr-calculations";
 import { getAssignableUsers } from "@/lib/org-scope";
 import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
@@ -84,6 +84,8 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
   }
 
   const objectiveHealth = calculateObjectiveHealth(getObjectiveChildStatuses(objective));
+  const quarterMonthNames = getQuarterMonthNames(objective.quarter);
+  const currentMonthIdx = getMonthIndexForQuarter(objective.quarter);
   const krWeightValidation = validateObjectiveKrWeights({
     weights: objective.keyResults.map((keyResult) => ({ percent: keyResult.weightPercent })),
     status: objective.status,
@@ -394,15 +396,15 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                         <ProgressBar value={keyResult.progressPercent} />
                       </div>
                     </td>
-                    <td>
-                      {keyResult.monthlyTargets.map((target) => {
-                        const names = getQuarterMonthNames(objective.quarter);
-                        return (
-                          <div key={target.id} className="muted">
-                            {names[target.monthIndex - 1]}: {target.title ?? "–"}
-                          </div>
-                        );
-                      })}
+                    <td className="muted">
+                      {currentMonthIdx
+                        ? (() => {
+                            const t = keyResult.monthlyTargets.find((m) => m.monthIndex === currentMonthIdx);
+                            return `${quarterMonthNames[currentMonthIdx - 1]}: ${t?.title ?? "—"}`;
+                          })()
+                        : keyResult.monthlyTargets.length > 0
+                          ? keyResult.monthlyTargets.map((t) => `${quarterMonthNames[t.monthIndex - 1]}: ${t.title ?? "–"}`).join(" / ")
+                          : "—"}
                     </td>
                   </tr>
                 ))}

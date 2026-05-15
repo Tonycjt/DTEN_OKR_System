@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
-import { getQuarterMonthNames } from "@/lib/okr-calculations";
+import { getMonthIndexForQuarter, getQuarterMonthNames } from "@/lib/okr-calculations";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
@@ -205,13 +205,18 @@ export default async function MyOkrsPage() {
                         <ProgressBar value={keyResult.progressPercent} />
                       </div>
                     </td>
-                    <td>
-                      {keyResult.monthlyTargets.length > 0
-                        ? keyResult.monthlyTargets.map((t) => {
-                            const names = getQuarterMonthNames(keyResult.objective.quarter);
-                            return `${names[t.monthIndex - 1]}: ${t.title ?? "–"}`;
-                          }).join(" / ")
-                        : "No targets set"}
+                    <td className="muted">
+                      {(() => {
+                        const names = getQuarterMonthNames(keyResult.objective.quarter);
+                        const currentIdx = getMonthIndexForQuarter(keyResult.objective.quarter);
+                        if (currentIdx) {
+                          const current = keyResult.monthlyTargets.find((t) => t.monthIndex === currentIdx);
+                          return `${names[currentIdx - 1]}: ${current?.title ?? "—"}`;
+                        }
+                        return keyResult.monthlyTargets.length > 0
+                          ? keyResult.monthlyTargets.map((t) => `${names[t.monthIndex - 1]}: ${t.title ?? "–"}`).join(" / ")
+                          : "No targets set";
+                      })()}
                     </td>
                   </tr>
                 ))}

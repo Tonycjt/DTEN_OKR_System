@@ -286,6 +286,33 @@ Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 
 **Verification:** lint clean, production build passing (25 routes, TypeScript clean). DB migrated + reseeded.
 
+### Weekly Task Form Fixes (2026-05-14)
+
+**Bug:** After saving a This Week / Next Week task, the Status select reset to "Not Started". Root cause: React reconciliation — the card's `key={task.id}` never changed, so React kept the card as the same DOM element and did not re-apply `defaultValue` on uncontrolled inputs after the server action revalidated the page.
+
+**Fix:** Changed `key={task.id}` to `key={`${task.id}-${task.status}-${task.progressPercent}`}` on both This Week and Next Week task cards. When the server saves new values and re-renders the page, the changed key forces React to unmount and remount the card, applying the correct `defaultValue`.
+
+**Feature:** Replaced the Progress dropdown (0 / 25 / 50 / 75 / 100%) with a free-form `<input type="number" min="0" max="100">` in both task sections. The `updateWeeklyTaskAction` already uses `clamp(numberValue(...), 0, 100)` so no server change was needed.
+
+**Verification:** lint clean, production build passing (26 routes, TypeScript clean).
+
+**Test path:** `engineer@dten.com` → `/weekly-report/current` → add a This Week task → change Status to "In Progress", type 65 in Progress → Save → status and progress bar stay at the saved values on re-render.
+
+### Real-Date Monthly Target Display (2026-05-14)
+
+**Problem:** Monthly targets were showing all three quarter months (April/May/June) without any awareness of the current real date, making past months (e.g. April when today is May 14) show as equally prominent.
+
+**Changes:**
+
+- **`src/app/key-results/[id]/page.tsx`**: Added `getMonthIndexForQuarter` import. Monthly Targets card now annotates each month label: "— Current" (bold, accent border), "— Past" (muted label), or no annotation for upcoming. Visually communicates which month is active.
+- **`src/app/objectives/[id]/page.tsx`**: Added `getMonthIndexForQuarter`. KR table Monthly Targets column now shows only the current month's target (e.g. "May: goal text") when inside the quarter; falls back to all months when viewing a past/future quarter.
+- **`src/app/my-okrs/page.tsx`**: Same treatment — Assigned KRs table Monthly Targets column shows current month only (or all if outside the quarter).
+- **`src/app/weekly-report/current/page.tsx`**: Monthly goal surfaced as the page header title (replacing "Weekly Report"). Picks the first KR with a set goal for the current calendar month as the canonical goal text; falls back to "Weekly Report" if none is set. Description reads "May goal · week range". Per-KR goal lines removed entirely — employees are expected to share the same monthly goal across their KRs.
+
+**Verification:** lint clean, production build passing (26 routes, TypeScript clean).
+
+**Test path:** Log in as `engineer@dten.com` → `/key-results/{id}` → Monthly Targets card: April label is muted/Past, May label is bold/Current, June label is plain Upcoming. → `/weekly-report/current` → KR Updates section: each KR card shows "May goal: <text>" as a prominent bold line above the progress bar.
+
 ### R3.4 Chunk E — Monthly Target Polish + Dashboard + Company Tree Scoping (2026-05-14)
 
 **Updated `src/app/weekly-report/current/page.tsx`:**

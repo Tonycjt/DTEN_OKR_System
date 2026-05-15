@@ -56,6 +56,15 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
     },
   });
 
+  // Pick the first KR that has a goal set for the current calendar month as the page title.
+  // Employees are expected to align goals across KRs; we surface one as the page focus.
+  const currentMonthGoal = userKeyResults.reduce<string | null>((found, kr) => {
+    if (found) return found;
+    const monthIdx = getMonthIndexForQuarter(kr.objective.quarter);
+    if (!monthIdx) return null;
+    return kr.monthlyTargets.find((t) => t.monthIndex === monthIdx)?.title ?? null;
+  }, null);
+
   const isSubmitted = report.status === "SUBMITTED" || report.status === "REVIEWED";
 
   const thisWeekTasks = report.weeklyTasks.filter((t) => t.sectionType === "THIS_WEEK");
@@ -64,8 +73,8 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
   return (
     <div className="stack">
       <PageHeader
-        title="Weekly Report"
-        description={`${formatWeekRange(report.weekStart, report.weekEnd)} · ${currentMonthName} target period.`}
+        title={currentMonthGoal ?? "Weekly Report"}
+        description={`${currentMonthName} goal · ${formatWeekRange(report.weekStart, report.weekEnd)}`}
       />
 
       {error ? <div className="alert">{error}</div> : null}
@@ -79,7 +88,7 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
         <CardContent>
           <div className="stack">
             {thisWeekTasks.map((task) => (
-              <div className="card" key={task.id}>
+              <div className="card" key={`${task.id}-${task.status}-${task.progressPercent}`}>
                 <div className="card-content">
                   <form action={updateWeeklyTaskAction} className="form-grid">
                     <input name="taskId" type="hidden" value={task.id} />
@@ -96,16 +105,15 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
                       </select>
                     </label>
                     <label className="field">
-                      <span>Progress</span>
-                      <select
-                        defaultValue={String(Math.round(task.progressPercent / 25) * 25)}
+                      <span>Progress %</span>
+                      <input
+                        defaultValue={Math.round(task.progressPercent)}
                         disabled={isSubmitted}
+                        max="100"
+                        min="0"
                         name="progressPercent"
-                      >
-                        {[0, 25, 50, 75, 100].map((v) => (
-                          <option key={v} value={v}>{v}%</option>
-                        ))}
-                      </select>
+                        type="number"
+                      />
                     </label>
                     <label className="field wide">
                       <span>Blocker</span>
@@ -154,7 +162,7 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
         <CardContent>
           <div className="stack">
             {nextWeekTasks.map((task) => (
-              <div className="card" key={task.id}>
+              <div className="card" key={`${task.id}-${task.status}-${task.progressPercent}`}>
                 <div className="card-content">
                   <form action={updateWeeklyTaskAction} className="form-grid">
                     <input name="taskId" type="hidden" value={task.id} />
@@ -171,16 +179,15 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
                       </select>
                     </label>
                     <label className="field">
-                      <span>Progress</span>
-                      <select
-                        defaultValue={String(Math.round(task.progressPercent / 25) * 25)}
+                      <span>Progress %</span>
+                      <input
+                        defaultValue={Math.round(task.progressPercent)}
                         disabled={isSubmitted}
+                        max="100"
+                        min="0"
                         name="progressPercent"
-                      >
-                        {[0, 25, 50, 75, 100].map((v) => (
-                          <option key={v} value={v}>{v}%</option>
-                        ))}
-                      </select>
+                        type="number"
+                      />
                     </label>
                     <div className="wide">
                       <Button disabled={isSubmitted} type="submit">Save</Button>
@@ -231,8 +238,6 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
             <div className="stack">
               {userKeyResults.map((kr) => {
                 const checkIn = kr.checkIns[0];
-                const currentMonthIdx = getMonthIndexForQuarter(kr.objective.quarter);
-                const currentTarget = currentMonthIdx ? kr.monthlyTargets.find((t) => t.monthIndex === currentMonthIdx) : null;
 
                 return (
                   <div className="card" key={kr.id}>
@@ -245,7 +250,6 @@ export default async function CurrentWeeklyReportPage({ searchParams }: CurrentW
                           <br />
                           <span className="muted">
                             {kr.objective.title} · {kr.currentValue} / {kr.targetValue} ({Math.round(kr.progressPercent)}%)
-                            {currentTarget?.title ? ` · ${currentMonthName}: ${currentTarget.title}` : ""}
                           </span>
                         </span>
                         <Badge tone={workStatusTone(kr.status)}>{formatEnumLabel(kr.status)}</Badge>

@@ -12,7 +12,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { TrendChart } from "@/components/ui/trend-chart";
 import { pacingStatusTone, workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
-import { getQuarterMonthNames } from "@/lib/okr-calculations";
+import { getMonthIndexForQuarter, getQuarterMonthNames } from "@/lib/okr-calculations";
 import { getAssignableUsers } from "@/lib/org-scope";
 import { formatShortDate } from "@/lib/week";
 import { requireUser } from "@/server/auth";
@@ -82,6 +82,7 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
 
   const targetsByMonth = new Map(keyResult.monthlyTargets.map((target) => [target.monthIndex, target]));
   const quarterMonthNames = getQuarterMonthNames(keyResult.objective.quarter);
+  const currentMonthIdx = getMonthIndexForQuarter(keyResult.objective.quarter);
   const trendCheckIns = [...keyResult.checkIns].reverse();
   const progressTrend = trendCheckIns.map((checkIn) => ({
     label: formatShortDate(checkIn.weeklyReport.weekStart),
@@ -233,14 +234,24 @@ export default async function KeyResultDetailPage({ params, searchParams }: KeyR
             {[1, 2, 3].map((monthIndex) => {
               const target = targetsByMonth.get(monthIndex);
               const monthName = quarterMonthNames[monthIndex - 1];
+              const isCurrent = currentMonthIdx === monthIndex;
+              const isPast = currentMonthIdx !== null && monthIndex < currentMonthIdx;
+              const label = isCurrent
+                ? `${monthName} Goal — Current`
+                : isPast
+                ? `${monthName} Goal — Past`
+                : `${monthName} Goal`;
               return (
                 <label className="field wide" key={monthIndex}>
-                  <span>{monthName} Goal</span>
+                  <span style={isCurrent ? { fontWeight: 700 } : isPast ? { color: "var(--color-muted)" } : undefined}>
+                    {label}
+                  </span>
                   <input
                     defaultValue={target?.title ?? ""}
                     disabled={!canEditMonthlyTargets}
                     name={`title${monthIndex}`}
                     placeholder={`What will you accomplish in ${monthName}?`}
+                    style={isCurrent ? { borderColor: "var(--color-accent)" } : undefined}
                   />
                 </label>
               );
