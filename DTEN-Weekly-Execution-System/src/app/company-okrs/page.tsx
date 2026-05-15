@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { LinkButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,16 +11,14 @@ export default async function CompanyOkrsPage() {
   await requireUser();
 
   const objectives = await prisma.objective.findMany({
+    where: { owner: { role: "CEO" } },
     orderBy: [{ level: "asc" }, { createdAt: "asc" }],
     include: {
       owner: true,
       department: true,
       team: true,
-      parentObjective: true,
       keyResults: {
-        include: {
-          owner: true,
-        },
+        include: { owner: true },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -32,8 +28,7 @@ export default async function CompanyOkrsPage() {
     <div className="stack">
       <PageHeader
         title="Company OKRs"
-        description="Database-backed objective hierarchy across company, department, team, and individual levels."
-        actions={<LinkButton href="/objectives/new">Create Objective</LinkButton>}
+        description="Company-level objectives set by leadership."
       />
 
       <Card>
@@ -59,15 +54,7 @@ export default async function CompanyOkrsPage() {
                 {objectives.map((objective) => (
                   <tr key={objective.id}>
                     <td>
-                      <Link href={`/objectives/${objective.id}`}>
-                        <strong>{objective.title}</strong>
-                      </Link>
-                      {objective.parentObjective ? (
-                        <>
-                          <br />
-                          <span className="muted">Aligned to {objective.parentObjective.title}</span>
-                        </>
-                      ) : null}
+                      <strong>{objective.title}</strong>
                     </td>
                     <td>{formatEnumLabel(objective.level)}</td>
                     <td>{objective.owner.name}</td>

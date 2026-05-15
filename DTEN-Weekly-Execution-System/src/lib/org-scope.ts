@@ -17,16 +17,38 @@ export type AssignableUser = {
 //   DEPARTMENT_HEAD         — all active users in the same department
 //   MANAGER                 — the actor + their direct and indirect reports
 //   EMPLOYEE / VIEWER       — only themselves
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  title: true,
+  managerId: true,
+  departmentId: true,
+} as const;
+
+// Returns the current user and their direct reports only.
+// Used for objective/KR owner pickers — managers can only assign to people directly under them.
+export async function getDirectScopeUsers(actorId: string): Promise<AssignableUser[]> {
+  return prisma.user.findMany({
+    where: { isActive: true, OR: [{ id: actorId }, { managerId: actorId }] },
+    select: userSelect,
+    orderBy: { name: "asc" },
+  });
+}
+
+// Returns true if targetUserId is the actor themselves or one of their direct reports.
+export async function isInDirectScope(actorId: string, targetUserId: string): Promise<boolean> {
+  if (targetUserId === actorId) return true;
+  const direct = await prisma.user.findFirst({
+    where: { id: targetUserId, managerId: actorId, isActive: true },
+    select: { id: true },
+  });
+  return direct !== null;
+}
+
 export async function getAssignableUsers(actorId: string, role: UserRole): Promise<AssignableUser[]> {
-  const select = {
-    id: true,
-    name: true,
-    email: true,
-    role: true,
-    title: true,
-    managerId: true,
-    departmentId: true,
-  } as const;
+  const select = userSelect;
 
   if (role === "ADMIN") {
     return prisma.user.findMany({ where: { isActive: true }, select, orderBy: { name: "asc" } });

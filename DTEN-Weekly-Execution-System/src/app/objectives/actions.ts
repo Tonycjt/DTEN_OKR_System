@@ -4,14 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ObjectiveLevel, ObjectiveProgressSource, WorkStatus } from "@prisma/client";
 import { calculatePacingStatus, calculateProgressPercent } from "@/lib/okr-calculations";
-import { isInAssignableScope } from "@/lib/org-scope";
+import { isInDirectScope } from "@/lib/org-scope";
 import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { sendKrBlockedEmail } from "@/server/email-notifications";
 import { recalculateObjectiveAndParents, recalculateObjectiveProgress } from "@/server/objective-rollup";
 import { prisma } from "@/server/prisma";
 
-const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
 const objectiveProgressSources: ObjectiveProgressSource[] = ["MANUAL", "DIRECT_KRS"];
 const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
 
@@ -71,15 +70,44 @@ export async function createObjectiveAction(
   const title = optionalString(formData.get("title"));
   const quarter = optionalString(formData.get("quarter"));
   const ownerId = optionalString(formData.get("ownerId"));
-  const level = (optionalString(formData.get("level")) ?? "COMPANY") as ObjectiveLevel;
   const progressSource = (optionalString(formData.get("progressSource")) ?? "DIRECT_KRS") as ObjectiveProgressSource;
+
+  // Infer level and org context from the creator's profile — never trust submitted values.
+  const creator = await prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { role: true, departmentId: true, teamId: true },
+  });
+
+  let level: ObjectiveLevel;
+  let departmentId: string | null = null;
+  let teamId: string | null = null;
+
+  if (creator.role === "CEO") {
+    level = "COMPANY";
+  } else if (creator.role === "DEPARTMENT_HEAD") {
+    level = "DEPARTMENT";
+    departmentId = creator.departmentId;
+  } else if (creator.role === "MANAGER") {
+    level = "TEAM";
+    departmentId = creator.departmentId;
+    teamId = creator.teamId;
+  } else {
+    level = "INDIVIDUAL";
+    departmentId = creator.departmentId;
+    teamId = creator.teamId;
+  }
 
   const errors: ObjectiveFormErrors = {};
   if (!title) errors.title = "Title is required.";
   if (!quarter) errors.quarter = "Quarter is required.";
   if (!ownerId) errors.ownerId = "Owner is required.";
-  if (!objectiveLevels.includes(level)) errors.general = "Invalid level.";
   if (!objectiveProgressSources.includes(progressSource)) errors.general = "Invalid progress source.";
+  if (level === "DEPARTMENT" && !departmentId) {
+    errors.general = "Your profile has no department assigned. Ask an admin to update your profile before creating objectives.";
+  }
+  if (level === "TEAM" && !teamId) {
+    errors.general = "Your profile has no team assigned. Ask an admin to update your profile before creating objectives.";
+  }
 
   // Parse KR rows (only rows that have a title)
   const krCount = intValue(formData.get("krCount"), 0);
@@ -95,7 +123,7 @@ export async function createObjectiveAction(
   if (isPublish && Object.keys(errors).length === 0) {
     // Validate each KR owner is within actor's scope (skip unassigned KRs)
     for (const kr of krRows) {
-      if (kr.ownerId && !(await isInAssignableScope(user.id, user.role, kr.ownerId))) {
+      if (kr.ownerId && !(await isInDirectScope(user.id,kr.ownerId))) {
         errors.krs = "One or more KR owners are outside your assignable org scope.";
         break;
       }
@@ -125,8 +153,8 @@ export async function createObjectiveAction(
       progressPercent: progressSource === "MANUAL" ? clamp(numberValue(formData.get("progressPercent"), 0), 0, 100) : 0,
       confidenceScore: clamp(intValue(formData.get("confidenceScore"), 3), 1, 5),
       ownerId: ownerId!,
-      departmentId: optionalString(formData.get("departmentId")),
-      teamId: optionalString(formData.get("teamId")),
+      departmentId,
+      teamId,
     },
   });
 
@@ -136,7 +164,7 @@ export async function createObjectiveAction(
       action: "CREATED",
       entityType: "Objective",
       entityId: objective.id,
-      metadata: { title: objective.title, level: objective.level, status },
+      metadata: { title: objective.title, level, departmentId, teamId, status },
     },
   });
 
@@ -200,7 +228,7 @@ export async function updateObjectiveAction(
   if (!title) errors.title = "Title is required.";
   if (!quarter) errors.quarter = "Quarter is required.";
   if (!ownerId) errors.ownerId = "Owner is required.";
-  if (!objectiveLevels.includes(level)) errors.general = "Invalid level.";
+  if (!(["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"] as const).includes(level)) errors.general = "Invalid level.";
   if (!objectiveProgressSources.includes(progressSource)) errors.general = "Invalid progress source.";
   if (!workStatuses.includes(status)) errors.general = "Invalid status.";
 
@@ -439,7 +467,7 @@ export async function updateKrFromObjectiveAction(
     return { step: "errors", errors: { general: "Only the objective owner can edit KRs." } };
   }
 
-  if (ownerId && !(await isInAssignableScope(user.id, user.role, ownerId))) {
+  if (ownerId && !(await isInDirectScope(user.id,ownerId))) {
     return { step: "errors", errors: { ownerId: "That user is outside your org scope." } };
   }
 
@@ -574,7 +602,7 @@ export async function createKeyResultAction(formData: FormData) {
 
   if (!workStatuses.includes(status)) actionAlert(alertPath, "Invalid KR status.");
 
-  if (ownerId && !(await isInAssignableScope(user.id, user.role, ownerId))) {
+  if (ownerId && !(await isInDirectScope(user.id,ownerId))) {
     actionAlert(alertPath, "You cannot assign a KR to that user.");
   }
 
@@ -682,7 +710,7 @@ export async function updateKeyResultAction(formData: FormData) {
 
   if (!workStatuses.includes(status)) actionAlert(alertPath, "Invalid KR status.");
 
-  if (ownerId && !(await isInAssignableScope(user.id, user.role, ownerId))) {
+  if (ownerId && !(await isInDirectScope(user.id,ownerId))) {
     actionAlert(alertPath, "You cannot assign a KR to that user.");
   }
 

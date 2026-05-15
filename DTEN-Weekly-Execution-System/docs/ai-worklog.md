@@ -338,6 +338,54 @@ Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 
 **Verification:** documentation-only review. No app tests run.
 
+### PRD Update: R3.4.15 Objective Creation Level Simplification (2026-05-15)
+
+**Doc-only change:** Updated `dten_okr_weekly_execution_system_prd.md` to add R3.4.15.
+
+**New product direction:**
+- Create Objective should not show editable level, department, or team selectors.
+- Objective level is inferred from creator's company-tree position.
+- CEO-created objectives are `COMPANY` level.
+- Department Head-created objectives are `DEPARTMENT` level.
+- Team Leader-created objectives are `TEAM` level.
+- All other created objectives are `INDIVIDUAL` level.
+- Department/team context should be inferred from the creator's org profile/company tree where applicable.
+- Backend must enforce inferred level/org context even if frontend fields are bypassed.
+
+**PRD sections updated:** objective level behavior, Create Objective flow, new R3.4.15 section, R3.4 build priority, R3.4 DOD, error handling, validation rules, and R3.4 testing requirements.
+
+**Verification:** documentation-only review. No app tests run.
+
+### PRD Compression + Consistency Pass (2026-05-15)
+
+**Doc-only change:** Rewrote `dten_okr_weekly_execution_system_prd.md` into a compressed R3.4 source-of-truth document.
+
+**What changed:**
+- Reduced the PRD from roughly 2,500 lines to roughly 790 lines.
+- Kept Release 1 and Release 2 as concise completed historical baselines.
+- Marked Release 3.1-3.3 as historical/partially superseded where appropriate.
+- Made R3.4 the active product contract.
+- Preserved recent R3.4.12-R3.4.15 decisions:
+  - objective draft/publish/update workflow
+  - KR edit/delete impact confirmation
+  - scoped weekly report history
+  - objective creation level inference
+- Fixed the objective status inconsistency by clarifying that user-facing "In Progress" maps to stored `ON_TRACK` unless the enum is deliberately migrated later.
+- Removed duplicate/redundant suggested backend/frontend boilerplate and repeated acceptance criteria.
+
+**Verification:** checked markdown fence balance, searched for R3.4.12-R3.4.15 references, and confirmed the compressed PRD retains core R1/R2/R3.4 context. No app tests run.
+
+### PRD Correction: R3.4.15 Not Implemented (2026-05-15)
+
+**Doc-only correction:** Tony clarified R3.4.15 is not completed yet.
+
+**Changes made:**
+- Updated `dten_okr_weekly_execution_system_prd.md` so R3.4.15 is listed under "Planned / not yet implemented."
+- Restored R3.4.15 to a detailed section with goal, create-interface requirements, assignment logic, department/team inference, backend validation, and acceptance criteria.
+- Clarified that objective level assignment is planned R3.4.15 behavior, not current completed behavior.
+
+**Verification:** documentation-only review. No app tests run.
+
 ### Weekly Task Form Fixes (2026-05-14)
 
 **Bug:** After saving a This Week / Next Week task, the Status select reset to "Not Started". Root cause: React reconciliation — the card's `key={task.id}` never changed, so React kept the card as the same DOM element and did not re-apply `defaultValue` on uncontrolled inputs after the server action revalidated the page.

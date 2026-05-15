@@ -1,157 +1,190 @@
-# DTEN OKR Weekly Execution System — Updated PRD / PDR
+# DTEN OKR Weekly Execution System PRD
 
-**Version:** R3.4 Simplification Update  
-**Status:** Updated after leadership feedback  
-**Important rule:** Release 1, Release 2, Release 3.1, Release 3.2, and Release 3.3 are treated as completed historical releases. This document does **not** ask engineering to rewrite those releases from scratch. R3.4 defines the product simplification layer and should supersede any earlier workflow that conflicts with the simplified model.
+**Version:** Compressed R3.4 source of truth  
+**Status:** Active product direction after leadership feedback  
+**Last updated:** 2026-05-15
 
----
+## 1. Purpose
 
-## 0. Document Purpose
+This PRD is the compact source of truth for the DTEN OKR Weekly Execution System.
 
-This document defines the updated product, technical, and release requirements for the DTEN OKR Weekly Execution System.
+Release 1 and Release 2 are completed historical baselines. Release 3.1, 3.2, and 3.3 introduced useful infrastructure, but parts of those releases were superseded by the R3.4 simplification. R3.4 is the active product model.
 
-The goal is to keep the system implementation-ready while simplifying the workflow based on leadership feedback.
+When older behavior conflicts with R3.4, follow R3.4.
 
-The main simplification is:
+## 2. Product Vision
 
-```text
-No child objectives.
-No weekly planning module.
-No complicated objective proposal workflow.
-Objectives are parallel.
-Objectives contain defined KRs.
-Weekly reports connect employee tasks and KR updates to monthly targets.
-```
+DTEN needs a lightweight internal execution system that helps leaders, managers, and employees understand whether company goals are being executed week by week.
 
-The product should remain an OKR-driven execution system, not a generic task tracker.
-
----
-
-## 1. Product Vision
-
-DTEN needs a lightweight internal execution system that helps leadership understand whether company goals are being executed week by week.
-
-The system should help answer:
+The system should answer:
 
 ```text
 1. What objectives exist?
-2. Which KRs define success for each objective?
+2. Which KRs define success?
 3. Who owns each KR?
-4. What monthly target is the KR currently working toward?
+4. What monthly target is the KR working toward?
 5. What did each person work on this week?
-6. Did the work move the KR forward?
+6. Did the work move KR progress?
 7. What is blocked, behind, or low confidence?
-8. What should the manager know or respond to?
+8. What should managers review or respond to?
 ```
 
-The system should avoid unnecessary hierarchy and approval complexity.
+The product is an OKR-driven execution system, not a generic task tracker.
 
----
+## 3. Active Product Model
 
-## 2. Core Product Principle
-
-Every meaningful weekly update should connect to a measurable Key Result.
-
-The updated execution chain is:
+R3.4 simplifies the system to this chain:
 
 ```text
-Objective
-→ Key Result
-→ Monthly Target
-→ Weekly Report
-→ KR Update
-→ Manager Comment / Review
-→ Dashboard
+Parallel Objective
+-> Direct Key Results
+-> Monthly Targets
+-> Weekly Report
+-> Weekly Tasks
+-> KR Updates
+-> Manager Comments / Review
+-> Dashboard and History
 ```
 
-### Important R3.4 Simplification
-
-The previous child-objective model is removed from the active product direction.
-
-The system should not require:
+Active R3.4 rules:
 
 ```text
-Parent objective
-→ child objective
-→ proposed child objective
-→ child objective approval
-→ child objective rollup
+- No active child objective workflow.
+- No separate weekly planning module.
+- No objective proposal workflow.
+- Objectives are parallel.
+- Objective progress and health come from direct KRs.
+- Weekly reports contain this week's tasks, next week's tasks, and KR updates.
+- Monthly targets organize weekly KR progress.
 ```
 
-Instead:
+Deprecated but allowed to remain for compatibility:
 
 ```text
-All objectives are parallel.
-Each objective has its own defined KRs.
-KRs can be assigned to users.
-Users report weekly progress against the KRs assigned to them.
-Objective health is calculated from its direct KRs.
+- parent_objective_id
+- progress_source = CHILD_OBJECTIVES
+- objective_assignments
+- child objective proposal statuses
+- WeeklyPriority / weekly-plan structures
 ```
 
----
+Do not build new active UI around deprecated workflows.
 
-## 3. Target Users
+## 4. Completed Historical Baseline
 
-### 3.1 CEO / Executive
+### Release 1: MVP Completed
 
-Needs to:
+Release 1 established the original working system:
 
-- View company-level dashboard.
-- View company OKRs.
-- See objective and KR health.
-- Identify high-risk KRs.
-- See missing weekly reports.
-- Review blockers requiring leadership attention.
-- Comment on high-risk or important items.
+```text
+- Local email/password authentication.
+- Users, departments, and teams.
+- Objective and KR creation.
+- Monthly targets.
+- Weekly reports.
+- Weekly priorities and check-ins.
+- Manager reviews.
+- Basic dashboards.
+- Notifications and audit logs.
+- Seeded demo data.
+```
 
-### 3.2 Department Head
+R3.4 keeps the useful foundation but replaces weekly priority/planning as the active workflow.
 
-Needs to:
+### Release 2: Execution Visibility Completed
 
-- View department-related OKRs.
-- View reports and KR progress from people under them.
-- Identify KRs that are behind, blocked, or low confidence.
-- Review manager-level execution health.
+Release 2 added operational visibility:
 
-### 3.3 Manager / Team Lead
+```text
+- Delegated review owner routing.
+- Smarter risk detection.
+- Department health comparison.
+- KR trend history.
+- Follow-ups.
+- KR/report comments.
+- Email notification foundation.
+- Dashboard filters and CSV export.
+- Search.
+- Executive summary.
+- Org import and org tree support.
+```
 
-Needs to:
+R3.4 keeps these as supporting capabilities, especially delegated review routing, comments, follow-ups, dashboards, notifications, org import, and org scope.
 
-- View direct reports and people under them in the org tree.
-- Assign KRs only to people under them.
+### Release 3.1-3.3: Historical / Partially Superseded
+
+Keep:
+
+```text
+- Direct KR weights for objective progress.
+- Roll-up helpers where they support direct KR progress.
+- Concurrency fixes and alert-not-crash behavior.
+- Org-scope assignment helpers.
+```
+
+Superseded by R3.4:
+
+```text
+- Child objective roll-up as active product behavior.
+- Objective contribution assignment workflow.
+- Child objective proposal workflow.
+- Separate Weekly Plan page.
+- Carry-over planning automation.
+```
+
+## 5. Roles
+
+### CEO / Executive
+
+```text
+- View company dashboard and company OKRs.
+- View company KR/objective health.
+- See risk items, blockers, missing reports, and department health.
+- Comment on important objectives, KRs, and reports.
+- Assign KRs across the company if allowed.
+```
+
+### Department Head
+
+```text
+- View department OKRs, KRs, reports, and health.
+- Assign KRs within department/org scope.
+- Review and comment on department execution.
+```
+
+### Manager / Team Lead
+
+```text
+- View direct reports and allowed org subtree.
+- Assign KRs within scope.
 - Review weekly reports.
-- Comment on report progress.
-- Request follow-up for at-risk work.
-- See team KR progress and blockers.
+- Comment and request follow-up.
+- Track team KR progress and blockers.
+```
 
-### 3.4 Individual Contributor / Employee
+### Employee
 
-Needs to:
-
-- View objectives they own.
-- View objectives connected to KRs assigned to them.
-- Distinguish between editable owned objectives and read-only assigned-KR-related objectives.
-- Create monthly targets for assigned KRs when required.
-- Submit weekly reports.
-- Update progress on this week's tasks.
+```text
+- View owned objectives.
+- View objectives linked to assigned KRs.
 - Update assigned KRs.
-- Communicate with their manager through comments.
+- Create/update monthly targets when allowed.
+- Submit weekly reports.
+- View personal weekly report history.
+- Communicate with manager through comments.
+```
 
-### 3.5 Admin
+### Admin
 
-Needs to:
+```text
+- Manage users, departments, teams, roles, and imports.
+- View audit logs.
+- Configure system settings.
+```
 
-- Manage users.
-- Import organization structure from CSV / Excel.
-- Manage departments and teams.
-- Manage roles and permissions.
-- Configure quarters and system settings.
+## 6. Navigation
 
----
-
-## 4. Simplified Navigation
-
-The application should use a simplified menu.
+Primary navigation:
 
 ```text
 1. Dashboard
@@ -159,3005 +192,679 @@ The application should use a simplified menu.
 3. Weekly Report
 ```
 
-### 4.1 Dashboard
-
-Dashboard should be role-aware.
-
-For employees:
+OKR includes:
 
 ```text
-- My current weekly report status
-- My assigned KRs
-- My monthly targets
-- My blockers
-- Manager comments
+- Company OKRs
+- My OKRs
+- My Team / scoped org tree when applicable
+- Create Objective entry point inside OKR surfaces
 ```
 
-For managers:
+Admin-only pages can exist, but should not appear for normal users.
+
+## 7. Core Data Concepts
+
+### User and Org
+
+Important user fields:
 
 ```text
-- Direct report weekly report status
-- KRs owned by people under them
-- Behind / blocked KRs
-- Pending comments or reviews
+id, name, email, role, title, isActive,
+departmentId, teamId, managerId, reviewOwnerId
 ```
 
-For CEO / executives:
+Review routing:
 
 ```text
-- Company objective health
-- Company KR health
-- Behind / blocked / low-confidence KRs
-- Missing weekly reports
-- Department / team health summary
+effectiveReviewer = user.reviewOwnerId ?? user.managerId
 ```
 
-### 4.2 OKR
-
-Under OKR, show:
+Org scope rules:
 
 ```text
-- Company OKR
-- My OKR
+- CEO / Admin / Executive: full company.
+- Department Head: own department.
+- Manager / Team Lead: self plus reporting subtree.
+- Employee / Viewer: self unless specifically granted broader scope.
 ```
 
-Create Objective should be a function inside the OKR page, not a separate top-level menu item.
-
-### 4.3 Weekly Report
-
-Weekly Report is the only weekly execution page.
-
-There should no longer be a separate Weekly Plan module.
-
----
-
-## 5. System Modules
-
-The updated product should be divided into the following modules:
-
-```text
-1. Authentication & Authorization
-2. Organization Management
-3. OKR Management
-4. KR Assignment
-5. Monthly Targets
-6. Weekly Reports
-7. KR Updates
-8. Manager Comments / Reviews
-9. Dashboard & Reporting
-10. Notifications
-11. Audit Logs
-```
-
-Removed from active R3.4 scope:
-
-```text
-- Child objective proposal workflow
-- Weekly plan workflow
-- Objective assignment contribution workflow
-- Parent-child objective rollup workflow
-```
-
----
-
-## 6. Recommended Technical Stack
-
-The final stack can be adjusted by the engineering team.
-
-Recommended stack:
-
-```text
-Frontend: React or Next.js
-Backend: Node.js/NestJS or Python/FastAPI
-Database: PostgreSQL
-Authentication: Company SSO later; local login acceptable for MVP
-ORM: Prisma, TypeORM, SQLAlchemy, or equivalent
-Deployment: Internal cloud/server environment
-```
-
-For fast MVP iteration, Next.js + PostgreSQL + Prisma is acceptable.
-
----
-
-## 7. Core Data Model
-
-## 7.1 Users
-
-```text
-users
-- id
-- name
-- email
-- password_hash or auth_provider_id
-- title
-- role
-- department_id
-- team_id
-- primary_manager_id
-- local_manager_id
-- review_owner_id
-- status
-- created_at
-- updated_at
-```
-
-Allowed roles:
-
-```text
-ADMIN
-CEO
-EXECUTIVE
-DEPARTMENT_HEAD
-MANAGER
-EMPLOYEE
-VIEWER
-```
-
-Business rules:
-
-```text
-- review_owner_id defaults to primary_manager_id if empty.
-- inactive users should not receive new KR assignments.
-- manager visibility should be based on the org tree.
-```
-
----
-
-## 7.2 Departments
-
-```text
-departments
-- id
-- name
-- lead_user_id
-- created_at
-- updated_at
-```
-
----
-
-## 7.3 Teams
-
-```text
-teams
-- id
-- department_id
-- name
-- team_lead_id
-- created_at
-- updated_at
-```
-
----
-
-## 7.4 Objectives
+### Objectives
 
 Objectives are parallel in R3.4.
 
-```text
-objectives
-- id
-- title
-- description
-- owner_id
-- owner_type
-- level
-- quarter
-- year
-- status
-- health_status
-- progress_percent
-- confidence_score
-- created_by
-- created_at
-- updated_at
-```
-
-Allowed objective levels:
+Important fields:
 
 ```text
-COMPANY
-DEPARTMENT
-TEAM
-INDIVIDUAL
+id, title, description, ownerId, level, quarter,
+status, progressPercent, confidenceScore,
+departmentId, teamId, createdAt, updatedAt
 ```
 
-Allowed objective statuses:
+Stored status should follow the existing implementation where possible:
 
 ```text
 DRAFT
-IN_PROGRESS
-COMPLETED
-CANCELLED
-```
-
-Status behavior:
-
-```text
-- Newly created objectives always start as DRAFT.
-- The Create Objective interface should not expose a status selector.
-- Publishing a valid objective changes status from DRAFT to IN_PROGRESS.
-- For compatibility with an existing implementation that stores ACTIVE, ACTIVE should be treated as the same user-facing state as IN_PROGRESS until the enum is migrated.
-- Published objective edit screens should expose a status selector, but DRAFT should not be an option after publish.
-```
-
-Allowed objective health statuses:
-
-```text
-NOT_STARTED
-ON_TRACK
+ON_TRACK       user-facing label: In Progress
 AT_RISK
-BEHIND
-BLOCKED
+OFF_TRACK
 COMPLETED
-NO_UPDATE
+ON_HOLD        user-facing label: Blocked / On Hold
 ```
 
-### Removed / Deprecated Fields
+If the UI uses the phrase "Publish Objective -> In Progress", store the published default as `ON_TRACK` unless the enum is deliberately migrated later.
 
-The following fields should not be used for new R3.4 functionality:
+### Objective Level Assignment
+
+Planned R3.4.15 behavior: users should not choose objective level during creation.
 
 ```text
-parent_objective_id
-progress_source = CHILD_OBJECTIVES
-objective_assignments
-child objective proposal status
-assignment contribution percent
+- CEO-created objectives: COMPANY.
+- Department Head-created objectives: DEPARTMENT.
+- Team Leader-created objectives: TEAM.
+- All other users: INDIVIDUAL.
 ```
 
-If these fields already exist in the database from previous releases, they can remain for backward compatibility, but the UI should not expose child objective creation or proposal workflow.
+Department/team context is inferred from the creator's org profile/company tree. The create form should not expose editable level, department, or team selectors after R3.4.15 is implemented. Backend must enforce this even if the frontend is bypassed.
 
----
+### Key Results
 
-## 7.5 Key Results
+KRs are the measurable execution unit under objectives.
 
-A Key Result is the measurable execution unit under an objective.
+Important fields:
 
 ```text
-key_results
-- id
-- objective_id
-- title
-- description
-- owner_id
-- metric_type
-- start_value
-- target_value
-- current_value
-- unit
-- progress_percent
-- weight_percent
-- status
-- confidence_score
-- pacing_status
-- due_date
-- created_by
-- created_at
-- updated_at
+id, objectiveId, ownerId, title, metricName,
+startValue, currentValue, targetValue,
+progressPercent, weightPercent,
+confidenceScore, status, pacingStatus
 ```
 
-Allowed metric types:
+Rules:
 
 ```text
-NUMBER
-PERCENTAGE
-BOOLEAN
-MILESTONE
-CURRENCY
-CUSTOM
+- Every KR belongs to exactly one objective.
+- Every KR has one owner.
+- KR assignment is limited by org scope.
+- Assigned KR owners see the linked objective in My OKRs.
+- Assigned-KR objective context is read-only unless the user also owns the objective or has elevated permission.
+- Objective owner/creator can add, edit, delete, and reweight direct KRs under the objective.
 ```
 
-Allowed KR statuses:
+In R3.4, "KR contribution percentage" means direct KR `weightPercent`, not child-objective assignment contribution.
+
+### Monthly Targets
+
+Each KR can have three monthly targets for the quarter.
+
+R3.4 monthly targets are text goals/checkpoints, not numeric values created during objective/KR creation.
+
+Rules:
 
 ```text
-NOT_STARTED
-ON_TRACK
-AT_RISK
-BEHIND
-BLOCKED
-COMPLETED
-CANCELLED
+- Monthly targets belong to KRs.
+- Monthly targets are edited from KR/monthly target surfaces, not during objective creation.
+- Weekly reports and KR updates should show the relevant current monthly target.
+- Missing current monthly target means pacingStatus = NO_TARGET.
 ```
 
-Allowed pacing statuses:
-
-```text
-AHEAD
-ON_PACE
-BEHIND
-NO_TARGET
-NO_UPDATE
-```
-
-Business rules:
-
-```text
-- Every KR must belong to exactly one objective.
-- Every KR must have one owner.
-- KRs can be assigned to users under the assigner's org tree scope.
-- A user assigned to a KR should see the linked objective in My OKR.
-- KR-related objectives shown through assigned KRs are read-only unless the user also owns the objective.
-- The objective creator / owner may edit direct KRs under that objective, including KR title, owner assignment, metric values, status, and weight/contribution percentage.
-- In R3.4, "KR contribution percentage" means `weight_percent` on direct KRs. It does not mean deprecated child-objective assignment contribution percentage.
-- Deleting or materially changing a KR that is assigned to a user requires an impact confirmation step before the change is committed.
-- Impacted users must be shown to the objective owner before confirmation and notified after the confirmed change.
-```
-
----
-
-## 7.6 Monthly Targets
-
-Each KR has three monthly targets for the quarter.
-
-Monthly targets are now a core product concept and should be visible in the Weekly Report workflow.
-
-```text
-monthly_targets
-- id
-- key_result_id
-- owner_id
-- month_index
-- target_value
-- target_percent
-- checkpoint_note
-- status
-- created_by
-- created_at
-- updated_at
-```
-
-Allowed month indexes:
-
-```text
-1
-2
-3
-```
-
-Allowed monthly target statuses:
-
-```text
-DRAFT
-ACTIVE
-ACHIEVED
-MISSED
-CANCELLED
-```
-
-Business rules:
-
-```text
-- Each KR should have three monthly targets.
-- When a KR is assigned to a user, the KR owner or assigned user should define monthly targets.
-- Monthly targets belong to a KR, not to a weekly report.
-- Weekly reports are organized around the current monthly target.
-- If no monthly target exists for the current month, pacing_status = NO_TARGET.
-```
-
-### Monthly Target Concept
-
-For a quarterly OKR:
-
-```text
-Month 1 target = expected progress by the end of month 1.
-Month 2 target = expected progress by the end of month 2.
-Month 3 target = expected progress by the end of month 3.
-```
-
-Monthly targets act as checkpoints, not separate objectives.
-
----
-
-## 7.7 Weekly Reports
+### Weekly Reports
 
 Weekly Report is the weekly execution container for each user.
 
-```text
-weekly_reports
-- id
-- user_id
-- week_start_date
-- week_end_date
-- monthly_target_id
-- title
-- status
-- submitted_at
-- reviewed_at
-- reviewer_id
-- manager_comment
-- created_at
-- updated_at
-```
-
-Historical behavior:
-
-```text
-- Weekly reports are permanent historical records for the report owner.
-- Each user has their own weekly report history.
-- The default history view must show only the current user's own reports.
-- There must not be a global company-wide weekly report history visible to normal users.
-- Managers/review owners may access reports they are explicitly authorized to review, but this should be scoped and contextual, not an all-company history feed.
-- Historical weekly reports should preserve all tasks, KR updates, comments, and review outcomes for the week.
-```
-
-Allowed report statuses:
-
-```text
-DRAFT
-SUBMITTED
-REVIEWED
-NEEDS_FOLLOW_UP
-OVERDUE
-```
-
-### Weekly Report Title Rule
-
-The weekly report title should be the current monthly target.
-
-Example:
-
-```text
-Monthly Target: Complete 60% of Teams certification test cases
-```
-
-If the user has multiple active monthly targets, the Weekly Report page can group by monthly target or show a selector.
-
----
-
-## 7.8 Weekly Tasks
-
-Weekly tasks replace the older weekly priorities / weekly plan concept.
-
-There are two task sections inside the Weekly Report:
+Active sections:
 
 ```text
 1. This week's tasks
 2. Next week's tasks
+3. KR updates
+4. Comments
+5. Summary / submit
 ```
 
+Rules:
+
 ```text
-weekly_tasks
-- id
-- weekly_report_id
-- section_type
-- content
-- progress_percent
+- This week's tasks: max 3.
+- Next week's tasks: max 3.
+- Tasks do not have to link to KRs.
+- Task progress does not automatically update KR progress.
+- KR progress changes only through KR updates/check-ins.
+- Submitted reports route to effectiveReviewer.
+- Invalid operations redirect with ?error= and show an alert, not a crash.
+```
+
+### Weekly Report History
+
+Weekly report history is personal by default.
+
+Rules:
+
+```text
+- Each user sees their own history.
+- Normal users cannot browse another person's history.
+- No normal-user company-wide weekly history feed.
+- Managers/review owners can access only reports in authorized review scope.
+- Backend must enforce scope.
+```
+
+History structure:
+
+```text
+monthly target
+-> KR
+-> weekly report week
+-> tasks and KR updates
+```
+
+History must show all tasks regardless of completion status, including progress percent, blocker, week range, summary, comments, review status, reviewer, and reviewer feedback when available.
+
+### Comments, Reviews, Notifications, Audit Logs
+
+Keep Release 1/2 behavior:
+
+```text
+- Comments on KRs and weekly reports.
+- Manager review decisions: approved, needs follow-up, risk flagged.
+- Notifications for report submission, review requested, follow-up, KR blocked/risk, comments, and KR impact changes.
+- Audit logs for important objective, KR, weekly report, review, org, permission, and import changes.
+```
+
+## 8. Objective Create / Edit Workflow
+
+### Create Objective
+
+Create Objective should be a guided editor.
+
+Hidden/system-owned during create:
+
+```text
 - status
-- blocker
-- created_at
-- updated_at
+- level
+- department
+- team
 ```
 
-Allowed section types:
+Default behavior:
 
 ```text
-THIS_WEEK
-NEXT_WEEK
-```
-
-Allowed task statuses:
-
-```text
-NOT_STARTED
-IN_PROGRESS
-COMPLETED
-BLOCKED
-CANCELLED
-```
-
-Business rules:
-
-```text
-- This week's tasks are limited to 3.
-- Next week's tasks are limited to 3.
-- Users type the tasks themselves.
-- No automation is required for generating tasks in R3.4.
-- Tasks do not need to link to KRs.
-- Tasks are lightweight work summaries, not Jira tickets.
-- Each task should have a progress scale so the user can update progress through the week.
-```
-
-Recommended progress scale:
-
-```text
-0% / 25% / 50% / 75% / 100%
-```
-
-or a slider from:
-
-```text
-0 to 100
-```
-
----
-
-## 7.9 KR Updates
-
-KR updates are the weekly mechanism for changing KR progress.
-
-```text
-kr_updates
-- id
-- weekly_report_id
-- key_result_id
-- user_id
-- monthly_target_id
-- previous_value
-- new_value
-- progress_percent
-- confidence_score
-- status
-- pacing_status
-- update_note
-- blocker
-- created_at
-```
-
-Business rules:
-
-```text
-- Weekly Report should show all KRs related to the user.
-- Related KRs include KRs owned by the user and KRs assigned to the user.
-- User can update KRs from the KR Update section.
-- Updating a KR creates a kr_update record.
-- Creating a KR update updates key_results.current_value.
-- Creating a KR update updates key_results.progress_percent.
-- Creating a KR update updates key_results.confidence_score.
-- Creating a KR update updates key_results.status.
-- Creating a KR update recalculates pacing_status.
-```
-
-If the existing system already uses `check_ins`, the engineering team may either:
-
-```text
-Option A: Rename check_ins to kr_updates.
-Option B: Keep check_ins as the database table and rename the UI label to KR Updates.
-```
-
-For implementation speed, Option B is acceptable.
-
----
-
-## 7.10 Comments
-
-Comments should support manager-employee communication.
-
-```text
-comments
-- id
-- object_type
-- object_id
-- author_id
-- recipient_id
-- content
-- visibility
-- created_at
-- updated_at
-```
-
-Allowed object types:
-
-```text
-OBJECTIVE
-KEY_RESULT
-MONTHLY_TARGET
-WEEKLY_REPORT
-WEEKLY_TASK
-KR_UPDATE
-```
-
-Allowed visibility values:
-
-```text
-PRIVATE_TO_MANAGER_CHAIN
-VISIBLE_TO_OWNER_AND_MANAGER
-EXECUTIVE_VISIBLE
-```
-
-R3.4 Weekly Report comment behavior:
-
-```text
-- Weekly Report has a comment section.
-- The comment section is primarily for communication between the report owner and the person managing/reviewing them.
-- Manager can comment on weekly report.
-- Employee can reply.
-- Comments should be visible to the relevant manager chain based on permissions.
-```
-
----
-
-## 7.11 Reviews
-
-Manager review can remain lightweight.
-
-```text
-reviews
-- id
-- weekly_report_id
-- reviewer_id
-- review_status
-- comment
-- created_at
-- updated_at
-```
-
-Allowed review statuses:
-
-```text
-APPROVED
-NEEDS_FOLLOW_UP
-FLAGGED_RISK
-```
-
----
-
-## 7.12 Notifications
-
-```text
-notifications
-- id
-- user_id
-- type
-- title
-- message
-- object_type
-- object_id
-- is_read
-- created_at
-```
-
-Notification types:
-
-```text
-WEEKLY_REPORT_REMINDER
-WEEKLY_REPORT_SUBMITTED
-WEEKLY_REPORT_OVERDUE
-REVIEW_REQUESTED
-FOLLOW_UP_REQUESTED
-KR_AT_RISK
-KR_BLOCKED
-KR_UPDATED_BY_OBJECTIVE_OWNER
-KR_DELETED_BY_OBJECTIVE_OWNER
-KR_ASSIGNMENT_CHANGED
-MANAGER_COMMENT
-CEO_COMMENT
-```
-
----
-
-## 7.13 Audit Logs
-
-```text
-audit_logs
-- id
-- actor_id
-- action
-- object_type
-- object_id
-- old_value
-- new_value
-- created_at
-```
-
-Audit logs should track important changes to:
-
-```text
-- Objectives
-- KRs
-- Monthly targets
-- Weekly reports
-- KR updates
-- Reviews
-- Org structure
-- Permissions
-```
-
----
-
-## 8. Core Business Rules
-
-### Rule 1: No child objectives in active R3.4 workflow
-
-All objectives should be parallel.
-
-```text
-- Do not show Create Child Objective.
-- Do not show Child Objective Proposal.
-- Do not require parent-child objective assignment.
-- Do not calculate objective health from child objectives.
-```
-
----
-
-### Rule 2: Objectives have defined KRs
-
-When an objective is defined, it should have KRs that describe how success is measured.
-
-```text
-Objective → defined KRs
-```
-
-Each KR can then be assigned to a responsible user.
-
----
-
-### Rule 3: Owned objectives must include KR-related objectives
-
-For every user, My OKR / Owned Objectives should show:
-
-```text
-1. Objectives directly owned by the user.
-2. Objectives linked to KRs assigned to the user.
-```
-
-Display tags:
-
-```text
-OWNER
-ASSIGNED_KR
-```
-
-Editing rule:
-
-```text
-- OWNER objective: editable if user has permission.
-- ASSIGNED_KR objective: read-only objective context.
-- Assigned user may update only their KR, monthly targets, and weekly KR updates if permitted.
-```
-
----
-
-### Rule 4: KR assignment uses org tree visibility
-
-When assigning a KR to someone:
-
-```text
-- The assigner can only select people under them in the company org tree.
-- CEO / authorized executives can assign across the company.
-- Admin can assign according to admin permission.
-- Managers cannot assign KRs to people outside their allowed org subtree.
-```
-
-The people picker should only show eligible users.
-
-Backend must enforce this rule.
-
----
-
-### Rule 5: Company tree visibility is scoped
-
-Everyone should have access to a company tree view, but the visible scope depends on role.
-
-```text
-Employee:
-- See self and people under them, if any.
-
-Manager:
-- See self, direct reports, and all people below their direct reports.
-
-Department Head:
-- See department subtree.
-
-CEO / Executive:
-- See full company tree.
-
-Admin:
-- See full company tree.
-```
-
-The company tree must not reveal the entire organization to every employee.
-
----
-
-### Rule 6: Weekly Report has three sections
-
-Weekly Report should have exactly these major sections:
-
-```text
-1. This week's tasks
-2. Next week's tasks
-3. KR update section
-```
-
-This week's tasks:
-
-```text
-- Maximum 3 tasks.
-- User types manually.
-- Each task has progress scale.
-```
-
-Next week's tasks:
-
-```text
-- Maximum 3 tasks.
-- User types manually.
-- Each task has progress scale, default 0%.
-```
-
-KR update section:
-
-```text
-- Show related KRs.
-- Let user update KR progress, value, status, confidence, blocker, and note.
-```
-
----
-
-### Rule 7: No Weekly Plan module
-
-R3.3 introduced a Weekly Plan vs Weekly Report separation. R3.4 replaces that with a simpler model:
-
-```text
-Weekly Report only.
-No separate Weekly Plan page.
-No weekly planning workflow.
-No carry-over automation required.
-```
-
-Next week's tasks inside the Weekly Report are enough for now.
-
----
-
-### Rule 8: Weekly Report title is current monthly target
-
-The Weekly Report should be organized around the active monthly target.
-
-```text
-Weekly Report
-→ Monthly Target
-→ KR
-→ Objective
-```
-
-If the user has multiple monthly targets, the UI should group KR updates by monthly target.
-
----
-
-### Rule 9: Monthly targets are required for pacing
-
-```text
-If no monthly target exists:
-    pacing_status = NO_TARGET
-```
-
-Monthly targets should be created for each KR:
-
-```text
-Month 1
-Month 2
-Month 3
-```
-
----
-
-### Rule 10: Separate task progress from KR progress
-
-Task completion does not automatically update KR progress.
-
-```text
-Task progress = work completion.
-KR progress = measurable KR movement.
-```
-
-KR progress changes only through the KR Update section.
-
----
-
-### Rule 11: Objective health calculation from direct KRs
-
-Objective health should be calculated from direct KRs only.
-
-Example logic:
-
-```text
-If all KRs are COMPLETED:
-    objective_health_status = COMPLETED
-
-Else if any KR is BLOCKED:
-    objective_health_status = BLOCKED or AT_RISK
-
-Else if majority of KRs are BEHIND:
-    objective_health_status = BEHIND
-
-Else if any KR is AT_RISK or confidence_score <= 2:
-    objective_health_status = AT_RISK
-
-Else if no KR has an update for the current period:
-    objective_health_status = NO_UPDATE
-
-Else:
-    objective_health_status = ON_TRACK
-```
-
-Objective progress:
-
-```text
-objective_progress = weighted average of direct KR progress
-```
-
-If no KR weights exist:
-
-```text
-objective_progress = average of direct KR progress
-```
-
----
-
-### Rule 12: Manager review routing
-
-When a weekly report is submitted:
-
-```text
-1. Find user's review_owner_id.
-2. If review_owner_id is empty, use primary_manager_id.
-3. Create pending review for that person.
-4. Notify reviewer.
-```
-
-CEO should not review every weekly report unless they are the review owner or the item is escalated.
-
----
-
-## 9. Permissions
-
-Authorization must be enforced by the backend.
-
-### 9.1 CEO / Executive
-
-Can:
-
-```text
-- View all users.
-- View all departments and teams.
-- View full company tree.
-- View all objectives and KRs.
-- View all weekly reports.
-- View executive dashboard.
-- Comment on objectives, KRs, and reports.
-- Assign KRs across the company if allowed by role.
-```
-
-### 9.2 Department Head
-
-Can:
-
-```text
-- View own department subtree.
-- View department objectives and KRs.
-- View weekly reports within department scope.
-- Review or comment on department-level items.
-- Assign KRs to people under their org scope.
-```
-
-### 9.3 Manager
-
-Can:
-
-```text
-- View direct reports and people below them in org tree.
-- View team objectives and KRs within scope.
-- Assign KRs to people under them.
-- View and review assigned weekly reports.
-- Comment on weekly reports and KRs.
-```
-
-### 9.4 Employee
-
-Can:
-
-```text
-- View own profile.
-- View own objectives.
-- View objectives linked to assigned KRs.
-- View own assigned KRs.
-- Edit direct KRs under objectives they own or created, subject to publish/update validation.
-- Create monthly targets for assigned KRs if allowed.
-- Create and submit own weekly reports.
-- Add this week's tasks and next week's tasks.
-- Create KR updates for assigned KRs.
-- View manager comments on own reports.
-```
-
-Cannot:
-
-```text
-- Edit KR-related objective context unless they own the objective or have permission.
-- Delete or materially change assigned KRs without confirming impacted users.
-- Assign KRs to people outside their org scope.
-- View full company tree unless permitted by role.
-```
-
-### 9.5 Admin
-
-Can:
-
-```text
-- Manage users.
-- Manage departments and teams.
-- Manage roles.
-- Import organization structure.
-- View full company tree.
-- Manage system settings.
-```
-
----
-
-## 10. Frontend Pages
-
-The frontend should use the simplified navigation.
-
-```text
-/dashboard
-/okr/company
-/okr/my
-/weekly-report
-```
-
-Admin pages may exist but should not appear for normal users.
-
-```text
-/admin/users
-/admin/departments
-/admin/teams
-/admin/org-import
-/admin/roles
-/admin/quarters
-```
-
-### 10.1 Dashboard Page
-
-Route:
-
-```text
-/dashboard
-```
-
-Role-aware dashboard.
-
-Employee dashboard should show:
-
-```text
-- Current weekly report status
-- Active monthly targets
-- Assigned KRs
-- KR status, confidence, pacing
-- Blockers
-- Manager comments
-```
-
-Manager dashboard should show:
-
-```text
-- Direct reports
-- Submitted reports awaiting review
-- Missing weekly reports
-- KRs by status
-- KRs by pacing
-- Blocked or low-confidence KRs
-```
-
-CEO dashboard should show:
-
-```text
-- Total objectives
-- Total KRs
-- KRs On Pace
-- KRs Behind
-- KRs Blocked
-- Average confidence
-- Missing weekly reports
-- Department health table
-- High-risk KR list
-- Latest blockers
-```
-
----
-
-### 10.2 Company OKR Page
-
-Route:
-
-```text
-/okr/company
-```
-
-Show:
-
-```text
-- Company objectives
-- Objective health
-- Objective progress
-- Direct KRs under each objective
-- KR owners
-- KR monthly targets
-- KR status / pacing / confidence
+- New objective status = DRAFT.
+- New objective level/org context is inferred from creator.
+- Monthly targets are not configured during objective/KR creation.
 ```
 
 Actions:
 
 ```text
-- Create objective
-- Edit objective if permitted
-- Add KR to objective
-- Assign KR owner within org permission scope
-- View KR detail
-- Save objective draft for later
-- Publish objective after required fields and KR weights pass validation
+Save for Later:
+- Save objective and entered KRs as DRAFT.
+- Does not require KR weights to total 100.
+- Exits the editor.
+
+Publish Objective:
+- Validates required objective fields.
+- Validates required KR fields.
+- Validates KR owner assignment scope.
+- Validates direct KR weights total 100.
+- Does not require monthly targets.
+- Shows red inline errors at exact failed fields/sections.
+- On success, changes stored status from DRAFT to ON_TRACK (user-facing In Progress).
 ```
 
-No child objective actions should be shown.
+### Edit Published Objective
 
----
-
-### 10.3 My OKR Page
-
-Route:
+Published objective edit uses the same editor structure, with these differences:
 
 ```text
-/okr/my
+- Show a status selector.
+- Do not include DRAFT in the selector.
+- Use Update instead of Publish Objective.
+- Objective owner/creator can add, edit, delete, reassign, and reweight direct KRs.
+- Update validates final KR weights for direct-KR objectives.
 ```
 
-Show two groups or one list with tags:
+### KR Impact Confirmation
+
+Assigned KR delete, reassignment, or published-objective reweighting requires impact confirmation.
+
+Impact confirmation must show:
 
 ```text
-1. Owned Objectives
-2. Assigned KR Related Objectives
+- impacted user name
+- role/title when available
+- email
+- action being confirmed
 ```
 
-Each objective card should display a tag:
+Impacted users:
+
+```text
+- current KR owner
+- new KR owner on reassignment
+- users with weekly KR updates/check-ins tied to the KR
+- users with open follow-ups or comments tied to the KR
+```
+
+If cancelled, no data changes. If confirmed, commit the change, notify impacted users, and write audit logs.
+
+## 9. Pages
+
+### Dashboard
+
+Role-aware dashboard showing current report status, assigned KRs, risks, blockers, follow-ups, review queues, missing reports, and company/department health according to scope.
+
+### Company OKRs
+
+Shows company-visible objectives and direct KRs. Create/edit actions appear only where permitted.
+
+### My OKRs
+
+Shows:
+
+```text
+- objectives owned by the user
+- objectives linked to KRs assigned to the user
+```
+
+Use tags:
 
 ```text
 OWNER
 ASSIGNED_KR
 ```
 
-For OWNER objectives:
+### Objective Detail / Editor
+
+Shows objective summary, computed health, direct KRs, KR weights, and edit controls where allowed.
+
+### KR Detail
+
+Shows KR progress, confidence, status, monthly targets, comments, and update history.
+
+### Weekly Report
+
+Shows current weekly report sections:
 
 ```text
-- User can edit objective if authorized.
-- User can manage KRs if authorized.
+- This week's tasks
+- Next week's tasks
+- KR updates
+- Comments
+- Summary / submit
 ```
 
-For ASSIGNED_KR objectives:
+### Weekly Report History
+
+Shows scoped personal report history grouped by monthly target -> KR -> week -> tasks/KR updates.
+
+### My Team / Org Tree
+
+Shows current user plus direct reports. Do not expose a full company tree to everyone.
+
+### Admin
+
+Admin pages can manage users, departments, teams, org import, audit logs, and settings.
+
+## 10. APIs / Server Actions
+
+Exact implementation may use Next.js server actions instead of REST, but behavior must match these contracts.
+
+Important surfaces:
 
 ```text
-- Objective context is read-only.
-- User can open the assigned KR.
-- User can update KR progress if they own the KR.
-- User can create or update monthly targets if allowed.
+auth: login, logout, current user
+users/org: users, departments, teams, visible org scope, assignable users
+objectives: create, update, publish, list, detail, health
+key-results: create, update, delete, impact preview, assign, comments
+monthly-targets: list/update by KR
+weekly-reports: current, submit, detail, scoped history
+weekly-tasks: create, update, delete
+kr-updates/check-ins: create/update/list
+reviews: pending, submit, history
+comments: create/list
+notifications: list/read
+dashboard/export/search/summary: scoped by role
 ```
 
----
+Server-side enforcement is required for auth, permissions, org scope, report history scope, KR assignment scope, objective create inference, and impact confirmation.
 
-### 10.4 Weekly Report Page
+## 11. Calculations
 
-Route:
+### KR Progress
+
+Use the existing progress helper:
 
 ```text
-/weekly-report
+progressPercent = progress from startValue/currentValue/targetValue
 ```
 
-The page should include:
+Clamp progress to 0-100.
+
+### Objective Progress
+
+For R3.4 active objectives:
 
 ```text
-Title: current monthly target
-Section 1: This week's tasks
-Section 2: Next week's tasks
-Section 3: KR update section
-Comment section
-Submit button
+- Use direct KRs only.
+- If KR weights total 100, use weighted average.
+- If no valid weights exist on a draft, average can be shown as preview.
+- Published direct-KR objectives must have KR weights totaling 100.
 ```
 
-#### Section 1: This week's tasks
+### Objective Health
 
-Requirements:
+Calculate from direct KR statuses:
 
 ```text
-- Maximum 3 tasks.
-- User manually types task content.
-- Each task has progress scale.
-- Each task has optional blocker.
-- User can update during the week.
+- all KRs completed -> COMPLETED
+- any KR ON_HOLD -> AT_RISK or blocked user-facing label
+- majority KRs OFF_TRACK -> OFF_TRACK
+- any KR AT_RISK or low confidence -> AT_RISK
+- no recent update where expected -> NO_UPDATE / warning
+- otherwise ON_TRACK
 ```
 
-#### Section 2: Next week's tasks
-
-Requirements:
+Use user-facing language carefully:
 
 ```text
-- Maximum 3 tasks.
-- User manually types task content.
-- Each task has progress scale.
-- Default progress should be 0%.
+ON_HOLD = Blocked / On Hold
+OFF_TRACK = Behind / Off Track
+ON_TRACK = In Progress / On Track
 ```
 
-#### Section 3: KR update section
-
-Requirements:
+### Pacing
 
 ```text
-- Show related KRs.
-- Group by monthly target if useful.
-- Show linked objective.
-- Show previous value and current value.
-- Allow new value update.
-- Allow progress percent update.
-- Allow confidence update.
-- Allow status update.
-- Allow blocker/note update.
+no current monthly target -> NO_TARGET
+no current-week KR update -> NO_UPDATE
+progress >= current monthly target expectation -> ON_PACE
+otherwise -> BEHIND
 ```
 
-#### Comment section
+If monthly targets remain text-only, pacing can stay `NO_TARGET` until numeric pacing rules are reintroduced.
 
-Requirements:
+## 12. Permissions and Security
+
+Backend must enforce all permissions.
+
+Critical rules:
 
 ```text
-- Employee can leave comment for manager.
-- Manager can leave comment for employee.
-- Comments remain attached to the weekly report.
+- Users must not assign KRs outside org scope.
+- Users must not edit objectives unless owner/creator or elevated role.
+- Assigned-KR objective context is read-only unless user owns the objective or has elevated role.
+- Users must not view reports or weekly history outside permission scope.
+- Normal users must not access a company-wide weekly history feed.
+- Invalid operations show user-facing alerts, not unhandled crashes.
+- State transitions that must happen once use atomic updateMany with expected status.
 ```
 
----
-
-### 10.5 Weekly Report History Page
-
-Route:
+Concurrency rule:
 
 ```text
-/weekly-report/history
+Use updateMany({ where: { id, status: expected }, data: nextState })
+and gate notifications/audit logs on count > 0.
+Do not use findUnique-then-update for one-time transitions.
 ```
 
-Requirements:
+## 13. Validation
+
+Validation rules:
 
 ```text
-- Show the current user's own weekly report history by default.
-- Do not show one user's history to unrelated users.
-- Do not provide a company-wide weekly report history page to normal users.
-- Store and display every historical weekly report for the user.
-- Show every weekly task in history, regardless of whether the task was completed.
-- For each task, show task content, status, progress percent, blocker if present, and week range.
-- Show every monthly target relevant to the user's historical reports.
-- Structure history by monthly target first, then KR, then weekly reports/tasks under that target.
-- Under each monthly target, show the KR related to that monthly target.
-- Under each KR/monthly target grouping, show weekly tasks and KR updates from the weeks covered by that target period.
-- Include report summary, comments, review status, and reviewer comment where available.
-```
-
-Privacy rules:
-
-```text
-- Employee sees only their own weekly report history.
-- Manager/review owner can access another user's historical report only when the manager/reviewer has explicit review permission for that user/report.
-- CEO/Admin dashboards may aggregate counts and risk signals, but should not expose a browsable all-user history feed unless a later admin/audit requirement explicitly allows it.
-- Backend must enforce history scope; hiding links in the UI is not enough.
-```
-
----
-
-### 10.6 Organization Tree View
-
-Route suggestion:
-
-```text
-/okr/org-tree
-```
-
-or accessible inside Dashboard / OKR.
-
-Requirements:
-
-```text
-- Show the visible company tree based on the current user's scope.
-- Do not reveal full company tree to every employee.
-- Show name, title, department, team, and manager relationship.
-- Allow managers to understand who is under them.
-- Use the same org tree scope for KR assignment people picker.
-```
-
----
-
-## 11. Backend API Requirements
-
-The exact API style can be REST or GraphQL. REST is recommended.
-
-### 11.1 Auth APIs
-
-```text
-POST /api/auth/login
-POST /api/auth/logout
-GET  /api/auth/me
-```
-
----
-
-### 11.2 User APIs
-
-```text
-GET    /api/users/me
-GET    /api/users
-GET    /api/users/:id
-POST   /api/users
-PATCH  /api/users/:id
-GET    /api/users/:id/okrs
-GET    /api/users/:id/weekly-reports
-GET    /api/users/:id/visible-org-scope
-```
-
----
-
-### 11.3 Organization APIs
-
-```text
-GET    /api/org/departments
-POST   /api/org/departments
-PATCH  /api/org/departments/:id
-GET    /api/org/departments/:id/teams
-POST   /api/org/teams
-PATCH  /api/org/teams/:id
-GET    /api/org/teams/:id/users
-GET    /api/org/tree
-GET    /api/org/tree/visible
-GET    /api/org/assignable-users
-POST   /api/org/import
-```
-
-`/api/org/tree/visible` should return only the organization subtree visible to the current user.
-
-`/api/org/assignable-users` should return only users the current user can assign KRs to.
-
----
-
-### 11.4 Objective APIs
-
-```text
-POST   /api/objectives
-GET    /api/objectives
-GET    /api/objectives/:id
-PATCH  /api/objectives/:id
-POST   /api/objectives/:id/publish
-DELETE /api/objectives/:id
-GET    /api/objectives/company/:year/:quarter
-GET    /api/objectives/my
-GET    /api/objectives/:id/key-results
-GET    /api/objectives/:id/health
-```
-
-Publish validation:
-
-```text
-- `/api/objectives/:id/publish` validates required objective fields, required KR fields, KR assignment scope, and direct KR weights.
-- Publish validation returns field/section identifiers so the UI can render red inline messages at the exact failed location.
-- Monthly targets are not required by the objective publish endpoint.
-```
-
-Deprecated for R3.4 active UI:
-
-```text
-GET /api/objectives/tree
-POST child objective endpoints
-objective assignment proposal endpoints
-```
-
----
-
-### 11.5 Key Result APIs
-
-```text
-POST   /api/key-results
-GET    /api/key-results
-GET    /api/key-results/:id
-PATCH  /api/key-results/:id
-DELETE /api/key-results/:id
-GET    /api/key-results/:id/impact-preview
-GET    /api/key-results/:id/monthly-targets
-GET    /api/key-results/:id/updates
-GET    /api/key-results/risk-list
-GET    /api/key-results/my-related
-POST   /api/key-results/:id/assign
-```
-
-Assignment validation:
-
-```text
-- Backend checks whether assignee is inside assigner's allowed org scope.
-```
-
-KR impact validation:
-
-```text
-- Objective owner / creator can edit direct KRs under their objective.
-- `GET /api/key-results/:id/impact-preview` returns impacted users before delete, reassignment, or major KR weight/contribution change.
-- Deleting an assigned KR, changing the assigned KR owner, or changing KR weight/contribution percentage after publish requires explicit confirmation.
-- Confirmed changes notify impacted users and write audit logs.
-- If confirmation is missing, backend blocks the change and returns impacted user details for the UI alert.
-```
-
----
-
-### 11.6 Monthly Target APIs
-
-```text
-POST   /api/monthly-targets
-GET    /api/key-results/:id/monthly-targets
-PATCH  /api/monthly-targets/:id
-DELETE /api/monthly-targets/:id
-GET    /api/monthly-targets/current
-GET    /api/monthly-targets/my-current
-```
-
----
-
-### 11.7 Weekly Report APIs
-
-```text
-POST   /api/weekly-reports
-GET    /api/weekly-reports/current
-GET    /api/weekly-reports/history
-GET    /api/weekly-reports/:id
-PATCH  /api/weekly-reports/:id
-POST   /api/weekly-reports/:id/submit
-GET    /api/weekly-reports/user/:userId
-GET    /api/weekly-reports/team/:teamId
-GET    /api/weekly-reports/pending-review
-```
-
-History validation:
-
-```text
-- `GET /api/weekly-reports/history` returns only the current user's own report history.
-- `GET /api/weekly-reports/:id` must verify that the current user is the report owner or an authorized reviewer/manager for that report.
-- History responses should include weekly tasks, KR updates/check-ins, monthly targets, related KRs, comments, and review status needed by the history UI.
-- History grouping should support monthly target → KR → weekly reports/tasks.
-```
-
----
-
-### 11.8 Weekly Task APIs
-
-```text
-POST   /api/weekly-tasks
-PATCH  /api/weekly-tasks/:id
-DELETE /api/weekly-tasks/:id
-GET    /api/weekly-reports/:id/tasks
-```
-
-Validation:
-
-```text
-- Maximum 3 THIS_WEEK tasks per report.
-- Maximum 3 NEXT_WEEK tasks per report.
-- progress_percent must be 0-100.
-```
-
----
-
-### 11.9 KR Update APIs
-
-```text
-POST   /api/kr-updates
-GET    /api/kr-updates/:id
-GET    /api/kr-updates/kr/:krId
-GET    /api/kr-updates/user/:userId
-GET    /api/weekly-reports/:id/kr-updates
-```
-
-If retaining old `check_ins` implementation:
-
-```text
-POST   /api/check-ins
-GET    /api/check-ins/:id
-GET    /api/check-ins/kr/:krId
-GET    /api/check-ins/user/:userId
-```
-
-The UI should label these as KR Updates.
-
----
-
-### 11.10 Review APIs
-
-```text
-GET    /api/reviews/pending
-POST   /api/reviews
-PATCH  /api/reviews/:id
-GET    /api/reviews/history
-```
-
----
-
-### 11.11 Comment APIs
-
-```text
-POST   /api/comments
-GET    /api/comments
-GET    /api/comments/object/:objectType/:objectId
-PATCH  /api/comments/:id
-DELETE /api/comments/:id
-```
-
----
-
-### 11.12 Dashboard APIs
-
-```text
-GET /api/dashboard
-GET /api/dashboard/employee
-GET /api/dashboard/manager
-GET /api/dashboard/ceo
-GET /api/dashboard/company-health
-GET /api/dashboard/risk-items
-GET /api/dashboard/missing-updates
-GET /api/dashboard/executive-summary
-```
-
----
-
-### 11.13 Notification APIs
-
-```text
-GET   /api/notifications
-PATCH /api/notifications/:id/read
-POST  /api/notifications/mark-all-read
-```
-
----
-
-## 12. Main User Flows
-
-## 12.1 Create Objective Flow
-
-```text
-1. User opens OKR.
-2. User selects Company OKR or My OKR based on context.
-3. User clicks Create Objective.
-4. System opens the objective editor with status hidden and defaulted to DRAFT.
-5. User enters objective title, description, level, quarter, year, owner.
-6. User defines KRs under the objective.
-7. User assigns KR owners.
-8. User does not define monthly targets during objective or KR creation.
-9. User selects Save for Later or Publish Objective.
-10. If user selects Save for Later, system saves all entered objective/KR information as DRAFT and exits the editor.
-11. If user selects Publish Objective, system validates required fields, KR owners, and KR weights.
-12. If validation fails, system shows red inline messages at the exact fields/sections that fail.
-13. If validation passes, system changes objective status to IN_PROGRESS and saves it as a published objective.
-14. Assigned KR owners see the linked objective in My OKR with ASSIGNED_KR tag.
-```
-
-Acceptance criteria:
-
-```text
-- Create Objective is inside OKR, not a separate menu.
-- No child objective option appears.
-- Create Objective has no status selector.
-- New objectives default to DRAFT.
-- Save for Later saves a draft and exits the editor.
-- Publish Objective validates required information and KR weights before publishing.
-- Publish validation errors appear inline in red at the exact failed field or section.
-- Successful publish changes the objective to IN_PROGRESS.
-- Objective can have multiple direct KRs.
+- title is required for objectives and KRs.
 - KR owner is required.
-- KR assignee picker only shows people under the assigner.
-- Monthly targets are not configured during objective or KR creation.
-- Assigned user sees linked objective as read-only context unless they own it.
+- KR owner must be in assignable org scope.
+- confidenceScore must be 1-5.
+- progressPercent must be 0-100.
+- task progress must be 0-100.
+- this-week tasks max 3.
+- next-week tasks max 3.
+- new objective status is DRAFT and not user-selected.
+- new objective level/department/team are inferred and not user-selected.
+- published objective status cannot return to DRAFT through edit UI.
+- publishing a direct-KR objective requires KR weights total 100.
+- updating a published direct-KR objective requires final KR weights total 100.
+- monthly targets are not required to save/publish an objective.
+- KR impact confirmation is required for assigned KR delete/reassignment/reweight.
+- weekly report history defaults to current user's own reports.
 ```
 
----
-
-## 12.2 My OKR Flow
+Error presentation:
 
 ```text
-1. User opens OKR → My OKR.
-2. System loads objectives owned by the user.
-3. System loads objectives connected to KRs assigned to the user.
-4. System displays each objective with OWNER or ASSIGNED_KR tag.
-5. User can edit OWNER objectives if authorized.
-6. User can view ASSIGNED_KR objectives but cannot edit objective details.
-7. User can open and update assigned KRs.
-8. User can create or update monthly targets for assigned KRs if allowed.
+- Use red inline messages at exact failed field/section for editor validation.
+- Use alert divs for invalid server-action redirects.
+- Never crash the page for expected validation/permission failures.
 ```
 
-Acceptance criteria:
+## 14. R3.4 Implementation Sessions
+
+Completed / implemented R3.4 chunks:
 
 ```text
-- Owned Objectives includes self-created/self-owned objectives.
-- Owned Objectives also includes objectives linked to assigned KRs.
-- Tags distinguish ownership type.
-- KR-related objectives are not editable unless user has objective permission.
+R3.4.1  Simplified navigation and child objective cleanup.
+R3.4.2  My OKRs includes owned objectives and assigned-KR objectives.
+R3.4.3  KR assignment org scope.
+R3.4.4  Scoped My Team / direct-report tree.
+R3.4.5  Monthly target text goals.
+R3.4.6  Simplified weekly report with tasks and KR updates.
+R3.4.7  Weekly report comments.
+R3.4.8  Objective health from direct KRs.
+R3.4.12 Objective draft/publish/update workflow.
+R3.4.13 KR edit/delete impact confirmation.
+R3.4.14 Weekly report history.
 ```
 
----
-
-## 12.3 Monthly Target Flow
+Planned / not yet implemented:
 
 ```text
-1. User receives or owns a KR.
-2. User opens the KR detail page.
-3. System shows Month 1, Month 2, and Month 3 target slots.
-4. User fills in target_value and/or target_percent for each month.
-5. System saves monthly targets.
-6. Weekly Report uses the current monthly target as report title or grouping.
-7. Pacing uses current monthly target.
+R3.4.15 Objective creation level simplification.
 ```
 
-Acceptance criteria:
+### R3.4.15 Objective Creation Level Simplification
 
-```text
-- Each KR supports three monthly targets.
-- Monthly targets are visible on KR detail page.
-- Monthly targets are visible in Weekly Report KR update section.
-- Missing monthly target produces NO_TARGET pacing.
-```
-
----
-
-## 12.4 Weekly Report Flow
-
-```text
-1. User opens Weekly Report.
-2. System creates or loads current weekly report.
-3. Report title shows current monthly target.
-4. User fills up to 3 tasks for this week.
-5. User updates progress for each this-week task.
-6. User fills up to 3 tasks for next week.
-7. User reviews related KRs in KR Update section.
-8. User updates KR value, progress, confidence, status, note, and blocker.
-9. User optionally writes a comment to manager.
-10. User submits weekly report.
-11. System routes report to review owner / manager.
-12. Manager receives notification.
-```
-
-Acceptance criteria:
-
-```text
-- Weekly Report has three sections: this week's tasks, next week's tasks, KR update section.
-- This week's tasks are limited to 3.
-- Next week's tasks are limited to 3.
-- Tasks are manually typed.
-- Each task has progress scale.
-- KR update section shows related KRs.
-- KR update changes KR progress only through explicit KR update.
-- Comment section supports manager communication.
-```
-
----
-
-## 12.5 Weekly Report History Flow
-
-```text
-1. User opens Weekly Report History.
-2. System loads only that user's own historical weekly reports.
-3. System groups history by monthly target.
-4. Under each monthly target, system shows the related KR.
-5. Under each monthly target/KR group, system shows the weekly reports and all weekly tasks for the relevant weeks.
-6. Each weekly task shows content, status, progress percent, and blocker if present.
-7. KR updates/check-ins for the same week appear with the related KR.
-8. User can open a historical report to see summary, comments, review status, and reviewer feedback.
-```
-
-Acceptance criteria:
-
-```text
-- User sees only their own weekly report history by default.
-- History includes every historical weekly report for that user.
-- History shows all tasks, completed or not completed.
-- History shows task progress for each task.
-- History shows every relevant monthly target.
-- History is structured as monthly target → KR → weekly reports/tasks.
-- Backend rejects attempts to access another user's history unless the current user is an authorized reviewer/manager for that specific report.
-- There is no normal-user all-company history view.
-```
-
----
-
-## 12.6 Manager Review / Comment Flow
-
-```text
-1. Manager opens Dashboard or Weekly Report review queue.
-2. System shows submitted reports from people they manage or review.
-3. Manager opens a report.
-4. Manager reviews this week's tasks, next week's tasks, and KR updates.
-5. Manager leaves comment.
-6. Manager approves, requests follow-up, or flags risk.
-7. Employee sees manager comment and review status.
-8. Risk items appear in dashboards if applicable.
-```
-
-Acceptance criteria:
-
-```text
-- Manager only reviews authorized reports.
-- Manager can comment on weekly report.
-- Employee can see and reply to manager comments.
-- Manager can mark report reviewed or needs follow-up.
-```
-
----
-
-## 12.7 Organization Tree Flow
-
-```text
-1. User opens organization tree view.
-2. System calculates visible org scope based on role and manager relationship.
-3. System displays only allowed people.
-4. User can inspect people below them.
-5. KR assignment people picker uses same scope rules.
-```
-
-Acceptance criteria:
-
-```text
-- Employee does not see full company tree by default.
-- Manager sees people under them.
-- CEO / Admin can see full tree.
-- Backend enforces visibility scope.
-```
-
----
-
-## 13. Pacing and Health Calculations
-
-## 13.1 KR Pacing
-
-Basic calculation:
-
-```text
-If no monthly target exists:
-    pacing_status = NO_TARGET
-
-Else if no current-week KR update exists:
-    pacing_status = NO_UPDATE
-
-Else if progress_percent >= current month target_percent:
-    pacing_status = ON_PACE
-
-Else:
-    pacing_status = BEHIND
-```
-
-Optional advanced logic:
-
-```text
-If current progress is significantly above target:
-    pacing_status = AHEAD
-```
-
----
-
-## 13.2 Objective Progress
-
-Objective progress is calculated from direct KRs.
-
-```text
-If KR weights exist and total weight = 100:
-    objective_progress = weighted average of direct KR progress
-
-Else:
-    objective_progress = average of direct KR progress
-```
-
----
-
-## 13.3 Objective Health
-
-Suggested logic:
-
-```text
-If no KRs:
-    objective_health_status = NO_UPDATE
-
-Else if all KRs are COMPLETED:
-    objective_health_status = COMPLETED
-
-Else if any KR is BLOCKED:
-    objective_health_status = BLOCKED
-
-Else if majority of KRs are BEHIND:
-    objective_health_status = BEHIND
-
-Else if any KR is AT_RISK:
-    objective_health_status = AT_RISK
-
-Else if any KR confidence_score <= 2:
-    objective_health_status = AT_RISK
-
-Else if majority of KRs have NO_UPDATE:
-    objective_health_status = NO_UPDATE
-
-Else:
-    objective_health_status = ON_TRACK
-```
-
----
-
-## 13.4 Risk Detection
-
-A KR should be marked as a risk item if any are true:
-
-```text
-pacing_status = BEHIND
-status = AT_RISK
-status = BEHIND
-status = BLOCKED
-confidence_score <= 2
-no KR update this week
-current date is close to due date and progress is low
-```
-
----
-
-## 14. Release Plan
-
-The project has already completed earlier releases. Do not rewrite earlier completed releases unless needed for compatibility.
-
----
-
-# Release 1 — Completed Historical Baseline
-
-Release 1 established the original MVP:
-
-```text
-- Basic auth
-- Organization management
-- Objective and KR management
-- Monthly targets
-- Weekly reports
-- Weekly priorities
-- Check-ins
-- Pacing calculation
-- Manager review
-- Basic dashboards
-- Notifications
-- Audit logs
-```
-
-R3.4 does not require redoing Release 1.
-
----
-
-# Release 2 — Completed Historical Baseline
-
-Release 2 improved execution intelligence and organization structure:
-
-```text
-- Company structure import
-- Delegated review routing
-- Review owner support
-- Organization tree view
-- Better risk detection
-- Follow-up items
-- Email notifications
-- Advanced filters
-- Dashboard export
-```
-
-R3.4 keeps the organization tree and delegated review routing, but changes how tree visibility is used for KR assignment.
-
----
-
-# Release 3.1 — Completed Historical Baseline
-
-Release 3.1 introduced advanced roll-up and weighted objective progress.
-
-R3.4 keeps:
-
-```text
-- KR weight for direct objective progress calculation.
-- Objective health calculation from KRs.
-```
-
-R3.4 deprecates active use of:
-
-```text
-- Child objective roll-up.
-- Objective assignment contribution percentage.
-- Parent-child objective progress calculation.
-```
-
----
-
-# Release 3.2 — Completed Historical Baseline, Superseded by R3.4
-
-Release 3.2 introduced child objective proposal workflow.
-
-R3.4 supersedes this workflow.
-
-Do not build more child objective proposal features.
-
-Remove or hide from active UI:
-
-```text
-- Create child objective
-- Child objective proposal
-- Assignment mode: CONTRIBUTION_ONLY
-- Assignment mode: PREDEFINED_CHILD_OBJECTIVE
-- Parent owner approval for child objective
-- Child objective roll-up
-```
-
-Existing database structures may remain for compatibility, but should not be part of the active simplified workflow.
-
----
-
-# Release 3.3 — Completed Historical Baseline, Superseded by R3.4
-
-Release 3.3 separated Weekly Plan and Weekly Report.
-
-R3.4 supersedes this workflow.
-
-Do not continue building a separate Weekly Plan module.
-
-Replace active workflow with:
-
-```text
-Weekly Report only
-→ This week's tasks
-→ Next week's tasks
-→ KR update section
-→ Manager comment
-```
-
----
-
-# Release 3.4 — Current Required Simplification Release
-
-## R3.4 Goal
-
-Simplify the product after leadership feedback.
-
-The system should become easier to understand, easier to implement, and easier for DTEN employees to use.
-
-R3.4 should focus on:
-
-```text
-1. Remove child objective workflow from active UI.
-2. Simplify navigation.
-3. Make objectives parallel.
-4. Show assigned-KR-related objectives in My OKR.
-5. Scope KR assignment by company org tree.
-6. Add scoped company tree visibility.
-7. Replace Weekly Plan with simplified Weekly Report.
-8. Add monthly target as the organizing layer for weekly reports.
-9. Add weekly report comment communication with manager.
-10. Ensure objective health calculation works from direct KRs.
-```
-
----
-
-## R3.4 Functional Requirements
-
-### R3.4.1 Remove Child Objective Function
-
-Required:
-
-```text
-- Remove / hide Create Child Objective.
-- Remove / hide Child Objective Proposal.
-- Remove / hide parent objective assignment workflow.
-- Prevent new objectives from requiring parent_objective_id.
-- Objectives should display as parallel items.
-```
-
-Acceptance criteria:
-
-```text
-- User cannot create a child objective from the UI.
-- Objective detail page does not show child objective proposal workflow.
-- Objective progress is not calculated from child objectives.
-- Objective health is calculated from direct KRs.
-```
-
----
-
-### R3.4.2 Simplify Main Menu
-
-Required menu:
-
-```text
-Dashboard
-OKR
-Weekly Report
-```
-
-Under OKR:
-
-```text
-Company OKR
-My OKR
-```
-
-Create Objective should be available inside OKR.
-
-Acceptance criteria:
-
-```text
-- Sidebar has only Dashboard, OKR, Weekly Report for normal users.
-- Create Objective is not a standalone menu item.
-- Admin-only pages may be hidden behind admin access.
-```
-
----
-
-### R3.4.3 Objective and KR Structure
-
-Required:
-
-```text
-- All objectives are parallel.
-- Each objective has direct KRs.
-- KRs define how the objective is measured.
-- Objective health comes from direct KRs.
-```
-
-Acceptance criteria:
-
-```text
-- Objective list does not require tree structure.
-- Objective detail shows direct KRs.
-- Objective progress uses weighted or average KR progress.
-```
-
----
-
-### R3.4.4 My OKR / Owned Objective Behavior
-
-Required:
-
-```text
-- Show objectives owned by current user.
-- Show objectives linked to KRs assigned to current user.
-- Add tag to distinguish OWNER vs ASSIGNED_KR.
-- Read-only lock for assigned-KR-related objective context.
-```
-
-Acceptance criteria:
-
-```text
-- If a KR is assigned to user A, user A sees the linked objective in My OKR.
-- The linked objective displays ASSIGNED_KR tag.
-- User A cannot edit the linked objective unless user A is also the objective owner or has edit permission.
-- User A can update their assigned KR and monthly targets if allowed.
-```
-
----
-
-### R3.4.5 KR Assignment Org Scope
-
-Required:
-
-```text
-- When assigning a KR, the user picker only shows people under the assigner.
-- Backend validates assignment scope.
-- CEO / Admin can assign across company if allowed.
-```
-
-Acceptance criteria:
-
-```text
-- Manager cannot assign KR to a user outside their org subtree.
-- Employee cannot see unrelated employees in assignment picker.
-- API rejects out-of-scope KR assignment even if frontend is bypassed.
-```
-
----
-
-### R3.4.6 Scoped Company Tree View
-
-Required:
-
-```text
-- Add company tree view somewhere accessible.
-- Show only the people under the current user unless role allows broader access.
-- Use this same org scope for KR assignment.
-```
-
-Acceptance criteria:
-
-```text
-- Employee sees only themselves and people below them.
-- Manager sees their reporting subtree.
-- CEO / Admin sees full company tree.
-- Tree does not expose the entire company to everyone.
-```
-
----
-
-### R3.4.7 Monthly Target Functionality
-
-Required:
-
-```text
-- Each KR has three monthly targets.
-- When people receive KRs, they need to develop monthly targets.
-- Monthly targets should be editable by KR owner / authorized users.
-- Weekly report title should be current monthly target.
-```
-
-Acceptance criteria:
-
-```text
-- KR detail page shows Month 1, Month 2, Month 3 target fields.
-- User can create monthly targets for assigned KR if allowed.
-- Weekly report can show current monthly target as title.
-- Pacing uses current monthly target.
-```
-
----
-
-### R3.4.8 Simplified Weekly Report
-
-Required sections:
-
-```text
-1. This week's tasks
-2. Next week's tasks
-3. KR update section
-```
-
-This week's tasks:
-
-```text
-- Limit 3.
-- Manual typing.
-- Progress scale.
-```
-
-Next week's tasks:
-
-```text
-- Limit 3.
-- Manual typing.
-- Progress scale.
-```
-
-KR update section:
-
-```text
-- Show all related KRs.
-- Let user update KR progress themselves.
-- Show objective context and monthly target context.
-```
-
-Acceptance criteria:
-
-```text
-- No separate Weekly Plan page.
-- Weekly Report contains all three sections.
-- Tasks do not require KR linking.
-- KR update section is where measurable KR progress changes.
-```
-
----
-
-### R3.4.9 Comment Section
-
-Required:
-
-```text
-- Weekly Report includes comment section.
-- Comment is used for employee-manager communication.
-- Manager can comment on submitted report.
-- Employee can see and reply.
-```
-
-Acceptance criteria:
-
-```text
-- Comment is attached to weekly report.
-- Comment visibility follows manager/review-owner permissions.
-- Comments can be displayed chronologically.
-```
-
----
-
-### R3.4.10 Objective Health Calculation
-
-Required:
-
-```text
-- Objective health calculated from direct KRs.
-- If any KR blocked, objective should be at risk or blocked.
-- If majority KRs behind, objective should be behind.
-- If all KRs completed, objective should be completed.
-```
-
-Acceptance criteria:
-
-```text
-- Objective detail shows calculated health.
-- Dashboard uses calculated objective health.
-- Health is recalculated when KR status/progress/confidence changes.
-```
-
----
-
-### R3.4.11 Simplified Direct-Report Tree View
+**Status:** Planned. Not implemented yet.
 
 #### Goal
 
-The current company tree view is difficult to read because it attempts to show too much hierarchy at once.
+Objective creation should be simpler and should follow the company tree automatically. Users should not manually choose objective level, department, or team while creating an objective.
 
-For R3.4, the organization tree should be simplified into a visually clear “actual tree” UI that shows only the current user as the root node and one layer of direct reports below them.
+The system should infer the objective's level and org context from the creator's position in the company tree.
 
-This tree is not meant to show the full company hierarchy. It is meant to help each user quickly understand who is directly under them in the org structure.
-
-#### Tree Scope
-
-The org tree must follow this structure:
-
-Current logged-in user
-→ Direct reports only
-
-The tree should not display:
-
-- The current user’s manager
-- Peers
-- Indirect reports
-- Other departments
-- Full company structure
-- Employees outside the current user’s visibility scope
-
-Example:
-
-```text
-            Current User
-          /      |       \
-   Direct A   Direct B   Direct C
-```
-
----
-
-### R3.4.12 Objective Draft, Publish, and Update Workflow
-
-#### Goal
-
-Create and edit objective workflows should make draft state automatic and make publishing explicit.
-
-The user should not need to choose an objective status while creating a new objective. The system owns the draft-to-published transition.
-
-#### Create Objective Behavior
+#### Create Objective Interface
 
 Required:
 
 ```text
-- When user clicks Create Objective, the interface opens an objective editor.
-- The create interface does not show any status selector.
-- The system defaults the objective status to DRAFT.
-- The user may create objective details and direct KRs in the same editor.
-- Monthly targets are not configured during objective or KR creation.
-- The bottom of the editor shows two primary actions:
-  - Save for Later
-  - Publish Objective
+- Remove the Level selector from the Create Objective interface.
+- Remove the Department selector from the Create Objective interface.
+- Remove the Team selector from the Create Objective interface.
+- Show inferred level and org context as read-only helper text if useful.
+- User should focus on objective title, description, owner, quarter/year, direct KRs, and publish/save actions.
+- Create Objective should still hide status and default to DRAFT.
 ```
 
-Save for Later:
+Do not remove level/department/team display from read-only summary surfaces. This requirement only removes manual selection during objective creation.
 
-```text
-- Saves the objective and any entered KR information as DRAFT.
-- Does not require publish-only validation such as KR weights totaling 100.
-- Exits the editor automatically after saving.
-- Draft objectives remain editable later.
-```
-
-Publish Objective:
-
-```text
-- Validates all publish-required objective fields.
-- Validates all publish-required KR fields.
-- Validates KR owner assignment scope.
-- Validates direct KR weights add up to 100 when the objective uses direct KRs.
-- Does not require monthly targets.
-- If validation fails, the system shows red inline messages at the exact field or section that failed.
-- If validation passes, the system changes objective status from DRAFT to IN_PROGRESS and exits/saves the objective.
-- Published objectives are ready for future edits, KR updates, monthly targets, and weekly progress updates.
-```
-
-#### Update Objective Behavior
+#### Assignment Logic
 
 Required:
 
 ```text
-- Editing an already published objective uses the same editor structure.
-- The edit interface shows a status selector.
-- DRAFT must not appear in the status selector for an already published objective.
-- The bottom action should be Save for Later for draft objectives and Update for published objectives.
-- For published objectives, Update validates required objective fields, required KR fields, KR assignment scope, and KR weights.
-- The objective owner / creator can add, edit, delete, and reweight direct KRs under the objective.
-- Changing a KR's weight/contribution percentage should be allowed as long as the final direct KR weights pass publish/update validation.
-- Validation failures must appear as red inline messages at the exact failed field or section.
-- Successfully updating a published objective preserves the selected non-draft status.
+- If the creator is the CEO, created objectives are COMPANY level.
+- If the creator is a Department Head, created objectives are DEPARTMENT level.
+- If the creator is a Team Leader, created objectives are TEAM level.
+- If the creator is any other user, created objectives are INDIVIDUAL level.
+- Team Leader means the user owns/leads a team node in the company tree.
+- Department and team IDs should be inferred from the creator's org profile/company tree where applicable.
+- The inferred level/org context should be based on the creator, not on a manually selected owner field.
 ```
 
-Acceptance criteria:
+Department/team inference:
 
 ```text
-- Create Objective never asks the user to select status.
-- New objective status defaults to DRAFT.
-- Save for Later saves objective/KR information as draft and exits the editor.
-- Publish Objective checks all required fields and direct KR weight total before publishing.
-- Publish Objective does not require monthly targets.
-- Publish errors are red and appear next to the exact field or section that needs correction.
-- Successful publish changes status to IN_PROGRESS.
-- Editing a published objective shows a status selector without DRAFT.
-- Published objective edit uses an Update action instead of Publish Objective.
-- Objective owner / creator can change existing KR details and weight/contribution percentages.
-- Objective owner / creator can add new direct KRs while editing an objective.
+- COMPANY objective: departmentId and teamId should usually be empty.
+- DEPARTMENT objective: departmentId should be the creator's department; teamId should usually be empty.
+- TEAM objective: departmentId and teamId should come from the creator's team context.
+- INDIVIDUAL objective: departmentId/teamId may be copied from the creator for filtering/context, but level remains INDIVIDUAL.
 ```
 
----
-
-### R3.4.13 KR Edit/Delete Impact Confirmation
-
-#### Goal
-
-Objective owners need to manage the KRs under their objectives after creation, including changing KR weights/contribution percentages and deleting KRs. The workflow should protect assigned users from silent disruption.
-
-In this section, "KR contribution percentage" means the direct KR `weight_percent` used for objective progress. It does not refer to the deprecated child-objective contribution workflow.
-
-#### KR Editing Permissions
+#### Backend Validation
 
 Required:
 
 ```text
-- The objective creator / owner can edit direct KRs under the objective.
-- Editable KR fields include title, metric label, start/current/target values, owner assignment, status, confidence, and weight/contribution percentage.
-- The objective creator / owner can add new KRs while editing the objective.
-- The objective creator / owner can delete existing KRs if they pass the impact confirmation flow when required.
-- CEO and Admin retain elevated edit permissions according to the broader permission model.
+- Backend must assign level, department, and team using the same company-tree logic as the UI.
+- Backend must ignore or reject manually submitted create-objective level, department, or team values that conflict with inferred context.
+- If the system cannot infer required department/team context for a Department Head or Team Leader, show a clear inline error and do not publish.
+- Save for Later may save a draft only when enough creator org context exists to classify the objective level.
+- Audit logs should record the inferred level and org context on objective creation.
 ```
 
-#### Impact Confirmation
-
-Required:
+#### Acceptance Criteria
 
 ```text
-- If a KR is assigned to a user, deleting it requires a confirmation alert before the delete is committed.
-- If a KR owner assignment changes, the current owner and new owner are impacted users.
-- If a published objective's KR weight/contribution percentage changes, the current KR owner is an impacted user.
-- The confirmation alert must show who will be impacted by name, role/title when available, and email.
-- The owner must explicitly confirm before the system commits the delete, reassignment, or major KR weight change.
-- If the owner cancels, no data is changed.
+- Create Objective has no editable level field.
+- Create Objective has no editable department field.
+- Create Objective has no editable team field.
+- CEO-created objectives are saved as COMPANY level.
+- Department Head-created objectives are saved as DEPARTMENT level and use the creator's department context.
+- Team Leader-created objectives are saved as TEAM level and use the creator's team context.
+- Objectives created by all other users are saved as INDIVIDUAL level.
+- Backend enforces inferred level/org context even if the frontend is bypassed.
+- Conflicting manual level/department/team submissions are rejected or ignored safely.
+- Missing required org context shows a red inline error at the objective creation form.
 ```
 
-Impacted users:
+Current build priority:
 
 ```text
-- The current KR owner.
-- The new KR owner when reassignment is happening.
-- Any user with weekly KR updates/check-ins tied to the KR, if different from the KR owner.
-- Any user with open follow-ups or comments tied to the KR, if different from the KR owner.
+1. Keep sidebar simplified: Dashboard / OKR / Weekly Report.
+2. Keep deprecated child-objective and weekly-plan UI hidden from active workflow.
+3. Finish objective create/edit workflow:
+   - no status selector on create
+   - no level/department/team selectors on create
+   - inferred level/org context
+   - Save for Later
+   - Publish Objective
+   - inline validation
+4. Finish objective-owner KR edit/delete/reweight flow with impact confirmation.
+5. Finish scoped weekly report history.
+6. Keep monthly target, weekly report, dashboard, and health behavior aligned with direct KRs.
+7. Add tests for permission boundaries and validation failures.
 ```
 
-#### Notifications and Audit
-
-Required:
-
-```text
-- After a confirmed KR delete, notify impacted users that the KR was deleted by the objective owner.
-- After a confirmed KR reassignment, notify previous and new KR owners.
-- After a confirmed KR weight/contribution percentage change on a published objective, notify the assigned KR owner.
-- Notification should include objective title, KR title, changed field/action, actor, and link to the objective or My OKR.
-- Audit logs should record the actor, objective, KR, impacted users, old value, new value, and confirmation result.
-```
-
-#### Validation
-
-Required:
-
-```text
-- After KR add/delete/reweight, the final KR weight total must satisfy the same publish/update validation rules.
-- If the final KR weights do not total 100 for a published direct-KR objective, the system blocks update and shows a red inline error at the KR weight section.
-- If a KR delete would leave a published objective with no KRs, the system blocks update and shows a red inline error at the KR list.
-- Monthly target existence must not block KR edit/delete confirmation.
-```
-
-Acceptance criteria:
-
-```text
-- Objective owner / creator can edit existing KRs under the objective.
-- Objective owner / creator can change KR weight/contribution percentages.
-- Objective owner / creator can add new KRs while editing an objective.
-- Deleting an assigned KR opens an impact confirmation alert.
-- Impact confirmation shows impacted user names and emails before commit.
-- Cancelling impact confirmation leaves the KR unchanged.
-- Confirming impact deletes or changes the KR and notifies impacted users.
-- Reassigning a KR notifies previous and new KR owners after confirmation.
-- Reweighting an assigned KR under a published objective notifies the assigned KR owner after confirmation.
-- Final KR weights are still validated before publish/update succeeds.
-```
-
----
-
-### R3.4.14 Weekly Report History
-
-#### Goal
-
-Users need a clear personal history of their weekly execution records. The history should preserve all historical weekly reports while preventing broad visibility into other employees' histories.
-
-The history view should help a user and their authorized reviewer understand execution over time by connecting monthly targets, KRs, weekly tasks, task progress, KR updates, comments, and reviews.
-
-#### Privacy and Scope
-
-Required:
-
-```text
-- Weekly Report History is personal by default.
-- A user can see their own weekly report history.
-- A user must not see another user's weekly report history unless they are an authorized manager/review owner for that specific report or user.
-- There must not be a normal-user page that exposes all company weekly histories.
-- CEO/Admin dashboards may show aggregate history metrics, but should not expose a browsable all-user history feed without a separate explicit admin/audit requirement.
-- Backend must enforce all history visibility rules.
-```
-
-#### History Structure
-
-Required:
-
-```text
-- Group history by monthly target.
-- Under each monthly target, show the related KR.
-- Under each monthly target/KR group, show relevant weekly reports.
-- Under each weekly report, show all tasks for that week.
-- Show both This Week and Next Week tasks in history.
-- Show every task regardless of completion status.
-- For each task, show content, status, progress percent, blocker if present, and week range.
-- Show weekly KR updates/check-ins associated with the KR and report week.
-- Show report summary, comments, review status, reviewer, and reviewer feedback when available.
-```
-
-Monthly target behavior:
-
-```text
-- Show every monthly target relevant to the user's historical reports.
-- If a historical report has KR updates tied to multiple monthly targets, show each monthly target as its own group.
-- If a report week has tasks but no matching monthly target, place those tasks under a clear "No monthly target" group for that week.
-- Historical records should remain readable even if a KR or monthly target is later edited or deleted; preserve enough title/label information for history display where practical.
-```
-
-Acceptance criteria:
-
-```text
-- Weekly Report History shows only the current user's own history by default.
-- Backend blocks unrelated users from viewing another person's weekly report history.
-- History includes all historical weekly reports for the user.
-- History displays all weekly tasks, including incomplete, blocked, cancelled, and next-week tasks.
-- History displays task progress percent for every task.
-- History shows every relevant monthly target.
-- History uses the structure: monthly target → KR → weekly report week → tasks and KR updates.
-- History includes comments and review outcome where available.
-```
-
-## R3.4 Non-Goals
-
-R3.4 should not include:
-
-```text
-- AI summaries
-- Jira-style task management
-- Child objective proposal
-- Separate weekly plan module
-- Full objective cascading workflow
-- Complex automation for task generation
-- Auto carry-over of tasks
-```
-
----
-
-## R3.4 Build Priority for Codex / Engineering Agent
-
-Build R3.4 in this order:
-
-```text
-1. Update sidebar navigation to Dashboard / OKR / Weekly Report.
-2. Hide or remove child objective UI.
-3. Update objective list/detail to treat objectives as parallel.
-4. Update My OKR query to include objectives linked to assigned KRs.
-5. Add OWNER / ASSIGNED_KR tags.
-6. Lock editing for ASSIGNED_KR objective context.
-7. Implement assignable users API based on org subtree.
-8. Apply backend validation for KR assignment scope.
-9. Add scoped company tree view.
-10. Add objective draft/publish workflow with Save for Later and Publish Objective actions.
-11. Add inline publish validation for required fields and direct KR weights totaling 100.
-12. Add published-objective update workflow with non-draft status selector and Update action.
-13. Add objective-owner KR edit/delete/reweight support.
-14. Add KR impact preview and confirmation for assigned KR delete, reassignment, and reweighting.
-15. Notify impacted users after confirmed KR changes.
-16. Add or refine monthly target UI for each KR.
-17. Update Weekly Report page to three sections.
-18. Add weekly task limit validation.
-19. Add KR update section to Weekly Report.
-20. Add weekly report comment section.
-21. Add scoped personal Weekly Report History.
-22. Group history by monthly target, KR, weekly report week, and tasks/KR updates.
-23. Ensure KR updates recalculate pacing.
-24. Ensure objective health recalculates from direct KRs.
-25. Update dashboards to use simplified model.
-26. Polish labels, permissions, and tests.
-```
-
----
-
-## R3.4 Definition of Done
+## 15. R3.4 Definition of Done
 
 R3.4 is complete when:
 
 ```text
-1. Normal sidebar only shows Dashboard, OKR, and Weekly Report.
-2. OKR contains Company OKR and My OKR.
-3. Create Objective is part of OKR.
-4. Users cannot create child objectives from the UI.
-5. Objectives are displayed as parallel objectives.
-6. Objective detail shows direct KRs.
-7. My OKR shows both owned objectives and assigned-KR-related objectives.
-8. OWNER and ASSIGNED_KR tags are visible.
-9. Assigned-KR-related objectives are read-only unless user has edit permission.
-10. KR assignment people picker only shows people under the assigner.
-11. Backend rejects out-of-scope KR assignment.
-12. Company tree view is scoped by role/org tree.
-13. Each KR supports three monthly targets.
-14. Weekly Report title uses current monthly target.
-15. Weekly Report has this week's tasks, next week's tasks, and KR update section.
-16. This week's tasks are limited to 3.
-17. Next week's tasks are limited to 3.
-18. Tasks have progress scale.
-19. KR update section lets users update related KRs.
-20. Weekly Report has employee-manager comment section.
-21. Objective health is calculated from direct KRs.
-22. Dashboard reflects simplified objective/KR/monthly target/weekly report model.
-23. Create Objective has no status selector and defaults new objectives to DRAFT.
-24. Save for Later saves draft objective/KR information and exits the editor.
-25. Publish Objective validates required fields and direct KR weights before publishing.
-26. Publish validation errors appear inline in red at the failed field or section.
-27. Successful publish changes the objective to IN_PROGRESS.
-28. Published objective edit shows a status selector without DRAFT and uses an Update action.
-29. Objective owner / creator can add, edit, delete, and reweight direct KRs under the objective.
-30. Assigned KR delete, reassignment, and published-objective reweighting require impact confirmation.
-31. Impact confirmation shows impacted users before commit.
-32. Confirmed KR changes notify impacted users and write audit logs.
-33. Weekly Report History stores and displays all historical reports for the current user.
-34. Weekly Report History is scoped so unrelated users cannot see another person's history.
-35. Weekly Report History shows all weekly tasks regardless of completion status.
-36. Weekly Report History shows each task's progress percent.
-37. Weekly Report History is structured by monthly target → KR → weekly report week → tasks and KR updates.
+1. Normal sidebar shows Dashboard, OKR, Weekly Report.
+2. Create Objective lives inside OKR surfaces.
+3. Create Objective has no status, level, department, or team selector.
+4. Objective level/org context is inferred from creator.
+5. New objectives default to DRAFT.
+6. Save for Later saves draft objective/KR information and exits editor.
+7. Publish Objective validates required fields, KR assignment scope, and KR weights.
+8. Publish validation errors appear inline at failed fields/sections.
+9. Successful publish stores objective as ON_TRACK / user-facing In Progress.
+10. Published objective edit has status selector without DRAFT and uses Update.
+11. Objectives are parallel and show direct KRs.
+12. My OKRs shows OWNER and ASSIGNED_KR contexts.
+13. Assigned-KR objectives are read-only unless user has edit permission.
+14. KR assignment picker and backend are org-scoped.
+15. Objective owner/creator can add, edit, delete, reassign, and reweight direct KRs.
+16. Assigned KR delete/reassignment/reweight requires impact confirmation.
+17. Impacted users are shown before commit and notified after confirmed change.
+18. Each KR supports three monthly text targets.
+19. Weekly Report has this week's tasks, next week's tasks, KR updates, comments, summary, and submit.
+20. Task limits are enforced at 3 per section.
+21. KR update section updates measurable KR progress.
+22. Weekly Report History is scoped to current user by default.
+23. History shows monthly target -> KR -> week -> tasks and KR updates.
+24. History shows all tasks and progress percent regardless of completion status.
+25. Objective health is calculated from direct KRs.
+26. Dashboard reflects simplified objective/KR/monthly target/weekly report model.
+27. Backend enforces all permission and org-scope rules.
 ```
 
----
+## 16. Test Requirements
 
-## 15. Updated UI Component Requirements
-
-Reusable components:
+High-priority tests:
 
 ```text
-- StatusBadge
-- ConfidenceScore
-- PacingIndicator
-- KRCard
-- ObjectiveCard
-- ObjectiveEditor
-- ObjectivePublishValidation
-- KRImpactConfirmationDialog
-- ObjectiveOwnershipTag
-- MonthlyTargetCard
-- MonthlyTargetEditor
-- WeeklyReportForm
-- WeeklyReportHistory
-- WeeklyReportHistoryGroup
-- WeeklyTaskEditor
-- KRUpdateForm
-- CommentThread
-- ReviewPanel
-- DashboardMetricCard
-- RiskTable
-- MissingUpdateTable
-- DepartmentHealthTable
-- OrgTreeView
-- AssignableUserPicker
+- Employee sees simplified nav.
+- Create Objective hides status, level, department, and team selectors.
+- CEO-created objective is COMPANY.
+- Department Head-created objective is DEPARTMENT.
+- Team Leader-created objective is TEAM.
+- Employee-created objective is INDIVIDUAL.
+- Backend rejects conflicting create-objective level/org submissions.
+- Save for Later saves DRAFT.
+- Publish blocks missing required fields.
+- Publish blocks invalid KR weights.
+- Publish succeeds without monthly targets.
+- Objective owner can edit/reweight KRs.
+- Assigned KR delete/reassignment/reweight shows impact confirmation.
+- Cancelled impact confirmation changes nothing.
+- Confirmed impact change notifies impacted users.
+- Employee cannot edit assigned-KR objective context.
+- Manager cannot assign KR outside org scope.
+- Weekly Report enforces 3 this-week and 3 next-week tasks.
+- KR update changes KR current value/progress/status/confidence.
+- Employee sees only own weekly report history.
+- Manager/review owner sees only authorized report history.
+- Normal user cannot access company-wide history.
+- Objective health responds to completed, blocked, behind, and at-risk KRs.
 ```
 
-Deprecated / hidden components for active R3.4 UI:
+## 17. Open Questions
+
+Default assumptions until changed:
 
 ```text
-- ChildObjectiveProposalForm
-- ObjectiveAssignmentContributionEditor
-- WeeklyPlanForm
-- CarryOverPriorityEditor
-```
-
----
-
-## 16. Suggested Frontend Structure
-
-```text
-src/
-  app/ or pages/
-    dashboard/
-    okr/
-      company/
-      my/
-      org-tree/
-    weekly-report/
-    admin/
-
-  components/
-    okr/
-      ObjectiveCard
-      KRCard
-      ObjectiveOwnershipTag
-      AssignableUserPicker
-    monthly-target/
-      MonthlyTargetCard
-      MonthlyTargetEditor
-    weekly-report/
-      WeeklyReportForm
-      WeeklyTaskEditor
-      KRUpdateForm
-      CommentThread
-    dashboard/
-    org/
-      OrgTreeView
-    review/
-    common/
-
-  services/
-    apiClient.ts
-    authService.ts
-    okrService.ts
-    keyResultService.ts
-    monthlyTargetService.ts
-    weeklyReportService.ts
-    orgService.ts
-    dashboardService.ts
-
-  hooks/
-    useCurrentUser.ts
-    usePermissions.ts
-    useOKRs.ts
-    useMyOKRs.ts
-    useAssignableUsers.ts
-    useOrgTree.ts
-    useWeeklyReport.ts
-
-  types/
-    user.ts
-    okr.ts
-    monthlyTarget.ts
-    weeklyReport.ts
-    dashboard.ts
-    org.ts
-```
-
----
-
-## 17. Suggested Backend Structure
-
-```text
-backend/
-  controllers/
-    auth.controller
-    users.controller
-    org.controller
-    objectives.controller
-    keyResults.controller
-    monthlyTargets.controller
-    weeklyReports.controller
-    weeklyTasks.controller
-    krUpdates.controller
-    comments.controller
-    reviews.controller
-    dashboard.controller
-    notifications.controller
-
-  services/
-    auth.service
-    users.service
-    org.service
-    orgScope.service
-    objectives.service
-    objectiveHealth.service
-    keyResults.service
-    monthlyTargets.service
-    pacing.service
-    weeklyReports.service
-    weeklyTasks.service
-    krUpdates.service
-    comments.service
-    reviews.service
-    dashboard.service
-    notifications.service
-    auditLog.service
-
-  repositories/
-    users.repository
-    objectives.repository
-    keyResults.repository
-    monthlyTargets.repository
-    weeklyReports.repository
-    weeklyTasks.repository
-    krUpdates.repository
-    comments.repository
-
-  middleware/
-    auth.middleware
-    permission.middleware
-    orgScope.middleware
-    error.middleware
-
-  jobs/
-    weeklyReminder.job
-    missingReport.job
-    dashboardRefresh.job
-```
-
----
-
-## 18. Error Handling Requirements
-
-Backend should return clear error messages for:
-
-```text
-- Unauthorized access.
-- User cannot assign KR outside org scope.
-- Missing KR owner.
-- Missing monthly target.
-- Invalid confidence score.
-- Invalid status.
-- Invalid task progress.
-- More than 3 this-week tasks.
-- More than 3 next-week tasks.
-- User cannot edit read-only assigned-KR objective context.
-- Objective publish required field is missing.
-- Objective publish KR weight total is not 100.
-- Published objective cannot be changed back to draft from the edit status selector.
-- KR delete/reassignment/reweight requires impact confirmation.
-- KR delete would leave a published objective with no KRs.
-- KR update would leave direct KR weights not totaling 100.
-- User cannot view another person's weekly report history.
-- Weekly report history requested report is outside user's authorized scope.
-- Weekly report already submitted.
-- Manager cannot review this report.
-```
-
-Example API error shape:
-
-```json
-{
-  "error": "VALIDATION_ERROR",
-  "message": "This week's tasks are limited to 3.",
-  "field": "weekly_tasks"
-}
-```
-
-Example KR assignment error:
-
-```json
-{
-  "error": "FORBIDDEN",
-  "message": "You can only assign KRs to users under your organization scope."
-}
-```
-
----
-
-## 19. Validation Rules
-
-```text
-confidence_score must be between 1 and 5.
-progress_percent must be between 0 and 100.
-target_percent must be between 0 and 100.
-weekly_report.user_id is required.
-weekly_task.weekly_report_id is required.
-weekly_task.section_type is required.
-weekly report can have max 3 THIS_WEEK tasks.
-weekly report can have max 3 NEXT_WEEK tasks.
-kr_update.key_result_id is required.
-kr_update.weekly_report_id is required.
-review.reviewer_id is required.
-KR owner_id is required.
-KR assignee must be inside assigner's org scope unless assigner has global permission.
-new objective status defaults to DRAFT and is not user-selected.
-published objectives cannot return to DRAFT through the edit status selector.
-publishing an objective requires all publish-required objective fields.
-publishing an objective requires all publish-required KR fields.
-publishing a direct-KR objective requires KR weights to total 100.
-monthly targets are not required to save or publish an objective.
-objective owner / creator may edit direct KRs under the objective.
-KR delete/reassignment/reweight requires confirmation when assigned users are impacted.
-KR impact confirmation must list impacted users before commit.
-confirmed KR changes must notify impacted users.
-published direct-KR objective update requires final KR weights to total 100.
-published objective cannot be updated to have zero direct KRs.
-weekly report history defaults to current user's own reports only.
-weekly report history access requires report owner or authorized reviewer/manager scope.
-weekly report history must include all weekly tasks regardless of status.
-weekly report history must include task progress percent.
-weekly report history must preserve monthly target and KR context where practical.
-```
-
----
-
-## 20. Security Requirements
-
-```text
-- Passwords must never be stored in plain text.
-- All backend routes must check authentication unless explicitly public.
-- Permission checks must happen server-side.
-- Org scope checks must happen server-side.
-- Users should not access reports outside their permission scope.
-- Users should not access weekly report history outside their permission scope.
-- Normal users should not have access to a company-wide weekly report history feed.
-- Users should not see full company tree unless authorized.
-- Users should not assign KRs outside their org scope.
-- Audit logs should record important business data changes.
-```
-
----
-
-## 21. Testing Requirements for R3.4
-
-### 21.1 Navigation Tests
-
-```text
-- Normal employee sees Dashboard, OKR, Weekly Report only.
-- Manager sees Dashboard, OKR, Weekly Report only, plus admin pages only if permitted.
-- Create Objective appears inside OKR.
-```
-
-### 21.2 Child Objective Removal Tests
-
-```text
-- Create Child Objective button is not visible.
-- Child objective proposal route is inaccessible or hidden.
-- Objective detail does not show child objective proposal UI.
-```
-
-### 21.3 My OKR Tests
-
-```text
-- User sees objectives they own.
-- User sees objectives linked to assigned KRs.
-- OWNER tag appears correctly.
-- ASSIGNED_KR tag appears correctly.
-- Assigned-KR objective is read-only.
-```
-
-### 21.4 KR Assignment Scope Tests
-
-```text
-- Manager can assign KR to direct report.
-- Manager can assign KR to indirect report under them if allowed.
-- Manager cannot assign KR to person outside org subtree.
-- Backend rejects out-of-scope assignment.
-```
-
-### 21.5 Org Tree Tests
-
-```text
-- Employee sees scoped tree only.
-- Manager sees their subtree.
-- CEO sees full tree.
-- Admin sees full tree.
-```
-
-### 21.6 Weekly Report Tests
-
-```text
-- Weekly Report loads current monthly target title.
-- User can add up to 3 this-week tasks.
-- User cannot add 4th this-week task.
-- User can add up to 3 next-week tasks.
-- User cannot add 4th next-week task.
-- Task progress scale saves correctly.
-- KR update section shows related KRs.
-- KR update changes KR current value and progress.
-- Comment section saves and displays comments.
-```
-
-### 21.7 Objective Health Tests
-
-```text
-- Objective becomes COMPLETED when all KRs are completed.
-- Objective becomes BLOCKED or AT_RISK when any KR is blocked.
-- Objective becomes BEHIND when majority KRs are behind.
-- Objective progress uses weighted KR average when weights total 100.
-- Objective progress uses normal average when weights are missing.
-```
-
-### 21.8 Objective Draft and Publish Tests
-
-```text
-- Create Objective page does not show a status selector.
-- New objective defaults to DRAFT.
-- Save for Later saves objective/KR data as DRAFT and exits the editor.
-- Publish Objective blocks publish when required fields are missing.
-- Publish Objective blocks publish when direct KR weights do not total 100.
-- Publish validation messages appear inline in red at the failed field or section.
-- Publish Objective succeeds without monthly targets.
-- Successful publish changes objective status to IN_PROGRESS.
-- Editing a published objective shows a status selector.
-- Published objective status selector does not include DRAFT.
-- Published objective form uses Update instead of Publish Objective.
-```
-
-### 21.9 KR Edit/Delete Impact Tests
-
-```text
-- Objective owner / creator can edit existing KRs under the objective.
-- Objective owner / creator can add a new KR while editing the objective.
-- Objective owner / creator can change existing KR weight/contribution percentage.
-- Update blocks save when final direct KR weights do not total 100 for a published objective.
-- Deleting an assigned KR opens an impact confirmation alert.
-- Impact confirmation lists impacted users by name and email.
-- Cancelling impact confirmation leaves the KR unchanged.
-- Confirming assigned KR delete removes the KR and notifies impacted users.
-- Reassigning a KR shows impacted previous and new owners before commit.
-- Reassigning a KR notifies previous and new owners after confirmation.
-- Reweighting an assigned KR under a published objective notifies the assigned KR owner after confirmation.
-```
-
-### 21.10 Weekly Report History Tests
-
-```text
-- User can open their own Weekly Report History.
-- User sees all of their historical weekly reports.
-- User sees every weekly task in history, including incomplete, blocked, cancelled, and next-week tasks.
-- Each historical task shows progress percent.
-- History shows relevant monthly targets.
-- History groups records by monthly target → KR → weekly report week → tasks and KR updates.
-- History shows comments and review outcome where available.
-- Employee cannot view another employee's weekly report history.
-- Manager/review owner can only view history for users/reports within their authorized review scope.
-- Normal user cannot access a company-wide weekly report history feed.
-```
-
----
-
-## 22. Open Questions
-
-These can be decided during implementation or later discussion:
-
-```text
-1. Should assigned KR owners always be allowed to edit monthly targets, or should manager approval be required?
-2. Should weekly report title show one monthly target or group multiple monthly targets?
-3. Should this week's tasks require a status field, or is progress scale enough?
-4. Should manager comments be required before marking a report reviewed?
-5. Should employees see indirect reports in the org tree if they are not managers?
-6. Should objective owner be allowed to assign KRs to anyone under the objective owner, or only under their reporting tree?
-7. Should KR assignment support multiple owners in the future?
-```
-
-Default R3.4 assumptions:
-
-```text
-- Assigned KR owner can update monthly targets unless restricted later.
-- Weekly Report can group multiple monthly targets if user has multiple active KRs.
-- Tasks use both progress scale and status.
+- Assigned KR owner can edit monthly targets.
+- Weekly report can group multiple monthly targets if needed.
+- Tasks use both status and progress percent.
 - Manager comments are optional unless requesting follow-up.
-- Org tree visibility is based on reporting subtree.
-- KRs have one owner for now.
+- Org visibility is based on reporting subtree.
+- KRs have one owner.
+- Team Leader is determined from the company tree/team lead relationship.
 ```
 
----
-
-## 23. Final Product Summary
-
-The updated DTEN OKR Weekly Execution System should be simpler than the previous PRD.
-
-The active product model is:
+Questions:
 
 ```text
-Parallel Objectives
-→ Direct KRs
-→ Three Monthly Targets per KR
-→ Weekly Report
-→ This Week's Tasks
-→ Next Week's Tasks
-→ KR Updates
-→ Manager Comments
-→ Dashboard
+1. Should assigned KR owners always edit monthly targets, or require manager approval?
+2. Should weekly report title show one monthly target or multiple grouped targets?
+3. Should CEO/Admin ever have a full browsable weekly history feed, or only audit/search?
+4. Should objective owner be allowed to assign KRs to anyone under the objective owner, or only reporting scope?
+5. Should KR multi-owner support be planned later?
 ```
 
-The system should avoid complex cascading objective workflows for now.
+## 18. Demo Environment
 
-R3.4 should make the product easier for employees to understand and easier for engineering to finish.
+Demo users:
+
+```text
+ceo@dten.com
+head@dten.com
+manager@dten.com
+engineer@dten.com
+sales@dten.com
+password: Password123!
+```
+
+Local commands:
+
+```powershell
+.\start-db.cmd
+.\start-dev.cmd
+npm run prisma:seed
+npm run test -- --run
+npm run lint
+npm run build
+```
+
+Do not reset/reseed the demo DB unless Tony explicitly asks or the work session requires it.

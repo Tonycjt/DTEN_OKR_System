@@ -11,7 +11,7 @@ import { workStatusTone } from "@/lib/badge-tone";
 import { formatEnumLabel } from "@/lib/format";
 import { calculateObjectiveHealth, getObjectiveChildStatuses } from "@/lib/objective-health";
 import { getMonthIndexForQuarter, getQuarterMonthNames } from "@/lib/okr-calculations";
-import { getAssignableUsers } from "@/lib/org-scope";
+import { getDirectScopeUsers } from "@/lib/org-scope";
 import { validateObjectiveKrWeights } from "@/lib/rollup-validation";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
@@ -48,7 +48,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
         },
       },
     }),
-    getAssignableUsers(currentUser.id, currentUser.role),
+    getDirectScopeUsers(currentUser.id),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.team.findMany({
       orderBy: [{ department: { name: "asc" } }, { name: "asc" }],

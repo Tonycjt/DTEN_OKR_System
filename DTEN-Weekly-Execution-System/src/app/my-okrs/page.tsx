@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { WorkStatus } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
+import { LinkButton } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -70,6 +71,7 @@ export default async function MyOkrsPage() {
       <PageHeader
         title="My OKRs"
         description={`All objectives and key results connected to ${user.name}.`}
+        actions={<LinkButton href="/objectives/new">Create Objective</LinkButton>}
       />
 
       {/* Unified objectives table */}

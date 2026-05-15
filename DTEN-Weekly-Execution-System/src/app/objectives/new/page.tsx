@@ -1,21 +1,42 @@
 import { PageHeader } from "@/components/ui/page-header";
-import { getAssignableUsers } from "@/lib/org-scope";
+import { getDirectScopeUsers } from "@/lib/org-scope";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 import { CreateObjectiveForm } from "@/app/objectives/create-objective-form";
+import type { UserRole } from "@prisma/client";
+
+function inferLevel(role: UserRole) {
+  if (role === "CEO") return "COMPANY" as const;
+  if (role === "DEPARTMENT_HEAD") return "DEPARTMENT" as const;
+  if (role === "MANAGER") return "TEAM" as const;
+  return "INDIVIDUAL" as const;
+}
 
 export default async function NewObjectivePage() {
   const user = await requireUser();
 
-  const [allUsers, assignableUsers, departments, teams] = await Promise.all([
-    prisma.user.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, role: true } }),
-    getAssignableUsers(user.id, user.role),
-    prisma.department.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.team.findMany({
-      orderBy: [{ department: { name: "asc" } }, { name: "asc" }],
-      select: { id: true, name: true, department: { select: { name: true } } },
+  const [assignableUsers, creator] = await Promise.all([
+    getDirectScopeUsers(user.id),
+    prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+      select: {
+        role: true,
+        department: { select: { name: true } },
+        team: { select: { name: true } },
+      },
     }),
   ]);
+
+  const inferredLevel = inferLevel(creator.role);
+
+  const inferredOrgLabel =
+    inferredLevel === "DEPARTMENT" ? (creator.department?.name ?? null)
+    : inferredLevel === "TEAM" ? (creator.team?.name ?? null)
+    : null;
+
+  const missingOrgContext =
+    (inferredLevel === "DEPARTMENT" && !creator.department) ||
+    (inferredLevel === "TEAM" && !creator.team);
 
   return (
     <div className="stack">
@@ -25,10 +46,10 @@ export default async function NewObjectivePage() {
       />
       <CreateObjectiveForm
         currentUserId={user.id}
-        allUsers={allUsers.map((u) => ({ id: u.id, name: u.name, role: u.role }))}
         assignableUsers={assignableUsers.map((u) => ({ id: u.id, name: u.name, role: u.role }))}
-        departments={departments}
-        teams={teams}
+        inferredLevel={inferredLevel}
+        inferredOrgLabel={inferredOrgLabel}
+        missingOrgContext={missingOrgContext}
       />
     </div>
   );

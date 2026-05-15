@@ -6,23 +6,26 @@ import { Button } from "@/components/ui/button";
 import { formatEnumLabel } from "@/lib/format";
 
 type User = { id: string; name: string; role: string };
-type Department = { id: string; name: string };
-type Team = { id: string; name: string; department: { name: string } };
 
 type Props = {
   currentUserId: string;
-  allUsers: User[];
   assignableUsers: User[];
-  departments: Department[];
-  teams: Team[];
+  inferredLevel: string;
+  inferredOrgLabel: string | null;
+  missingOrgContext: boolean;
 };
 
-const LEVELS = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"] as const;
 const PROGRESS_SOURCES = ["DIRECT_KRS", "MANUAL"] as const;
 
-export function CreateObjectiveForm({ currentUserId, allUsers, assignableUsers, departments, teams }: Props) {
+export function CreateObjectiveForm({
+  currentUserId,
+  assignableUsers,
+  inferredLevel,
+  inferredOrgLabel,
+  missingOrgContext,
+}: Props) {
   const [state, formAction] = useActionState(createObjectiveAction, null);
-  const [krRows, setKrRows] = useState<number[]>([]); // list of unique ids
+  const [krRows, setKrRows] = useState<number[]>([]);
   const [nextId, setNextId] = useState(0);
 
   const errors = state?.errors ?? {};
@@ -36,8 +39,17 @@ export function CreateObjectiveForm({ currentUserId, allUsers, assignableUsers, 
     setKrRows((rows) => rows.filter((r) => r !== uid));
   }
 
+  const levelDisplay = [formatEnumLabel(inferredLevel), inferredOrgLabel].filter(Boolean).join(" · ");
+
   return (
     <form action={formAction} className="stack">
+      {missingOrgContext ? (
+        <div className="notice notice-danger">
+          Your profile is missing required organisation context (department or team).
+          Ask an admin to update your profile before creating objectives.
+        </div>
+      ) : null}
+
       {/* ── Objective Details ──────────────────────────────────── */}
       <div className="card">
         <div className="card-header">
@@ -57,14 +69,13 @@ export function CreateObjectiveForm({ currentUserId, allUsers, assignableUsers, 
               <textarea name="description" placeholder="Describe the intended outcome" />
             </label>
 
-            <label className="field">
+            <div className="field">
               <span>Level</span>
-              <select name="level" required>
-                {LEVELS.map((level) => (
-                  <option key={level} value={level}>{formatEnumLabel(level)}</option>
-                ))}
-              </select>
-            </label>
+              <p className="muted" style={{ margin: 0, paddingTop: "6px", fontSize: "0.92rem" }}>
+                {levelDisplay}
+                <span style={{ opacity: 0.55, marginLeft: "6px" }}>— inferred from your role</span>
+              </p>
+            </div>
 
             <label className="field">
               <span>Progress Source</span>
@@ -84,31 +95,11 @@ export function CreateObjectiveForm({ currentUserId, allUsers, assignableUsers, 
             <label className="field">
               <span>Owner</span>
               <select defaultValue={currentUserId} name="ownerId" required>
-                {allUsers.map((u) => (
+                {assignableUsers.map((u) => (
                   <option key={u.id} value={u.id}>{u.name} ({formatEnumLabel(u.role)})</option>
                 ))}
               </select>
               {errors.ownerId ? <span className="field-error">{errors.ownerId}</span> : null}
-            </label>
-
-            <label className="field">
-              <span>Department</span>
-              <select name="departmentId">
-                <option value="">None</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Team</span>
-              <select name="teamId">
-                <option value="">None</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.department.name} / {t.name}</option>
-                ))}
-              </select>
             </label>
 
             <label className="field">
@@ -126,7 +117,6 @@ export function CreateObjectiveForm({ currentUserId, allUsers, assignableUsers, 
           <p>For Direct KR objectives, KR weights must total 100% before publishing.</p>
         </div>
         <div className="card-content">
-          {/* Hidden count field — re-indexed sequentially at render time */}
           <input type="hidden" name="krCount" value={krRows.length} />
 
           {errors.krs ? <div className="notice notice-danger" style={{ marginBottom: "12px" }}>{errors.krs}</div> : null}
@@ -196,10 +186,16 @@ export function CreateObjectiveForm({ currentUserId, allUsers, assignableUsers, 
 
       {/* ── Actions ───────────────────────────────────────────── */}
       <div className="form-actions">
-        <button type="submit" name="intent" value="save" className="btn btn-secondary">
+        <button
+          type="submit"
+          name="intent"
+          value="save"
+          className="btn btn-secondary"
+          disabled={missingOrgContext}
+        >
           Save for Later
         </button>
-        <Button type="submit" name="intent" value="publish">
+        <Button type="submit" name="intent" value="publish" disabled={missingOrgContext}>
           Publish Objective
         </Button>
       </div>
