@@ -58,8 +58,8 @@ Local commands:
   Lint      : npm run lint
   Build     : npm run build
 
-R3.4 fully complete. DB migrated (all migrations applied). Reseed: npm run prisma:seed
-Latest additions: objective-lock for KR assignees, date-based monthly targets (actual month names per quarter).
+R3.4 fully complete (including R3.4.11 My Team tree + R3.4.12 Draft/Publish workflow). DB migrated (all migrations applied). Reseed: npm run prisma:seed
+Latest additions: Objective draft/publish inline-error form, My Team sidebar with hasDirectReports gate, merged My OKRs table.
 Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 ```
 
@@ -286,6 +286,24 @@ Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 
 **Verification:** lint clean, production build passing (25 routes, TypeScript clean). DB migrated + reseeded.
 
+### PRD Update: R3.4.12 Objective Draft/Publish Workflow (2026-05-15)
+
+**Doc-only change:** Updated `dten_okr_weekly_execution_system_prd.md` to add R3.4.12.
+
+**New product direction:**
+- Create Objective hides status and defaults new objectives to `DRAFT`.
+- Objective/KR creation does not include monthly target setup.
+- Editor has `Save for Later` and `Publish Objective`.
+- `Save for Later` persists objective/KR information as draft and exits.
+- `Publish Objective` validates required fields, KR assignment scope, and direct KR weights totaling 100.
+- Publish failures should render red inline messages at the exact failed field or section.
+- Successful publish changes objective status to `IN_PROGRESS`.
+- Published objective edits show a status selector without `DRAFT` and use an `Update` action.
+
+**PRD sections updated:** objective status behavior, Company OKR actions, Objective APIs, Create Objective flow, new R3.4.12 section, R3.4 build priority, R3.4 DOD, reusable components, error handling, validation rules, and R3.4 testing requirements.
+
+**Verification:** documentation-only review and `git diff` sanity check. No app tests run.
+
 ### Weekly Task Form Fixes (2026-05-14)
 
 **Bug:** After saving a This Week / Next Week task, the Status select reset to "Not Started". Root cause: React reconciliation — the card's `key={task.id}` never changed, so React kept the card as the same DOM element and did not re-apply `defaultValue` on uncontrolled inputs after the server action revalidated the page.
@@ -426,6 +444,67 @@ Four bugs found via `qa-simulation/concurrent-r3-2-report.md` and confirmed by `
 3. **(High) Weekly report double-submit produces duplicate audit logs and notifications** — `submitWeeklyReportAction` in `src/app/weekly-report/actions.ts` used `weeklyReport.update({ where: { id } })` with no status condition, so all 5 concurrent requests updated successfully. Fix: replaced with `weeklyReport.updateMany({ where: { id, status: { in: ["DRAFT","NEEDS_FOLLOW_UP"] } } })`. Only the winning request (count > 0) proceeds to create the notification and audit log. Initial attempt used an early status-check guard (read-before-write) which still allowed concurrent duplicates; correct fix is the atomic `updateMany`.
 
 4. **(Medium) Employee can see Edit Objective controls on CEO-owned objectives** — `src/app/objectives/[id]/page.tsx` rendered the Edit Objective card for all authenticated users. Fix: added `canEditObjective = isOwner || role === CEO || role === ADMIN`; card is now conditionally rendered. Backend `updateObjectiveAction` in `src/app/objectives/actions.ts` also now rejects with an alert if the caller is neither owner nor CEO/ADMIN.
+
+### R3.4.11 + R3.4.12 — My Team Tree + Objective Draft/Publish Workflow (2026-05-15)
+
+**Navigation changes (`src/lib/routes.ts`):**
+- Removed "Create Objective" from sidebar OKR group (access only via Company OKRs page CTA).
+- Company OKRs now visible to all roles including EMPLOYEE.
+- "Company Tree" removed from OKR group; replaced by standalone "My Team" nav item (all roles).
+- My Team gated by `hasDirectReports: boolean` passed through `AppShell` → `Sidebar`.
+
+**R3.4.11 — My Team tree (`src/app/company-tree/page.tsx`, rewritten):**
+- Simplified tree: current user as root node (blue card) + one layer of direct reports.
+- `app-shell.tsx` made async; queries `prisma.user.count({ where: { managerId: user.id } })` and passes `hasDirectReports` to `Sidebar`.
+- `Sidebar` skips rendering the `/company-tree` link when `hasDirectReports` is false.
+- CSS added to `globals.css`: `.person-tree`, `.person-tree-root`, `.person-tree-root-card`, `.person-tree-connector`, `.person-tree-children`, `.person-tree-child-card`.
+
+**My OKRs merge (`src/app/my-okrs/page.tsx`):**
+- Removed separate "Objectives via Assigned KRs" card.
+- Single "My Objectives" table with `tag: "owner" | "assigned_kr"` column.
+- Owner-wins dedup: if user is both owner and KR assignee, shows as Owner (blue badge).
+- Assigned KR objectives (grey badge) are read-only (no edit link shown).
+
+**R3.4.12 — Objective draft/publish workflow:**
+
+*`src/app/objectives/actions.ts` (major rewrite):*
+- Removed 6 R3.2 assignment actions (dead code) and their imports.
+- Exported types: `ObjectiveFormErrors`, `ObjectiveFormState` — compatible with `useActionState`.
+- Non-exported module constants: `objectiveLevels`, `objectiveProgressSources`, `workStatuses` (removed `export` to comply with `"use server"` rule — only async functions may be exported from `"use server"` files).
+- `createObjectiveAction(_prevState, formData)`: intent="save" → DRAFT (no weight validation); intent="publish" → validates required fields, KR owner scope, KR weights=100 for DIRECT_KRS, sets status=ON_TRACK. Returns `{ errors }` on failure, `redirect()` on success.
+- `updateObjectiveAction(_prevState, formData)`: intent="save" → draft save; intent="update" → validates KR weights for DIRECT_KRS if published. Returns `{ errors }` or redirects.
+
+*New `src/app/objectives/create-objective-form.tsx` (client component):*
+- `useActionState` for inline server-returned errors.
+- `useState<number[]>` for dynamic KR rows (add/remove); sequential re-indexing for form field names.
+- Fields: `krTitle_N`, `krOwnerId_N`, `krStart_N`, `krTarget_N`, `krWeight_N`, `krConfidence_N`.
+- Hidden `krCount` field so action knows how many rows to parse.
+- Inline field errors via `.field-error` class.
+- Two submit buttons: `intent=save` ("Save for Later"), `intent=publish` ("Publish Objective").
+
+*New `src/app/objectives/edit-objective-form.tsx` (client component):*
+- `useActionState` wrapping `updateObjectiveAction`.
+- Status selector excludes DRAFT for already-published objectives.
+- Draft: "Save for Later" + "Publish Objective" buttons. Published: single "Update Objective" button.
+
+*`src/app/objectives/new/page.tsx` (rewritten):*
+- Thin server wrapper; fetches `allUsers`, `assignableUsers`, `departments`, `teams` and passes to `CreateObjectiveForm`.
+
+*`src/app/objectives/[id]/page.tsx` (updated):*
+- Renders `<EditObjectiveForm>` instead of inline edit form.
+- Removed unused `objectiveLevels` and `objectiveProgressSources` constants and `_unused` hack.
+
+*`src/app/globals.css`:*
+- Added `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-sm` — aliases for raw `<button>` elements.
+- Added `.form-actions`, `.field-error`, `.kr-row-editor`, `.kr-row-header`.
+
+**Test path:**
+- `engineer@dten.com` → `/objectives/new` → fill title, leave KR weight blank → click "Publish Objective" → red inline error "KR weights must total 100%". Fill correctly → publish → redirects to objective detail showing status ON_TRACK.
+- `engineer@dten.com` → any objective they own → edit form shows correct status options (no DRAFT if published) → click "Update Objective" → success.
+- `manager@dten.com` → sidebar → "My Team" visible (has direct reports) → shows direct reports cards.
+- `engineer@dten.com` → sidebar → "My Team" hidden (no direct reports).
+
+**Verification:** lint clean (0 warnings), production build passing (25 routes, TypeScript clean).
 
 ---
 

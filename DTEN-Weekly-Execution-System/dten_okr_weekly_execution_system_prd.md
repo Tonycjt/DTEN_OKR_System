@@ -366,9 +366,19 @@ Allowed objective statuses:
 
 ```text
 DRAFT
-ACTIVE
+IN_PROGRESS
 COMPLETED
 CANCELLED
+```
+
+Status behavior:
+
+```text
+- Newly created objectives always start as DRAFT.
+- The Create Objective interface should not expose a status selector.
+- Publishing a valid objective changes status from DRAFT to IN_PROGRESS.
+- For compatibility with an existing implementation that stores ACTIVE, ACTIVE should be treated as the same user-facing state as IN_PROGRESS until the enum is migrated.
+- Published objective edit screens should expose a status selector, but DRAFT should not be an option after publish.
 ```
 
 Allowed objective health statuses:
@@ -1252,6 +1262,8 @@ Actions:
 - Add KR to objective
 - Assign KR owner within org permission scope
 - View KR detail
+- Save objective draft for later
+- Publish objective after required fields and KR weights pass validation
 ```
 
 No child objective actions should be shown.
@@ -1448,11 +1460,20 @@ POST   /api/objectives
 GET    /api/objectives
 GET    /api/objectives/:id
 PATCH  /api/objectives/:id
+POST   /api/objectives/:id/publish
 DELETE /api/objectives/:id
 GET    /api/objectives/company/:year/:quarter
 GET    /api/objectives/my
 GET    /api/objectives/:id/key-results
 GET    /api/objectives/:id/health
+```
+
+Publish validation:
+
+```text
+- `/api/objectives/:id/publish` validates required objective fields, required KR fields, KR assignment scope, and direct KR weights.
+- Publish validation returns field/section identifiers so the UI can render red inline messages at the exact failed location.
+- Monthly targets are not required by the objective publish endpoint.
 ```
 
 Deprecated for R3.4 active UI:
@@ -1614,12 +1635,17 @@ POST  /api/notifications/mark-all-read
 1. User opens OKR.
 2. User selects Company OKR or My OKR based on context.
 3. User clicks Create Objective.
-4. User enters objective title, description, level, quarter, year, owner.
-5. User defines KRs under the objective.
-6. User assigns KR owners.
-7. System validates KR owners based on assigner's org tree permission.
-8. System saves objective and KRs.
-9. Assigned KR owners see the linked objective in My OKR with ASSIGNED_KR tag.
+4. System opens the objective editor with status hidden and defaulted to DRAFT.
+5. User enters objective title, description, level, quarter, year, owner.
+6. User defines KRs under the objective.
+7. User assigns KR owners.
+8. User does not define monthly targets during objective or KR creation.
+9. User selects Save for Later or Publish Objective.
+10. If user selects Save for Later, system saves all entered objective/KR information as DRAFT and exits the editor.
+11. If user selects Publish Objective, system validates required fields, KR owners, and KR weights.
+12. If validation fails, system shows red inline messages at the exact fields/sections that fail.
+13. If validation passes, system changes objective status to IN_PROGRESS and saves it as a published objective.
+14. Assigned KR owners see the linked objective in My OKR with ASSIGNED_KR tag.
 ```
 
 Acceptance criteria:
@@ -1627,9 +1653,16 @@ Acceptance criteria:
 ```text
 - Create Objective is inside OKR, not a separate menu.
 - No child objective option appears.
+- Create Objective has no status selector.
+- New objectives default to DRAFT.
+- Save for Later saves a draft and exits the editor.
+- Publish Objective validates required information and KR weights before publishing.
+- Publish validation errors appear inline in red at the exact failed field or section.
+- Successful publish changes the objective to IN_PROGRESS.
 - Objective can have multiple direct KRs.
 - KR owner is required.
 - KR assignee picker only shows people under the assigner.
+- Monthly targets are not configured during objective or KR creation.
 - Assigned user sees linked objective as read-only context unless they own it.
 ```
 
@@ -2267,6 +2300,82 @@ Example:
             Current User
           /      |       \
    Direct A   Direct B   Direct C
+```
+
+---
+
+### R3.4.12 Objective Draft, Publish, and Update Workflow
+
+#### Goal
+
+Create and edit objective workflows should make draft state automatic and make publishing explicit.
+
+The user should not need to choose an objective status while creating a new objective. The system owns the draft-to-published transition.
+
+#### Create Objective Behavior
+
+Required:
+
+```text
+- When user clicks Create Objective, the interface opens an objective editor.
+- The create interface does not show any status selector.
+- The system defaults the objective status to DRAFT.
+- The user may create objective details and direct KRs in the same editor.
+- Monthly targets are not configured during objective or KR creation.
+- The bottom of the editor shows two primary actions:
+  - Save for Later
+  - Publish Objective
+```
+
+Save for Later:
+
+```text
+- Saves the objective and any entered KR information as DRAFT.
+- Does not require publish-only validation such as KR weights totaling 100.
+- Exits the editor automatically after saving.
+- Draft objectives remain editable later.
+```
+
+Publish Objective:
+
+```text
+- Validates all publish-required objective fields.
+- Validates all publish-required KR fields.
+- Validates KR owner assignment scope.
+- Validates direct KR weights add up to 100 when the objective uses direct KRs.
+- Does not require monthly targets.
+- If validation fails, the system shows red inline messages at the exact field or section that failed.
+- If validation passes, the system changes objective status from DRAFT to IN_PROGRESS and exits/saves the objective.
+- Published objectives are ready for future edits, KR updates, monthly targets, and weekly progress updates.
+```
+
+#### Update Objective Behavior
+
+Required:
+
+```text
+- Editing an already published objective uses the same editor structure.
+- The edit interface shows a status selector.
+- DRAFT must not appear in the status selector for an already published objective.
+- The bottom action should be Save for Later for draft objectives and Update for published objectives.
+- For published objectives, Update validates required objective fields, required KR fields, KR assignment scope, and KR weights.
+- Validation failures must appear as red inline messages at the exact failed field or section.
+- Successfully updating a published objective preserves the selected non-draft status.
+```
+
+Acceptance criteria:
+
+```text
+- Create Objective never asks the user to select status.
+- New objective status defaults to DRAFT.
+- Save for Later saves objective/KR information as draft and exits the editor.
+- Publish Objective checks all required fields and direct KR weight total before publishing.
+- Publish Objective does not require monthly targets.
+- Publish errors are red and appear next to the exact field or section that needs correction.
+- Successful publish changes status to IN_PROGRESS.
+- Editing a published objective shows a status selector without DRAFT.
+- Published objective edit uses an Update action instead of Publish Objective.
+```
 
 ---
 
@@ -2300,15 +2409,18 @@ Build R3.4 in this order:
 7. Implement assignable users API based on org subtree.
 8. Apply backend validation for KR assignment scope.
 9. Add scoped company tree view.
-10. Add or refine monthly target UI for each KR.
-11. Update Weekly Report page to three sections.
-12. Add weekly task limit validation.
-13. Add KR update section to Weekly Report.
-14. Add weekly report comment section.
-15. Ensure KR updates recalculate pacing.
-16. Ensure objective health recalculates from direct KRs.
-17. Update dashboards to use simplified model.
-18. Polish labels, permissions, and tests.
+10. Add objective draft/publish workflow with Save for Later and Publish Objective actions.
+11. Add inline publish validation for required fields and direct KR weights totaling 100.
+12. Add published-objective update workflow with non-draft status selector and Update action.
+13. Add or refine monthly target UI for each KR.
+14. Update Weekly Report page to three sections.
+15. Add weekly task limit validation.
+16. Add KR update section to Weekly Report.
+17. Add weekly report comment section.
+18. Ensure KR updates recalculate pacing.
+19. Ensure objective health recalculates from direct KRs.
+20. Update dashboards to use simplified model.
+21. Polish labels, permissions, and tests.
 ```
 
 ---
@@ -2340,6 +2452,12 @@ R3.4 is complete when:
 20. Weekly Report has employee-manager comment section.
 21. Objective health is calculated from direct KRs.
 22. Dashboard reflects simplified objective/KR/monthly target/weekly report model.
+23. Create Objective has no status selector and defaults new objectives to DRAFT.
+24. Save for Later saves draft objective/KR information and exits the editor.
+25. Publish Objective validates required fields and direct KR weights before publishing.
+26. Publish validation errors appear inline in red at the failed field or section.
+27. Successful publish changes the objective to IN_PROGRESS.
+28. Published objective edit shows a status selector without DRAFT and uses an Update action.
 ```
 
 ---
@@ -2354,6 +2472,8 @@ Reusable components:
 - PacingIndicator
 - KRCard
 - ObjectiveCard
+- ObjectiveEditor
+- ObjectivePublishValidation
 - ObjectiveOwnershipTag
 - MonthlyTargetCard
 - MonthlyTargetEditor
@@ -2521,6 +2641,9 @@ Backend should return clear error messages for:
 - More than 3 this-week tasks.
 - More than 3 next-week tasks.
 - User cannot edit read-only assigned-KR objective context.
+- Objective publish required field is missing.
+- Objective publish KR weight total is not 100.
+- Published objective cannot be changed back to draft from the edit status selector.
 - Weekly report already submitted.
 - Manager cannot review this report.
 ```
@@ -2562,6 +2685,12 @@ kr_update.weekly_report_id is required.
 review.reviewer_id is required.
 KR owner_id is required.
 KR assignee must be inside assigner's org scope unless assigner has global permission.
+new objective status defaults to DRAFT and is not user-selected.
+published objectives cannot return to DRAFT through the edit status selector.
+publishing an objective requires all publish-required objective fields.
+publishing an objective requires all publish-required KR fields.
+publishing a direct-KR objective requires KR weights to total 100.
+monthly targets are not required to save or publish an objective.
 ```
 
 ---
@@ -2649,6 +2778,22 @@ KR assignee must be inside assigner's org scope unless assigner has global permi
 - Objective becomes BEHIND when majority KRs are behind.
 - Objective progress uses weighted KR average when weights total 100.
 - Objective progress uses normal average when weights are missing.
+```
+
+### 21.8 Objective Draft and Publish Tests
+
+```text
+- Create Objective page does not show a status selector.
+- New objective defaults to DRAFT.
+- Save for Later saves objective/KR data as DRAFT and exits the editor.
+- Publish Objective blocks publish when required fields are missing.
+- Publish Objective blocks publish when direct KR weights do not total 100.
+- Publish validation messages appear inline in red at the failed field or section.
+- Publish Objective succeeds without monthly targets.
+- Successful publish changes objective status to IN_PROGRESS.
+- Editing a published objective shows a status selector.
+- Published objective status selector does not include DRAFT.
+- Published objective form uses Update instead of Publish Objective.
 ```
 
 ---

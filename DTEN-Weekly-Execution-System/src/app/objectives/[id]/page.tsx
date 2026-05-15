@@ -1,10 +1,7 @@
 import Link from "next/link";
-import type { ObjectiveLevel, ObjectiveProgressSource, WorkStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
-import {
-  createKeyResultAction,
-  updateObjectiveAction,
-} from "@/app/objectives/actions";
+import { createKeyResultAction } from "@/app/objectives/actions";
+import { EditObjectiveForm } from "@/app/objectives/edit-objective-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -20,18 +17,11 @@ import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/prisma";
 
 type ObjectiveDetailPageProps = {
-  params: Promise<{
-    id: string;
-  }>;
-  searchParams?: Promise<{
-    error?: string | string[];
-  }>;
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ error?: string | string[] }>;
 };
 
-const workStatuses: WorkStatus[] = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"];
-const objectiveLevels: ObjectiveLevel[] = ["COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL"];
-// R3.4: CHILD_OBJECTIVES removed from active UI; data remains for compatibility
-const objectiveProgressSources: ObjectiveProgressSource[] = ["MANUAL", "DIRECT_KRS"];
+const workStatuses = ["DRAFT", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "ON_HOLD"] as const;
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -54,9 +44,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
         parentAssignments: {
           orderBy: { contributionPercent: "desc" },
           include: {
-            assignedObjective: {
-              include: { owner: true, department: true, team: true },
-            },
+            assignedObjective: { include: { owner: true, department: true, team: true } },
             approvedBy: { select: { name: true } },
           },
         },
@@ -64,9 +52,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
           orderBy: { createdAt: "asc" },
           include: {
             owner: true,
-            monthlyTargets: {
-              orderBy: { monthIndex: "asc" },
-            },
+            monthlyTargets: { orderBy: { monthIndex: "asc" } },
           },
         },
       },
@@ -79,15 +65,13 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
     }),
   ]);
 
-  if (!objective) {
-    notFound();
-  }
+  if (!objective) notFound();
 
   const objectiveHealth = calculateObjectiveHealth(getObjectiveChildStatuses(objective));
   const quarterMonthNames = getQuarterMonthNames(objective.quarter);
   const currentMonthIdx = getMonthIndexForQuarter(objective.quarter);
   const krWeightValidation = validateObjectiveKrWeights({
-    weights: objective.keyResults.map((keyResult) => ({ percent: keyResult.weightPercent })),
+    weights: objective.keyResults.map((kr) => ({ percent: kr.weightPercent })),
     status: objective.status,
     approvalStatus: objective.approvalStatus,
   });
@@ -102,10 +86,10 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
       {error ? <div className="alert">{error}</div> : null}
 
       <div className="grid grid-2">
+        {/* Summary */}
         <Card>
           <CardHeader>
             <h2>Objective Summary</h2>
-            <p>Release 1 tracks objective metadata separately from KR progress.</p>
           </CardHeader>
           <CardContent>
             <div className="detail-list">
@@ -144,10 +128,6 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                 <Badge tone={objective.progressSource === "MANUAL" ? "neutral" : "success"}>{formatEnumLabel(objective.progressSource)}</Badge>
               </div>
               <div className="detail-row">
-                <span className="detail-label">Approval</span>
-                <span>{formatEnumLabel(objective.approvalStatus)}</span>
-              </div>
-              <div className="detail-row">
                 <span className="detail-label">Confidence</span>
                 <span>{objective.confidenceScore}/5</span>
               </div>
@@ -158,121 +138,47 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                   <ProgressBar value={objective.progressPercent} />
                 </span>
               </div>
-              <div className="detail-row">
-                <span className="detail-label">Parent</span>
-                <span>
-                  {objective.parentObjective ? (
-                    <Link href={`/objectives/${objective.parentObjective.id}`}>{objective.parentObjective.title}</Link>
-                  ) : (
-                    "None"
-                  )}
-                </span>
-              </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Edit form — client component */}
         {canEditObjective ? (
-        <Card>
-          <CardHeader>
-            <h2>Edit Objective</h2>
-            <p>Update objective ownership, alignment, progress, confidence, and status.</p>
-          </CardHeader>
-          <CardContent>
-            <form action={updateObjectiveAction} className="form-grid">
-              <input name="objectiveId" type="hidden" value={objective.id} />
-              <label className="field wide">
-                <span>Title</span>
-                <input defaultValue={objective.title} name="title" required />
-              </label>
-              <label className="field wide">
-                <span>Description</span>
-                <textarea defaultValue={objective.description ?? ""} name="description" />
-              </label>
-              <label className="field">
-                <span>Quarter</span>
-                <input defaultValue={objective.quarter} name="quarter" required />
-              </label>
-              <label className="field">
-                <span>Level</span>
-                <select defaultValue={objective.level} name="level" required>
-                  {objectiveLevels.map((level) => (
-                    <option key={level} value={level}>
-                      {formatEnumLabel(level)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Owner</span>
-                <select defaultValue={objective.ownerId} name="ownerId" required>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Status</span>
-                <select defaultValue={objective.status} name="status" required>
-                  {workStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {formatEnumLabel(status)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Progress Source</span>
-                <select defaultValue={objective.progressSource} name="progressSource" required>
-                  {objectiveProgressSources.map((source) => (
-                    <option key={source} value={source}>
-                      {formatEnumLabel(source)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Department</span>
-                <select defaultValue={objective.departmentId ?? ""} name="departmentId">
-                  <option value="">None</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Team</span>
-                <select defaultValue={objective.teamId ?? ""} name="teamId">
-                  <option value="">None</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.department.name} / {team.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Progress Percent</span>
-                <input defaultValue={objective.progressPercent} max="100" min="0" name="progressPercent" type="number" />
-                {objective.progressSource !== "MANUAL" ? <small>Calculated sources recalculate after save and related child updates.</small> : null}
-              </label>
-              <label className="field">
-                <span>Confidence</span>
-                <input defaultValue={objective.confidenceScore} max="5" min="1" name="confidenceScore" type="number" />
-              </label>
-              <div className="wide">
-                <Button type="submit">Update Objective</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <h2>{objective.status === "DRAFT" ? "Edit Draft Objective" : "Edit Objective"}</h2>
+              <p>
+                {objective.status === "DRAFT"
+                  ? "Save for Later keeps it as a draft. Publish validates and activates it."
+                  : "DRAFT status is not available for already-published objectives."}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <EditObjectiveForm
+                objective={{
+                  id: objective.id,
+                  title: objective.title,
+                  description: objective.description,
+                  level: objective.level,
+                  status: objective.status,
+                  quarter: objective.quarter,
+                  progressSource: objective.progressSource,
+                  progressPercent: objective.progressPercent,
+                  confidenceScore: objective.confidenceScore,
+                  ownerId: objective.ownerId,
+                  departmentId: objective.departmentId,
+                  teamId: objective.teamId,
+                }}
+                users={users.map((u) => ({ id: u.id, name: u.name }))}
+                departments={departments}
+                teams={teams.map((t) => ({ id: t.id, name: t.name, department: { name: t.department.name } }))}
+              />
+            </CardContent>
+          </Card>
         ) : null}
       </div>
 
+      {/* Add Key Result */}
       {canEditObjective && canManageDirectKrs ? (
         <Card>
           <CardHeader>
@@ -293,10 +199,8 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
               <label className="field">
                 <span>Owner</span>
                 <select name="ownerId" required>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </select>
               </label>
@@ -315,10 +219,8 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
               <label className="field">
                 <span>Status</span>
                 <select defaultValue="ON_TRACK" name="status" required>
-                  {workStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {formatEnumLabel(status)}
-                    </option>
+                  {workStatuses.map((s) => (
+                    <option key={s} value={s}>{formatEnumLabel(s)}</option>
                   ))}
                 </select>
               </label>
@@ -327,7 +229,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                 <input defaultValue="3" max="5" min="1" name="confidenceScore" type="number" />
               </label>
               <label className="field">
-                <span>Weight Percent</span>
+                <span>Weight %</span>
                 <input defaultValue={defaultNewKrWeight} max="100" min="0" name="weightPercent" type="number" />
               </label>
               <div className="wide">
@@ -338,11 +240,12 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
         </Card>
       ) : null}
 
+      {/* Key Results table */}
       <Card>
         <CardHeader>
           <h2>Key Results</h2>
           <p>
-            {objective.keyResults.length} KRs are linked to this objective. KR weights total {krWeightValidation.total}%.
+            {objective.keyResults.length} KRs linked. KR weights total {krWeightValidation.total}%.
           </p>
         </CardHeader>
         <CardContent>
@@ -353,7 +256,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
           ) : objective.progressSource === "DIRECT_KRS" && objective.keyResults.length > 0 ? (
             <div className="notice">KR weights are balanced at 100%.</div>
           ) : (
-            <div className="notice">KR weights are optional unless this objective calculates progress from direct KRs.</div>
+            <div className="notice">KR weights are optional for manual-progress objectives.</div>
           )}
           <div className="table-wrap">
             <table>
@@ -366,51 +269,49 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
                   <th>Confidence</th>
                   <th>Weight</th>
                   <th>Progress</th>
-                  <th>Monthly Targets</th>
+                  <th>Monthly Target</th>
                 </tr>
               </thead>
               <tbody>
-                {objective.keyResults.map((keyResult) => (
-                  <tr key={keyResult.id}>
+                {objective.keyResults.map((kr) => (
+                  <tr key={kr.id}>
                     <td>
-                      <Link href={`/key-results/${keyResult.id}`}>
-                        <strong>{keyResult.title}</strong>
+                      <Link href={`/key-results/${kr.id}`}>
+                        <strong>{kr.title}</strong>
                       </Link>
                       <br />
-                      <span className="muted">{keyResult.metricName ?? "No metric label"}</span>
+                      <span className="muted">{kr.metricName ?? "No metric label"}</span>
                     </td>
-                    <td>{keyResult.owner.name}</td>
+                    <td>{kr.owner.name}</td>
                     <td>
-                      <Badge tone={workStatusTone(keyResult.status)}>{formatEnumLabel(keyResult.status)}</Badge>
+                      <Badge tone={workStatusTone(kr.status)}>{formatEnumLabel(kr.status)}</Badge>
                     </td>
                     <td>
-                      <Badge tone={pacingStatusTone(keyResult.pacingStatus)}>{formatEnumLabel(keyResult.pacingStatus)}</Badge>
+                      <Badge tone={pacingStatusTone(kr.pacingStatus)}>{formatEnumLabel(kr.pacingStatus)}</Badge>
                     </td>
-                    <td>{keyResult.confidenceScore}/5</td>
-                    <td>{keyResult.weightPercent}%</td>
+                    <td>{kr.confidenceScore}/5</td>
+                    <td>{kr.weightPercent}%</td>
                     <td>
                       <div className="stack">
-                        <span>
-                          {keyResult.currentValue} / {keyResult.targetValue}
-                        </span>
-                        <ProgressBar value={keyResult.progressPercent} />
+                        <span>{kr.currentValue} / {kr.targetValue}</span>
+                        <ProgressBar value={kr.progressPercent} />
                       </div>
                     </td>
                     <td className="muted">
                       {currentMonthIdx
                         ? (() => {
-                            const t = keyResult.monthlyTargets.find((m) => m.monthIndex === currentMonthIdx);
+                            const t = kr.monthlyTargets.find((m) => m.monthIndex === currentMonthIdx);
                             return `${quarterMonthNames[currentMonthIdx - 1]}: ${t?.title ?? "—"}`;
                           })()
-                        : keyResult.monthlyTargets.length > 0
-                          ? keyResult.monthlyTargets.map((t) => `${quarterMonthNames[t.monthIndex - 1]}: ${t.title ?? "–"}`).join(" / ")
+                        : kr.monthlyTargets.length > 0
+                          ? kr.monthlyTargets.map((t) => `${quarterMonthNames[t.monthIndex - 1]}: ${t.title ?? "–"}`).join(" / ")
                           : "—"}
                     </td>
                   </tr>
                 ))}
                 {objective.keyResults.length === 0 ? (
                   <tr>
-                    <td colSpan={8}>No KRs have been created for this objective yet.</td>
+                    <td colSpan={8} className="muted">No KRs yet. Add one above.</td>
                   </tr>
                 ) : null}
               </tbody>
@@ -418,7 +319,7 @@ export default async function ObjectiveDetailPage({ params, searchParams }: Obje
           </div>
         </CardContent>
       </Card>
-
     </div>
   );
 }
+
