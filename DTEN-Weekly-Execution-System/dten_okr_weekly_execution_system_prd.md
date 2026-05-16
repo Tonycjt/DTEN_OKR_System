@@ -256,7 +256,7 @@ If the UI uses the phrase "Publish Objective -> In Progress", store the publishe
 
 ### Objective Level Assignment
 
-Planned R3.4.15 behavior: users should not choose objective level during creation.
+R3.4.15 behavior: users should not choose objective level during creation.
 
 ```text
 - CEO-created objectives: COMPANY.
@@ -265,7 +265,7 @@ Planned R3.4.15 behavior: users should not choose objective level during creatio
 - All other users: INDIVIDUAL.
 ```
 
-Department/team context is inferred from the creator's org profile/company tree. The create form should not expose editable level, department, or team selectors after R3.4.15 is implemented. Backend must enforce this even if the frontend is bypassed.
+Department/team context is inferred from the creator's org profile/company tree. The create form should not expose editable level, department, or team selectors. Backend must enforce this even if the frontend is bypassed.
 
 ### Key Results
 
@@ -451,7 +451,49 @@ If cancelled, no data changes. If confirmed, commit the change, notify impacted 
 
 ### Dashboard
 
-Role-aware dashboard showing current report status, assigned KRs, risks, blockers, follow-ups, review queues, missing reports, and company/department health according to scope.
+R3.4.16 simplifies the dashboard into a role-aware "what needs attention this week" surface.
+
+Keep the dashboard focused on action and execution health. Avoid mixing every available analytics, audit, export, search, and historical surface into the first view.
+
+Employee dashboard:
+
+```text
+- Current Weekly Report.
+- Assigned KRs.
+- Follow-ups Assigned to Me.
+- My Risk Items.
+```
+
+Manager dashboard:
+
+```text
+- Pending Reviews.
+- Missing Updates.
+- Team Risk Items.
+- Team KR Health.
+- Follow-ups Assigned to Me.
+```
+
+Executive / CEO / Admin dashboard:
+
+```text
+- Company Health.
+- Department Health.
+- Company Risk Items.
+- Missing Updates.
+- Pending / Escalated Reviews.
+```
+
+Move or de-emphasize:
+
+```text
+- Recent Audit Activity -> Admin/audit page only.
+- Created Follow-ups -> Follow-up page or secondary view.
+- Escalations as standalone card -> merge into Risk Items or Pending/Escalated Reviews.
+- Objective Health as standalone card -> merge into Risk Items or Company/Team Health.
+- Large filter set -> reduce to the most useful filters, such as Owner, Status, and Quarter.
+- Export CSV / Executive Summary -> leader-only secondary actions, not primary dashboard content.
+```
 
 ### Company OKRs
 
@@ -654,17 +696,18 @@ R3.4.8  Objective health from direct KRs.
 R3.4.12 Objective draft/publish/update workflow.
 R3.4.13 KR edit/delete impact confirmation.
 R3.4.14 Weekly report history.
+R3.4.15 Objective creation level simplification.
 ```
 
 Planned / not yet implemented:
 
 ```text
-R3.4.15 Objective creation level simplification.
+R3.4.16 Simplified role-based dashboard.
 ```
 
 ### R3.4.15 Objective Creation Level Simplification
 
-**Status:** Planned. Not implemented yet.
+**Status:** Implemented.
 
 #### Goal
 
@@ -737,6 +780,74 @@ Required:
 - Missing required org context shows a red inline error at the objective creation form.
 ```
 
+### R3.4.16 Simplified Role-Based Dashboard
+
+**Status:** Planned. Not implemented yet.
+
+#### Goal
+
+The dashboard should be simplified into a role-aware weekly attention view. It should help each user quickly answer: "What do I need to do or watch this week?"
+
+Do not use the dashboard as a catch-all for every report, audit log, export, filter, and historical surface.
+
+#### Keep By Role
+
+Employee dashboard:
+
+```text
+- Current Weekly Report: status, task count, and open-report action.
+- Assigned KRs: progress, confidence, status, pacing, and objective context.
+- Follow-ups Assigned to Me: open action items requiring response.
+- My Risk Items: assigned KRs that are blocked, off track, behind pace, low confidence, or missing updates.
+```
+
+Manager dashboard:
+
+```text
+- Pending Reviews: submitted reports awaiting the manager/review owner's action.
+- Missing Updates: direct reports / scoped users missing current-week report or update.
+- Team Risk Items: scoped KRs and reports that are blocked, off track, behind, low confidence, or escalated.
+- Team KR Health: compact summary of KR status, pacing, confidence, and missing updates.
+- Follow-ups Assigned to Me.
+```
+
+Executive / CEO / Admin dashboard:
+
+```text
+- Company Health: compact company-level KR/objective/report health.
+- Department Health: department comparison table.
+- Company Risk Items: highest-priority blocked/off-track/low-confidence KRs and report risks.
+- Missing Updates: company or visible-scope missing report/update count and list.
+- Pending / Escalated Reviews: submitted reports awaiting action and manager-flagged risks.
+```
+
+#### Remove Or Move Elsewhere
+
+Required:
+
+```text
+- Move Recent Audit Activity out of the main dashboard and keep it on the Admin/Audit page.
+- Move Created Follow-ups to a follow-up page or secondary view.
+- Merge standalone Escalations into Risk Items or Pending/Escalated Reviews.
+- Merge standalone Objective Health into Risk Items or Company/Team Health.
+- Reduce dashboard filters to the smallest useful set. Default recommended filters: Owner, Status, Quarter.
+- Keep CSV export and Executive Summary as leader-only secondary actions, not primary dashboard content.
+```
+
+#### Acceptance Criteria
+
+```text
+- Employee dashboard shows only Current Weekly Report, Assigned KRs, Follow-ups Assigned to Me, and My Risk Items.
+- Manager dashboard shows Pending Reviews, Missing Updates, Team Risk Items, Team KR Health, and Follow-ups Assigned to Me.
+- Executive/CEO/Admin dashboard shows Company Health, Department Health, Company Risk Items, Missing Updates, and Pending/Escalated Reviews.
+- Recent Audit Activity no longer appears on the main dashboard.
+- Created Follow-ups no longer appears as a primary dashboard card.
+- Escalations are merged into the simplified risk/review sections.
+- Objective Health is merged into the simplified risk/health sections.
+- Dashboard filters are reduced and do not dominate the page.
+- Role-based data scope remains enforced by backend queries.
+```
+
 Current build priority:
 
 ```text
@@ -749,10 +860,11 @@ Current build priority:
    - Save for Later
    - Publish Objective
    - inline validation
-4. Finish objective-owner KR edit/delete/reweight flow with impact confirmation.
-5. Finish scoped weekly report history.
-6. Keep monthly target, weekly report, dashboard, and health behavior aligned with direct KRs.
-7. Add tests for permission boundaries and validation failures.
+4. Finish simplified role-based dashboard (R3.4.16).
+5. Finish objective-owner KR edit/delete/reweight flow with impact confirmation.
+6. Finish scoped weekly report history.
+7. Keep monthly target, weekly report, dashboard, and health behavior aligned with direct KRs.
+8. Add tests for permission boundaries and validation failures.
 ```
 
 ## 15. R3.4 Definition of Done
@@ -785,8 +897,13 @@ R3.4 is complete when:
 23. History shows monthly target -> KR -> week -> tasks and KR updates.
 24. History shows all tasks and progress percent regardless of completion status.
 25. Objective health is calculated from direct KRs.
-26. Dashboard reflects simplified objective/KR/monthly target/weekly report model.
-27. Backend enforces all permission and org-scope rules.
+26. Dashboard is simplified by role:
+    - employees see current report, assigned KRs, assigned follow-ups, and personal risks
+    - managers see pending reviews, missing updates, team risks, team KR health, and assigned follow-ups
+    - executives see company health, department health, company risks, missing updates, and pending/escalated reviews
+27. Audit activity, created follow-ups, standalone objective health, and standalone escalations are removed from the primary dashboard.
+28. Dashboard filters are reduced and do not dominate the page.
+29. Backend enforces all permission and org-scope rules.
 ```
 
 ## 16. Test Requirements
@@ -817,6 +934,12 @@ High-priority tests:
 - Manager/review owner sees only authorized report history.
 - Normal user cannot access company-wide history.
 - Objective health responds to completed, blocked, behind, and at-risk KRs.
+- Employee dashboard shows only the simplified employee sections.
+- Manager dashboard shows only the simplified manager sections.
+- Executive dashboard shows only the simplified executive sections.
+- Audit activity is not shown on the main dashboard.
+- Created follow-ups are not shown as a primary dashboard section.
+- Dashboard filters are reduced to the approved simplified set.
 ```
 
 ## 17. Open Questions

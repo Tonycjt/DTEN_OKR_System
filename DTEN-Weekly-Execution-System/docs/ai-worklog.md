@@ -386,6 +386,29 @@ Resume prompt next: verify R3.4 DOD checklist on live app, or continue to R3.5.
 
 **Verification:** documentation-only review. No app tests run.
 
+### PRD Update: R3.4.15 Implemented + R3.4.16 Dashboard Simplification (2026-05-15)
+
+**Doc-only change:** Tony clarified R3.4.15 is now implemented and approved the simplified dashboard direction as R3.4.16.
+
+**R3.4.15 status update:**
+- Moved R3.4.15 back to completed / implemented in the PRD.
+- Updated objective-level wording from planned behavior to active R3.4.15 behavior.
+
+**R3.4.16 product direction:**
+- Dashboard should become a role-aware "what needs attention this week" view.
+- Employee dashboard: Current Weekly Report, Assigned KRs, Follow-ups Assigned to Me, My Risk Items.
+- Manager dashboard: Pending Reviews, Missing Updates, Team Risk Items, Team KR Health, Follow-ups Assigned to Me.
+- Executive/CEO/Admin dashboard: Company Health, Department Health, Company Risk Items, Missing Updates, Pending/Escalated Reviews.
+- Move Recent Audit Activity off the main dashboard.
+- Move Created Follow-ups out of the primary dashboard.
+- Merge standalone Escalations into risk/review sections.
+- Merge standalone Objective Health into risk/health sections.
+- Reduce filters to the smallest useful set, recommended Owner / Status / Quarter.
+
+**PRD sections updated:** Dashboard page, R3.4 implementation sessions, new R3.4.16 section, current build priority, R3.4 DOD, and high-priority tests.
+
+**Verification:** documentation-only review. No app tests run.
+
 ### Weekly Task Form Fixes (2026-05-14)
 
 **Bug:** After saving a This Week / Next Week task, the Status select reset to "Not Started". Root cause: React reconciliation — the card's `key={task.id}` never changed, so React kept the card as the same DOM element and did not re-apply `defaultValue` on uncontrolled inputs after the server action revalidated the page.
