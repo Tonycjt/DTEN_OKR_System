@@ -1,0 +1,46 @@
+# Dependencies — reinstalled inside the Docker build
+node_modules
+
+# Next.js build output — rebuilt inside Docker
+.next
+
+# Git history — not needed in image
+.git
+.gitignore
+.gitattributes
+
+# Local environment files — secrets must NOT be baked into the image
+.env
+.env.local
+.env.development
+.env.development.local
+.env.production
+.env.production.local
+.env.test
+.env.test.local
+
+# Editor and OS
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test artifacts
+tests
+playwright-report
+test-results
+coverage
+
+# Prisma seed (dev-only, not needed in production image)
+prisma/seed.ts
+
+# Documentation (not needed in image)
+docs
+*.md
+README*

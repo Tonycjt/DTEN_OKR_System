@@ -1,4 +1,12 @@
+# docker-compose.yml
+#
+# For LOCAL DEVELOPMENT / SERVER TESTING only.
+# Production deployments are handled by the DTEN service/infrastructure team.
+# Do NOT use the hardcoded credentials below in production.
+
 services:
+
+  # ── PostgreSQL database (local / test only) ──
   postgres:
     image: postgres:16-alpine
     container_name: dten-weekly-postgres
@@ -16,6 +24,40 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+
+  # ── Application ──
+  app:
+    build: .
+    container_name: dten-weekly-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Database — uses the postgres service name as host inside the Docker network
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/dten_weekly_execution"
+      # Auth secret — MUST be replaced with a long random string in production
+      AUTH_SECRET: "local-dev-secret-change-before-production"
+      APP_BASE_URL: "http://localhost:3000"
+      EMAIL_PROVIDER: "dev-log"
+      EMAIL_FROM: "DTEN OKR System <no-reply@dten.local>"
+      NODE_ENV: "production"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Database migrations (run once before or after deploying the app) ──
+  # Usage: docker compose run --rm migrate
+  migrate:
+    build: .
+    command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/dten_weekly_execution"
+      AUTH_SECRET: "local-dev-secret-change-before-production"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - migrate
 
 volumes:
   dten-weekly-postgres-data:

@@ -991,3 +991,45 @@ npm run build
 ```
 
 Do not reset/reseed the demo DB unless Tony explicitly asks or the work session requires it.
+
+## 19 Deployment Packaging Requirement
+
+### Deployment Context
+
+The final production deployment will be handled by the company service / infrastructure team.
+
+The product team is not responsible for directly creating or managing AWS resources such as EC2, RDS, security groups, DNS, or production networking.
+
+The product team is responsible for delivering a Docker-packaged application that the service team can deploy on the target server environment.
+
+### Deployment Principle
+
+The application must be packaged so it can run consistently in a server environment using Docker.
+
+The final deliverable should not depend on a developer’s local machine, local Docker Desktop environment, or localhost-only configuration.
+
+The application should be runnable through Docker using environment variables for configuration.
+
+### Expected Handoff
+
+The project should provide the service team with:
+
+```text
+- Dockerfile
+- .dockerignore
+- docker-compose.yml if needed for local/server testing
+- .env.example
+- deployment README
+- database migration instructions
+- production startup instructions
+
+### Acceptance Criteria
+
+- Application can be built as a Docker image.
+- Application can start successfully from Docker.
+- Runtime configuration is controlled by environment variables.
+- No production secrets are committed to the repository.
+- Local Docker Desktop database remains usable for development.
+- Production does not depend on local Docker Desktop.
+- Deployment handoff documentation exists.
+- Service team can understand how to run the Docker package.

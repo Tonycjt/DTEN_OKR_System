@@ -234,13 +234,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   // Derived
   const reportsByUserId = new Map((reportsThisWeek as Array<{ userId: string; status: string }>).map((r) => [r.userId, r]));
-  const missingReportUsers = (scopedUsers as Array<{ id: string; name: string; department?: { name: string } | null; team?: { name: string } | null }>).filter(
-    (u) => {
-      if (u.id === user.id && isEmployee) return false;
-      const report = reportsByUserId.get(u.id);
-      return !report || !submittedReportStatuses.includes(report.status as (typeof submittedReportStatuses)[number]);
-    },
-  );
+  const missingReportUsers = (scopedUsers as Array<{
+    id: string;
+    name: string;
+    managerId: string | null;
+    reviewOwnerId: string | null;
+    department?: { name: string } | null;
+    team?: { name: string } | null;
+  }>).filter((u) => {
+    if (u.id === user.id) return false;
+    // Only show direct reports of the current user, regardless of role
+    const isDirectReport =
+      u.reviewOwnerId === user.id ||
+      (u.reviewOwnerId === null && u.managerId === user.id);
+    if (!isDirectReport) return false;
+    const report = reportsByUserId.get(u.id);
+    return !report || !submittedReportStatuses.includes(report.status as (typeof submittedReportStatuses)[number]);
+  });
 
   const reviewableReports = (reportsThisWeek as Array<{ status: string }>).filter((r) =>
     submittedReportStatuses.includes(r.status as (typeof submittedReportStatuses)[number]),
@@ -539,7 +549,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <Card>
               <CardHeader>
                 <h2>Missing Updates</h2>
-                <p>Scoped users who have not submitted a report this week.</p>
+                <p>Your direct reports who have not submitted a report this week.</p>
               </CardHeader>
               <CardContent>
                 <div className="route-grid">
@@ -773,7 +783,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <Card>
               <CardHeader>
                 <h2>Missing Updates</h2>
-                <p>Users who have not submitted a report this week.</p>
+                <p>Your direct reports who have not submitted a report this week.</p>
               </CardHeader>
               <CardContent>
                 <div className="route-grid">
@@ -790,7 +800,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                       <Badge tone="warning">Missing</Badge>
                     </div>
                   ))}
-                  {missingReportUsers.length === 0 ? <div className="route-item">All users have submitted reports this week.</div> : null}
+                  {missingReportUsers.length === 0 ? <div className="route-item">All your direct reports have submitted reports this week.</div> : null}
                 </div>
               </CardContent>
             </Card>
